@@ -1,6 +1,6 @@
 # Next acceptance steps
 
-Reviewed locally on 2026-10-24, starting from `41190d7`. Implementation has merged, but first-release acceptance remains incomplete. Keep checks tied to their tested revision. The outstanding checklist is [TODO.md](../TODO.md).
+Reviewed locally on 2026-10-24, starting from `41190d7`. See [the latest acceptance evidence](acceptance-2026-10-24.md) for completed provider, browser and runtime checks. Implementation has merged, but first-release acceptance remains incomplete. Keep checks tied to their tested revision. The outstanding checklist is [TODO.md](../TODO.md).
 
 ## Work available without operator credentials
 
@@ -67,4 +67,4 @@ Episode 2 must remain unwatched. These source positions must enter explicit epis
 6. Verify two-account isolation and export/restore in disposable accounts. Exercise ordinary/split-cour/special/split-combined/movie-alias mapping coverage with explicit IDs and consent. These checks cannot be replaced by backup structure inspection.
 7. Verify real Compose configuration and backup recovery locally. Select and explicitly authorize a disposable Kubernetes target only if Helm runtime acceptance is desired. Existing homelab deployment is outside this checklist's authorization.
 
-The first missing input is the test OIDC client. Its issuer URL, client ID and claim names/values are sufficient to plan configuration; enter its secret only locally. Device installation, intended source use and a Kubernetes target remain operator decisions.
+The OIDC client is now configured: real admin login and forced refresh passed with the group scope and explicit subject-validated UserInfo. The operator deferred real non-admin/denied-account checks. Helm runtime and local database recovery passed. Remaining work is full device/browser acceptance, broader explicit mapping coverage, Docker-to-real-issuer reachability and the remaining live SIMKL browser workflow. The operator-approved read-only PIN grant and actual list adapter fetch now pass; Chrome’s extension popup must be closed before resuming the UI check. For the live-list acceptance run only, local `SIMKL_CLIENT_ID`, `SIMKL_ACCESS_TOKEN` and `SIMKL_LIST_ID` can supply the existing AUTH V2 credentials and selected list; the application itself reads these through its temporary import form, not environment variables. Do not create a permanent server-side token configuration or print credentials.

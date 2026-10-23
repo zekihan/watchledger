@@ -12,7 +12,7 @@ The final section is explicitly deferred and does not count toward first-release
 
 - [x] Verify current AniDB API access, registration, rate, cache, and attribution requirements.
 - [x] Inspect a private SIMKL JSON backup and document actual import field coverage using [synthetic examples and validation limits](acceptance-next-steps.md#observed-simkl-backup-coverage).
-- [ ] Verify the configured OIDC provider supplies current access/admin claims at refresh or UserInfo.
+- [x] Verify the configured OIDC provider supplies current access/admin claims at refresh or UserInfo: real Authelia admin login and forced refresh passed on 2026-10-24; operator-deferred non-admin/revocation cases remain separate.
 - [ ] Verify mapping coverage for ordinary shows, split cours, specials, and split/combined anime episodes.
 - [x] Pin compatible implementation dependencies and mapping dataset versions.
 
