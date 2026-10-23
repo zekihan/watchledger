@@ -29,10 +29,14 @@ interface ReviewData {
     issues: string[];
     base?: BaseStatus;
     rating?: number | null;
+    movie_watched?: boolean;
+    movie_date?: { day?: string; timestamp?: string };
   };
   current?:
     | (WatchDecision & { base: BaseStatus; rating: number | null; status_name?: string | null })
     | null;
+  catalog_cached: boolean;
+  seasons: number[];
   target: string;
   episodes: Candidate[];
   links: { source_key: string; episode_id: string }[];
@@ -83,9 +87,29 @@ function ReviewEditor({
   );
   const [confirmed, setConfirmed] = useState(false);
   const [page, setPage] = useState(0);
+  const [season, setSeason] = useState("");
+  const load = useMutation({
+    mutationFn: (selectedSeason?: number) =>
+      api<{ stale: boolean; warning?: string }>(
+        `/import-reviews/${id}/catalog`,
+        "POST",
+        selectedSeason === undefined ? {} : { season: selectedSeason },
+      ),
+    onSuccess: async () => {
+      setConfirmed(false);
+      await client.invalidateQueries({ queryKey: ["import-candidates", id] });
+    },
+  });
   const known = Object.fromEntries(data.links.map((link) => [link.source_key, link.episode_id]));
   const selected = data.source.episodes.map((source) => links[source.key] ?? "");
-  const complete = selected.every(Boolean) && new Set(selected).size === selected.length;
+  const complete =
+    selected.every((target, index) =>
+      data.episodes.some(
+        (candidate) =>
+          candidate.id === target &&
+          (!candidate.retired || known[data.source.episodes[index]?.key ?? ""] === target),
+      ),
+    ) && new Set(selected).size === selected.length;
   const pages = Math.max(1, Math.ceil(data.source.episodes.length / 20));
   const mutation = useMutation({
     mutationFn: () =>
@@ -118,6 +142,12 @@ function ReviewEditor({
       <div className="settings-grid">
         <div>
           <strong>{t("incomingSource")}</strong>
+          {data.source.movie_watched && (
+            <p>
+              {t("sourceWatchDate")}:{" "}
+              {data.source.movie_date?.day ?? data.source.movie_date?.timestamp ?? t("unknown")}
+            </p>
+          )}
           <p>
             {t("status")}: {data.source.base ? t(data.source.base) : "—"} · {t("rating")}:{" "}
             {data.source.rating ?? t("noRating")}
@@ -135,6 +165,58 @@ function ReviewEditor({
           )}
         </div>
       </div>
+
+      {/^tmdb:(movie|tv):[0-9]+$/.test(data.target) && (
+        <div className="panel">
+          <p>{t("loadMetadataHint")}</p>
+          <button
+            disabled={load.isPending || mutation.isPending || mutation.isSuccess}
+            onClick={() => {
+              setConfirmed(false);
+              load.mutate(undefined);
+            }}
+          >
+            {t("loadImportMetadata")}
+          </button>
+          {data.seasons.length > 0 && (
+            <>
+              <label>
+                {t("targetSeason")}
+                <select
+                  value={season}
+                  disabled={load.isPending || mutation.isPending || mutation.isSuccess}
+                  onChange={(event) => {
+                    setSeason(event.target.value);
+                  }}
+                >
+                  <option value="">{t("select")}</option>
+                  {data.seasons.map((number) => (
+                    <option key={number} value={number}>
+                      {number}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                disabled={
+                  season === "" || load.isPending || mutation.isPending || mutation.isSuccess
+                }
+                onClick={() => {
+                  setConfirmed(false);
+                  load.mutate(Number(season));
+                }}
+              >
+                {t("loadImportSeason")}
+              </button>
+            </>
+          )}
+          {load.isPending && <p role="status">{t("loading")}</p>}
+          {load.error && <p role="alert">{load.error.message}</p>}
+          {load.isSuccess && (
+            <p role="status">{load.data.stale ? load.data.warning : t("catalogLoadedNoHistory")}</p>
+          )}
+        </div>
+      )}
       <p className="notice">{t("importMappingSafety")}</p>
       {data.source.issues.length > 0 && <p role="alert">{data.source.issues.join(", ")}</p>}
       {!backed && <p>{t("backupFirst")}</p>}
@@ -234,6 +316,8 @@ function ReviewEditor({
         <button
           disabled={
             !backed ||
+            !data.catalog_cached ||
+            load.isPending ||
             !complete ||
             !confirmed ||
             !data.target ||

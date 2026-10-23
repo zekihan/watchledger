@@ -1,8 +1,12 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
+	"sort"
+	"strings"
+	"time"
 
 	"github.com/zekihan/watchledger/internal/auth"
 	"github.com/zekihan/watchledger/internal/simkl"
@@ -30,7 +34,7 @@ func (a *API) reviewCandidates(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid review", http.StatusConflict)
 		return
 	}
-	rows, err := a.DB.Query(r.Context(), `SELECT jsonb_build_object('id',e.id,'season',e.season,'number',e.number,'retired',e.retired,'metadata',e.metadata,'watched',h.id IS NOT NULL,'watched_date',h.watched_date,'watched_time',h.watched_time,'explicit_unwatch',t.episode_key IS NOT NULL) FROM episodes e JOIN library l ON l.catalog_id=e.catalog_id AND l.user_id=$1 LEFT JOIN history h ON h.user_id=$1 AND h.episode_id=e.id LEFT JOIN history_tombstones t ON t.user_id=$1 AND t.catalog_id=e.catalog_id AND t.episode_key=e.id WHERE e.catalog_id=$2 ORDER BY e.season,e.number,e.id`, uid, review.Source.Target())
+	rows, err := a.DB.Query(r.Context(), `SELECT jsonb_build_object('id',e.id,'season',e.season,'number',e.number,'retired',e.retired,'metadata',e.metadata,'watched',h.id IS NOT NULL,'watched_date',h.watched_date,'watched_time',h.watched_time,'explicit_unwatch',t.episode_key IS NOT NULL) FROM episodes e LEFT JOIN history h ON h.user_id=$1 AND h.episode_id=e.id LEFT JOIN history_tombstones t ON t.user_id=$1 AND t.catalog_id=e.catalog_id AND t.episode_key=e.id WHERE e.catalog_id=$2 ORDER BY e.season,e.number,e.id`, uid, review.Source.Target())
 	if err != nil {
 		http.Error(w, "candidates unavailable", http.StatusServiceUnavailable)
 		return
@@ -79,7 +83,35 @@ func (a *API) reviewCandidates(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "current app state unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	writeJSON(w, map[string]interface{}{"source": review.Source, "target": review.Source.Target(), "episodes": candidates, "links": links, "current": current})
+	var cached bool
+	var variants []byte
+	err = a.DB.QueryRow(r.Context(), "SELECT EXISTS(SELECT 1 FROM catalog WHERE id=$1),coalesce((SELECT metadata FROM catalog WHERE id=$1),'{}'::jsonb)", review.Source.Target()).Scan(&cached, &variants)
+	if err != nil {
+		http.Error(w, "catalog state unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	var translations map[string]json.RawMessage
+	_ = json.Unmarshal(variants, &translations)
+	seasonSet := map[int]bool{}
+	seasons := []int{}
+	for _, raw := range translations {
+		var metadata struct {
+			Seasons []struct {
+				Number int `json:"season_number"`
+			} `json:"seasons"`
+		}
+		if json.Unmarshal(raw, &metadata) != nil {
+			continue
+		}
+		for _, season := range metadata.Seasons {
+			if season.Number >= 0 && !seasonSet[season.Number] {
+				seasonSet[season.Number] = true
+				seasons = append(seasons, season.Number)
+			}
+		}
+	}
+	sort.Ints(seasons)
+	writeJSON(w, map[string]interface{}{"source": review.Source, "target": review.Source.Target(), "episodes": candidates, "links": links, "current": current, "catalog_cached": cached, "seasons": seasons})
 }
 
 func (a *API) resolveImportReview(w http.ResponseWriter, r *http.Request) {
@@ -146,8 +178,19 @@ func (a *API) resolveImportReview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !exists {
-		http.Error(w, "load catalog details and re-preview the source backup first", http.StatusConflict)
-		return
+		var cached bool
+		err = tx.QueryRow(r.Context(), "SELECT EXISTS(SELECT 1 FROM catalog WHERE id=$1)", target).Scan(&cached)
+		if fail(err) {
+			return
+		}
+		if !cached {
+			http.Error(w, "load the explicitly identified catalog title first", http.StatusConflict)
+			return
+		}
+		_, err = tx.Exec(r.Context(), "INSERT INTO library(user_id,catalog_id,base,rating,added_at) VALUES($1,$2,$3,$4,coalesce($5::timestamptz,now())) ON CONFLICT(user_id,catalog_id) DO NOTHING", uid, target, review.Source.Base, review.Source.Rating, review.Source.AddedAt)
+		if fail(err) {
+			return
+		}
 	}
 	if len(in.Links) != len(review.Source.Episodes) {
 		http.Error(w, "explicit mapping required for every source episode", http.StatusBadRequest)
@@ -209,10 +252,108 @@ func (a *API) resolveImportReview(w http.ResponseWriter, r *http.Request) {
 			preserved++
 		}
 	}
+
+	if review.Source.Kind == "movies" && review.Source.MovieWatched {
+		var date interface{}
+		if review.Source.MovieDate.Day != "" {
+			date = review.Source.MovieDate.Day
+		}
+		provenance, e := json.Marshal(map[string]string{"source": "simkl", "source_key": review.Source.Key, "import_id": importID})
+		if fail(e) {
+			return
+		}
+		tag, e := tx.Exec(r.Context(), `INSERT INTO history(user_id,catalog_id,watched_date,watched_time,provenance) SELECT $1,$2,$3,$4,$5 WHERE NOT EXISTS(SELECT 1 FROM history_tombstones WHERE user_id=$1 AND catalog_id=$2 AND episode_key='') ON CONFLICT(user_id,catalog_id,episode_id) DO NOTHING`, uid, target, date, review.Source.MovieDate.Timestamp, provenance)
+		if fail(e) {
+			return
+		}
+		if tag.RowsAffected() > 0 {
+			applied++
+		} else {
+			preserved++
+		}
+	}
 	// Library status/rating and all pre-existing watch decisions intentionally remain untouched.
 	_, err = tx.Exec(r.Context(), "UPDATE import_reviews SET resolved=true WHERE user_id=$1 AND id=$2", uid, r.PathValue("id"))
 	if fail(err) || fail(tx.Commit(r.Context())) {
 		return
 	}
 	writeJSON(w, map[string]interface{}{"status": "resolved", "history_added": applied, "app_decisions_preserved": preserved})
+}
+
+// loadReviewCatalog requests only the public provider identity explicitly present
+// in this account's source record. Loading metadata never applies private history.
+func (a *API) loadReviewCatalog(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Season *int `json:"season,omitempty"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	uid := auth.Current(r.Context()).ID
+	var payload []byte
+	if err := a.DB.QueryRow(r.Context(), "SELECT item FROM import_reviews WHERE user_id=$1 AND id=$2 AND reason='simkl_source_review'", uid, r.PathValue("id")).Scan(&payload); err != nil {
+		http.Error(w, "review not found", http.StatusNotFound)
+		return
+	}
+	var review sourceReview
+	if json.Unmarshal(payload, &review) != nil || len(review.Source.Issues) > 0 {
+		http.Error(w, "source validation must be resolved first", http.StatusConflict)
+		return
+	}
+	parts := strings.Split(review.Source.Target(), ":")
+	if len(parts) != 3 || parts[0] != "tmdb" || (parts[1] != "movie" && parts[1] != "tv") {
+		http.Error(w, "no supported explicit TMDB identity; no match was guessed", http.StatusConflict)
+		return
+	}
+	if in.Season != nil && (parts[1] != "tv" || *in.Season < 0) {
+		http.Error(w, "invalid season request", http.StatusBadRequest)
+		return
+	}
+	var settings struct {
+		Language string `json:"metadata_language"`
+	}
+	_ = json.Unmarshal(auth.Current(r.Context()).Settings, &settings)
+	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
+	defer cancel()
+	detail, err := a.Catalog.Detail(ctx, parts[1], parts[2], settings.Language, false)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	if in.Season != nil {
+		var metadata struct {
+			Seasons []struct {
+				Number int `json:"season_number"`
+			} `json:"seasons"`
+		}
+		if json.Unmarshal(detail.Metadata, &metadata) != nil {
+			http.Error(w, "invalid season metadata", http.StatusBadGateway)
+			return
+		}
+		found := false
+		for _, season := range metadata.Seasons {
+			if season.Number == *in.Season {
+				found = true
+				break
+			}
+		}
+		if !found {
+			http.Error(w, "season is not listed by the provider", http.StatusBadRequest)
+			return
+		}
+		seasonData, seasonErr := a.Catalog.Season(ctx, parts[2], *in.Season, settings.Language)
+		if err = seasonErr; err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		var freshness struct {
+			Stale   bool   `json:"stale"`
+			Warning string `json:"warning"`
+		}
+		if json.Unmarshal(seasonData, &freshness) == nil && freshness.Stale {
+			detail.Stale = true
+			detail.Warning = freshness.Warning
+		}
+	}
+	writeJSON(w, map[string]interface{}{"status": "catalog_loaded", "target": review.Source.Target(), "history_applied": false, "stale": detail.Stale, "warning": detail.Warning})
 }

@@ -9,6 +9,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 const data = {
+  catalog_cached: true,
+  seasons: [],
   source: {
     title: "Synthetic gaps",
     issues: [],
@@ -129,4 +131,43 @@ test("review displays incoming versus existing values and explicit unwatch decis
   expect(screen.getByRole("link", { name: en.openSourceTitle }).getAttribute("href")).toBe(
     "#detail/tv/1",
   );
+});
+
+test("metadata loading is separate from importing and target seasons have no inferred selection", async () => {
+  let loaded = false;
+  let seasonLoaded = false;
+  const fetch = vi.fn((path: string, init?: RequestInit) => {
+    if (path.endsWith("/catalog")) {
+      loaded = true;
+      if (init?.body === '{"season":2}') seasonLoaded = true;
+      return Promise.resolve(new Response('{"stale":false}', { status: 200 }));
+    }
+    return Promise.resolve(
+      new Response(
+        JSON.stringify({
+          ...data,
+          catalog_cached: loaded,
+          seasons: loaded ? [2] : [],
+          episodes: seasonLoaded ? data.episodes : [],
+        }),
+        { status: 200 },
+      ),
+    );
+  });
+  vi.stubGlobal("fetch", fetch);
+  mount();
+  await userEvent.click(await screen.findByRole("button", { name: en.loadImportMetadata }));
+  expect(await screen.findByText(en.catalogLoadedNoHistory)).toBeTruthy();
+  const season = await screen.findByRole<HTMLSelectElement>("combobox", { name: en.targetSeason });
+  expect(season.value).toBe("");
+  const loadSeason = screen.getByRole<HTMLButtonElement>("button", { name: en.loadImportSeason });
+  expect(loadSeason.disabled).toBe(true);
+  await userEvent.selectOptions(season, "2");
+  await userEvent.click(loadSeason);
+  expect(fetch.mock.calls.filter(([path]) => path.endsWith("/resolve"))).toHaveLength(0);
+  expect(
+    fetch.mock.calls.some(
+      ([path, init]) => path.endsWith("/catalog") && init?.body === '{"season":2}',
+    ),
+  ).toBe(true);
 });

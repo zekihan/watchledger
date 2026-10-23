@@ -26,6 +26,7 @@ The feature branch is not a completed first release. Run these checks on a dispo
 - Export before importing. Save the file yourself; an export request alone does not establish a recoverable backup.
 - Use a small synthetic SIMKL JSON first. Preview must not apply history. Application requires a fresh export and an explicit action. Repeat the same import and verify no duplicated history.
 - Edit a rating or explicitly unwatch in the app, then reimport. Existing app decisions must win. Download the source archive and verify unsupported fields remain present.
+- Open an uncached review, load its explicit source catalog ID, and choose the provider seasons to load. Loading metadata alone must not add private history. Native anime or missing source IDs must not be guessed.
 - Open an unresolved episode review and select each actual cached target episode. Equal numbers must not auto-select targets. Confirm the choices explicitly; duplicate/foreign targets and changes to a previously confirmed source identity must be rejected. Test an unwatch followed by reimport to ensure it stays unwatched.
 - Split/combined episode mappings, native anime integration, and custom-list migration are still incomplete. Do not use this partial importer as a complete migration of your real library.
 - Export/restore into a disposable second account. Inspect conflicts, unknown dates, list references, and settings. Authorization and sessions must never be restored from portable data.

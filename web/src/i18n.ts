@@ -1,4 +1,12 @@
 export const en = {
+  sourceWatchDate: "Recorded source watch date",
+  loadImportMetadata: "Load source catalog metadata",
+  targetSeason: "Provider season to load",
+  loadImportSeason: "Load selected season",
+  loadMetadataHint:
+    "Loads only the explicit TMDB ID in your source record. Metadata loading does not import history. Choose provider seasons separately; source numbering is not assumed to match.",
+  catalogLoadedNoHistory: "Catalog metadata loaded. No history was applied.",
+
   openSourceTitle: "Open source title / load catalog details",
   incomingSource: "Incoming source values",
   existingApp: "Existing app values (kept)",
@@ -18,7 +26,7 @@ export const en = {
     "I verified these episode identities and accept keeping all existing app edits.",
   importResolved: "Review resolved. Existing app decisions were preserved.",
   reviewInstructions:
-    "Review each unresolved source item. Load missing catalog metadata first, then re-preview the same backup. Source validation errors and unsupported custom lists remain archived.",
+    "Review each unresolved source item. Load its explicit catalog ID and choose provider seasons here before confirming. Source validation errors and unsupported custom lists remain archived.",
 
   simklLimits:
     "Partial migration: cached movie/show identities can be added. Episode mappings need explicit review; uncached identities and native anime remain gated. Custom lists are retained in the archive but are not imported yet. No episode-number matching is guessed.",
@@ -253,7 +261,7 @@ export const tr: Record<Key, string> = {
     "Bölüm kimliklerini doğruladım ve mevcut uygulama değişikliklerinin korunmasını kabul ediyorum.",
   importResolved: "İnceleme çözümlendi. Mevcut uygulama kararları korundu.",
   reviewInstructions:
-    "Çözümlenmemiş kaynak kayıtlarını inceleyin. Eksik katalog bilgilerini yükleyip aynı yedeği yeniden önizleyin. Kaynak doğrulama hataları ve desteklenmeyen özel listeler arşivde kalır.",
+    "Çözümlenmemiş kaynak kayıtlarını inceleyin. Onaylamadan önce açık katalog kimliğini yükleyip sağlayıcı sezonlarını burada seçin. Kaynak doğrulama hataları ve desteklenmeyen özel listeler arşivde kalır.",
   openSourceTitle: "Kaynak yapımı aç / katalog bilgilerini yükle",
   incomingSource: "Gelen kaynak değerleri",
   existingApp: "Mevcut uygulama değerleri (korunur)",
@@ -261,6 +269,13 @@ export const tr: Record<Key, string> = {
   explicitUnwatch: "Açık izlenmedi kararınız korunacak",
   existingWatch: "Mevcut izleme kaydı korunur",
   noWatchRecord: "Mevcut izleme kaydı yok",
+  loadImportMetadata: "Kaynak katalog bilgilerini yükle",
+  targetSeason: "Yüklenecek sağlayıcı sezonu",
+  loadImportSeason: "Seçili sezonu yükle",
+  loadMetadataHint:
+    "Yalnızca kaynak kaydındaki açık TMDB kimliğini yükler. Bilgi yüklemek geçmişi aktarmaz. Sağlayıcı sezonlarını ayrıca seçin; kaynak numaralarının eşleştiği varsayılmaz.",
+  catalogLoadedNoHistory: "Katalog bilgileri yüklendi. Geçmiş uygulanmadı.",
+  sourceWatchDate: "Kaynakta kayıtlı izleme tarihi",
   home: "Ana sayfa",
   rename: "Yeniden adlandır",
   history: "İzleme geçmişi",
