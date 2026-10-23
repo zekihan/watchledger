@@ -1160,7 +1160,13 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
             {t("providers")} · {user.Settings.country ?? "TR"}
           </h2>
           {offers.error ? (
-            <ErrorBox error={offers.error} t={t} />
+            <ErrorBox
+              error={offers.error}
+              retry={() => {
+                void offers.refetch();
+              }}
+              t={t}
+            />
           ) : offers.data?.offers ? (
             <div className="offers">
               {(["flatrate", "rent", "buy"] as const).map((k) => (
@@ -1180,7 +1186,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
                 </div>
               ))}
               <small>
-                JustWatch · {t("freshness")}:{" "}
+                JustWatch · {offers.data.stale ? t("stale") : t("freshness")}:{" "}
                 {new Date(offers.data.fetched_at).toLocaleDateString(language)}
               </small>
             </div>
