@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ListsPage } from "./pages";
@@ -138,6 +138,33 @@ test("manual-list move-down control saves the chosen member order", async () => 
   mount();
   await userEvent.click(await screen.findByRole("button", { name: en.editList }));
   await userEvent.click(screen.getByRole("button", { name: `${en.moveDown}: Alpha` }));
+  await userEvent.click(screen.getByRole("button", { name: en.save }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]).toMatchObject({ members: ["tmdb:movie:2", "tmdb:movie:1"] });
+});
+
+test("manual drag order is announced and a cancelled drag cannot reorder a later drop", async () => {
+  const writes: unknown[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string, init?: RequestInit) => {
+      if (path === "/api/lists" && init?.method === "POST" && typeof init.body === "string")
+        writes.push(JSON.parse(init.body));
+      return Promise.resolve(new Response(JSON.stringify(fixtures(path)), { status: 200 }));
+    }),
+  );
+  mount();
+  await userEvent.click(await screen.findByRole("button", { name: en.editList }));
+  const alpha = screen.getByText("⠿ Alpha").closest("li");
+  const beta = screen.getByText("⠿ Beta").closest("li");
+  if (!alpha || !beta) throw new Error("Missing ordered members");
+  const dataTransfer = { setData: vi.fn(), effectAllowed: "" };
+  fireEvent.dragStart(alpha, { dataTransfer });
+  fireEvent.drop(beta, { dataTransfer });
+  expect(screen.getByRole("status").textContent).toBe("Alpha: Position 2 / 2");
+  fireEvent.dragStart(alpha, { dataTransfer });
+  fireEvent.dragEnd(alpha, { dataTransfer });
+  fireEvent.drop(beta, { dataTransfer });
   await userEvent.click(screen.getByRole("button", { name: en.save }));
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0]).toMatchObject({ members: ["tmdb:movie:2", "tmdb:movie:1"] });

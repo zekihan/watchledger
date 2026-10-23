@@ -1,3 +1,4 @@
+import { usePreviewRequest } from "./use-preview-request";
 import { StatusReplacement } from "./status-replacement";
 import { InstallPanel } from "./install";
 import type { useInstall } from "./use-install";
@@ -199,8 +200,24 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
     queryKey: ["library"],
     queryFn: () => api<LibraryItem[]>("/library"),
   });
-  const [edit, setEdit] = useState<List | null>(null),
-    [drag, setDrag] = useState<string | null>(null);
+  const [edit, setEdit] = useState<List | null>(null);
+  const drag = useRef<{ list: string; member: string } | null>(null);
+  const [orderNotice, setOrderNotice] = useState("");
+  function moveMember(id: string, position: number) {
+    if (
+      save.isPending ||
+      !edit ||
+      !edit.members.includes(id) ||
+      position < 0 ||
+      position >= edit.members.length
+    )
+      return;
+    const members = edit.members.filter((member) => member !== id);
+    members.splice(position, 0, id);
+    setEdit({ ...edit, members });
+    const title = library.data?.find((item) => item.id === id)?.title ?? id;
+    setOrderNotice(`${title}: ${t("position")} ${position + 1} / ${members.length}`);
+  }
   const [viewID, setViewID] = useState<string | null>(null);
   const statuses = useQuery({ queryKey: ["statuses"], queryFn: () => api<Status[]>("/statuses") });
   const providers = useQuery({
@@ -303,6 +320,8 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
           disabled={save.isPending}
           onClick={() => {
             setViewID(null);
+            drag.current = null;
+            setOrderNotice("");
             setEdit({ id: "", name: "", kind: "manual", rule: null, sort: "title", members: [] });
           }}
         >
@@ -402,24 +421,30 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
                       </button>
                     ))}
                 </div>
+                <p role="status" aria-live="polite">
+                  {orderNotice}
+                </p>
                 <ol className="ordered-list">
                   {edit.members.map((id, i) => (
                     <li
                       key={id}
-                      draggable
-                      onDragStart={() => {
-                        setDrag(id);
+                      draggable={!save.isPending}
+                      onDragStart={(event) => {
+                        drag.current = { list: edit.id, member: id };
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData("text/plain", id);
+                      }}
+                      onDragEnd={() => {
+                        drag.current = null;
                       }}
                       onDragOver={(e) => {
                         e.preventDefault();
                       }}
                       onDrop={(e) => {
                         e.preventDefault();
-                        if (drag) {
-                          const members = edit.members.filter((x) => x !== drag);
-                          members.splice(i, 0, drag);
-                          setEdit({ ...edit, members });
-                        }
+                        const source = drag.current;
+                        drag.current = null;
+                        if (source?.list === edit.id) moveMember(source.member, i);
                       }}
                     >
                       <span>⠿ {library.data?.find((x) => x.id === id)?.title ?? id}</span>
@@ -427,10 +452,7 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
                         disabled={i === 0}
                         aria-label={`${t("moveUp")}: ${library.data?.find((item) => item.id === id)?.title ?? id}`}
                         onClick={() => {
-                          const members = [...edit.members];
-                          members.splice(i, 1);
-                          members.splice(i - 1, 0, id);
-                          setEdit({ ...edit, members });
+                          moveMember(id, i - 1);
                         }}
                       >
                         ↑
@@ -439,15 +461,13 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
                         disabled={i === edit.members.length - 1}
                         aria-label={`${t("moveDown")}: ${library.data?.find((item) => item.id === id)?.title ?? id}`}
                         onClick={() => {
-                          const members = [...edit.members];
-                          members.splice(i, 1);
-                          members.splice(i + 1, 0, id);
-                          setEdit({ ...edit, members });
+                          moveMember(id, i + 1);
                         }}
                       >
                         ↓
                       </button>
                       <button
+                        aria-label={`${t("remove")}: ${library.data?.find((item) => item.id === id)?.title ?? id}`}
                         onClick={() => {
                           setEdit({ ...edit, members: edit.members.filter((x) => x !== id) });
                         }}
@@ -476,6 +496,8 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
               </button>
               <button
                 onClick={() => {
+                  drag.current = null;
+                  setOrderNotice("");
                   setEdit(null);
                 }}
               >
@@ -492,6 +514,8 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
             setViewID(null);
           }}
           onEdit={() => {
+            drag.current = null;
+            setOrderNotice("");
             setEdit(viewed);
           }}
         />
@@ -505,6 +529,8 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
               <div className="toolbar">
                 <button
                   onClick={() => {
+                    drag.current = null;
+                    setOrderNotice("");
                     setEdit(l);
                   }}
                 >
@@ -929,7 +955,7 @@ export function PortabilityPanel({ t }: { t: T }) {
   const client = useQueryClient();
   const [backed, setBacked] = useState(false);
   const [localError, setLocalError] = useState("");
-  const generation = useRef(0);
+  const beginPreview = usePreviewRequest();
   const [preview, setPreview] = useState<{
     id: string;
     additions: number;
@@ -945,7 +971,7 @@ export function PortabilityPanel({ t }: { t: T }) {
     },
   });
   async function read(file: File | undefined) {
-    const current = ++generation.current;
+    const request = beginPreview();
     setPreview(null);
     setReading(false);
     setLocalError("");
@@ -958,18 +984,18 @@ export function PortabilityPanel({ t }: { t: T }) {
     setReading(true);
     try {
       const value: unknown = JSON.parse(await file.text());
+      if (!request.current()) return;
       const result = await api<{
         id: string;
         additions: number;
         conflicts: string[];
         history_candidates: number;
-      }>("/restore/preview", "POST", value);
-      if (current === generation.current) setPreview(result);
+      }>("/restore/preview", "POST", value, request.signal);
+      if (request.current()) setPreview(result);
     } catch (error) {
-      if (current === generation.current)
-        setLocalError(error instanceof Error ? error.message : t("error"));
+      if (request.current()) setLocalError(error instanceof Error ? error.message : t("error"));
     } finally {
-      if (current === generation.current) setReading(false);
+      if (request.current()) setReading(false);
     }
   }
   return (

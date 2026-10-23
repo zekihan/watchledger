@@ -172,7 +172,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
 ## Manual and smart lists
 
 - [x] Private named manual lists.
-- [ ] Manual-list drag ordering.
+- [x] Manual-list drag ordering, visible keyboard/touch move controls, and localized position announcements. Verified by `web/src/lists.test.tsx`; physical-device acceptance remains separate.
 - [x] Smart lists over personal-library titles only.
 - [ ] Visual nested AND/OR rule groups.
 - [ ] NOT exclusions.
@@ -245,6 +245,7 @@ Current support is partial: explicit TMDB movie/show IDs can be loaded on demand
 - [x] Preserve imported SIMKL snapshots.
 - [ ] Preview additions, changes, conflicts, unresolved matches, and errors.
 - [x] Require user application after preview.
+  - [x] Cancel superseded and abandoned preview requests across SIMKL backups, custom-list response files/live fetches, and portable restores. Delayed file reads cannot start uploads after navigation; late responses cannot restore discarded previews. Verified with synthetic UI regressions.
 - [ ] Apply resolved items without blocking on ambiguous items.
 - [x] Persistent unresolved-item review queue.
 - [ ] Existing app edits win on repeat imports.

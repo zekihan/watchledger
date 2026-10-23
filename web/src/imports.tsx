@@ -1,5 +1,6 @@
 import { ImportReview } from "./import-review";
-import { useRef, useState } from "react";
+import { useState } from "react";
+import { usePreviewRequest } from "./use-preview-request";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import type { T } from "./App";
@@ -26,7 +27,7 @@ interface Review {
 export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
   const client = useQueryClient();
   const [activeReview, setActiveReview] = useState<string | null>(null);
-  const generation = useRef(0);
+  const beginPreview = usePreviewRequest();
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -47,7 +48,7 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
     },
   });
   async function read(file: File | undefined) {
-    const current = ++generation.current;
+    const request = beginPreview();
     setPreview(null);
     setBusy(false);
     setError("");
@@ -60,12 +61,13 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
     setBusy(true);
     try {
       const value: unknown = JSON.parse(await file.text());
-      const result = await api<Preview>("/simkl/preview", "POST", value);
-      if (current === generation.current) setPreview(result);
+      if (!request.current()) return;
+      const result = await api<Preview>("/simkl/preview", "POST", value, request.signal);
+      if (request.current()) setPreview(result);
     } catch (e) {
-      if (current === generation.current) setError(e instanceof Error ? e.message : t("error"));
+      if (request.current()) setError(e instanceof Error ? e.message : t("error"));
     } finally {
-      if (current === generation.current) setBusy(false);
+      if (request.current()) setBusy(false);
     }
   }
   return (
