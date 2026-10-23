@@ -30,7 +30,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [x] Access denial when admission claims are absent.
 - [x] Admin-right removal when admin claims are absent.
 - [x] Require login when current authorization claims cannot be obtained.
-- [ ] Server-side authorization configuration recovery without an implicit role bypass.
+- [x] Server-side authorization configuration recovery without an implicit role bypass. Verified in the [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] Private per-user libraries, history, ratings, lists, statuses, settings, and import data.
 - [x] Authorization checks on every user-scoped API and admin operation.
 - [x] Admin account oversight without exposing private library browsing.
@@ -40,6 +40,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Original polished dark, poster-focused interface with compact controls.
 - [ ] Responsive desktop layouts.
 - [ ] Responsive phone layouts and touch-friendly quick actions.
+  - [x] Main English/Turkish screens fit verified Chrome phone viewports; mapping-panel overflow fixed. Physical Android Chrome acceptance remains deferred.
 - [ ] Installable web-app manifest and icons.
   - [x] Dimension-verified raster manifest/touch icons and explicit browser-provided install flow.
   - [ ] Target-device installation and authentication-return checks.
@@ -115,7 +116,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Subscription, rental, and purchase categories.
 - [ ] Provider or availability-page outbound links.
 - [ ] Unknown/unavailable provider states.
-- [ ] Availability freshness display.
+- [x] Availability freshness display. Verified in the [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [ ] Required TMDB and JustWatch attribution.
 
 ## Library statuses and ratings
@@ -289,9 +290,9 @@ Backend regression coverage verifies private counts, runtime unknowns, metadata-
   - [ ] Live deployment refresh acceptance.
 - [ ] Weekly refresh of other saved titles.
 - [ ] Daily availability refresh for recently used countries.
-- [ ] Manual refresh.
-- [ ] Visible metadata freshness.
-- [ ] Retryable background jobs and visible failures.
+- [x] Manual refresh. Verified in the [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Visible metadata freshness. Verified in the [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Retryable background jobs and visible failures. Verified in the [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [ ] Cached library metadata and tracking during provider outages.
 - [ ] Retryable errors for uncached search/details.
 - [ ] Graceful missing external artwork behavior.
