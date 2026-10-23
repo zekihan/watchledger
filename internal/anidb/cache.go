@@ -72,6 +72,9 @@ func Metadata(a Anime, language, style string) map[string]interface{} {
 // reserve persists both the two-second provider interval and one-day per-dataset
 // cooldown before I/O. Concurrent instances and process restarts cannot bypass it.
 func (c *Cache) reserve(ctx context.Context, id string) error {
+	return c.reserveDataset(ctx, "anidb:anime:"+id)
+}
+func (c *Cache) reserveDataset(ctx context.Context, dataset string) error {
 	tx, err := c.DB.Begin(ctx)
 	if err != nil {
 		return err
@@ -82,14 +85,14 @@ func (c *Cache) reserve(ctx context.Context, id string) error {
 		return err
 	}
 	var blocked bool
-	err = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM provider_request_limits WHERE key=ANY($1::text[]) AND next_allowed_at>now())", []string{"anidb:global", "anidb:anime:" + id}).Scan(&blocked)
+	err = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM provider_request_limits WHERE key=ANY($1::text[]) AND next_allowed_at>now())", []string{"anidb:global", dataset}).Scan(&blocked)
 	if err != nil {
 		return err
 	}
 	if blocked {
 		return errors.New("AniDB cooldown active; use cached data or retry later")
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO provider_request_limits(key,next_allowed_at) VALUES('anidb:global',now()+interval '2 seconds'),($1,now()+interval '24 hours') ON CONFLICT(key) DO UPDATE SET next_allowed_at=EXCLUDED.next_allowed_at`, "anidb:anime:"+id)
+	_, err = tx.Exec(ctx, `INSERT INTO provider_request_limits(key,next_allowed_at) VALUES('anidb:global',now()+interval '2 seconds'),($1,now()+interval '24 hours') ON CONFLICT(key) DO UPDATE SET next_allowed_at=EXCLUDED.next_allowed_at`, dataset)
 	if err != nil {
 		return err
 	}

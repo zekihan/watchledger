@@ -20,6 +20,12 @@ type AnidbDocument struct {
 	FetchedAt pgtype.Timestamptz `json:"fetched_at"`
 }
 
+type AnidbFeed struct {
+	Name      string             `json:"name"`
+	Document  []byte             `json:"document"`
+	FetchedAt pgtype.Timestamptz `json:"fetched_at"`
+}
+
 type AnidbTitleIndex struct {
 	Aid    string `json:"aid"`
 	Titles []byte `json:"titles"`

@@ -67,6 +67,10 @@ func (a *API) search(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) discover(w http.ResponseWriter, r *http.Request) {
 	kind := r.PathValue("kind")
+	if kind == "anime" {
+		a.discoverAnime(w, r)
+		return
+	}
 	if kind == "tv" && r.URL.Query().Get("person_id") != "" {
 		raw, e := a.Catalog.PeopleTV(r.Context(), r.URL.Query().Get("person_id"), r.URL.Query())
 		if e != nil {

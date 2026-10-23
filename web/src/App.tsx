@@ -505,7 +505,7 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
   if (search) {
     params.set("query", search);
     params.set("kind", kind);
-  } else {
+  } else if (kind !== "anime") {
     if (year) params.set(kind === "tv" ? "first_air_date_year" : "year", year);
     if (genre) params.set("with_genres", genre);
     if (score) params.set("vote_average.gte", score);
@@ -532,6 +532,8 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
         total_pages: number;
         exhaustive?: boolean;
         search_scope?: string;
+        fetched_at?: string;
+        stale?: boolean;
         enrichment_failures?: number;
       }>(path),
     retry: false,
@@ -561,13 +563,15 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
             setPage(1);
           }}
         >
-          {(search ? ["multi", "movie", "tv", "anime", "person"] : ["movie", "tv"]).map((k) => (
-            <option key={k} value={k}>
-              {k === "multi" ? t("all") : t(k as "movie" | "tv" | "anime" | "person")}
-            </option>
-          ))}
+          {(search ? ["multi", "movie", "tv", "anime", "person"] : ["movie", "tv", "anime"]).map(
+            (k) => (
+              <option key={k} value={k}>
+                {k === "multi" ? t("all") : t(k as "movie" | "tv" | "anime" | "person")}
+              </option>
+            ),
+          )}
         </select>
-        {!search && (
+        {!search && kind !== "anime" && (
           <>
             <select
               aria-label={t("browse")}
@@ -626,7 +630,7 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
           </>
         )}
       </div>
-      {!search && (
+      {!search && kind !== "anime" && (
         <details className="panel">
           <summary>{t("filters")}</summary>
           <p>{t("filterIDsHint")}</p>
@@ -719,12 +723,20 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
         <p className="notice">
           {t(
             kind === "anime"
-              ? q.data.search_scope === "imported_title_index"
-                ? "animeIndexScope"
-                : "animeSearchScope"
+              ? q.data.search_scope === "native_hot"
+                ? "nativeHotScope"
+                : q.data.search_scope === "imported_title_index"
+                  ? "animeIndexScope"
+                  : "animeSearchScope"
               : "candidateNotice",
           )}{" "}
           {q.data.enrichment_failures ? `${t("error")}: ${String(q.data.enrichment_failures)}` : ""}
+        </p>
+      )}
+      {kind === "anime" && q.data?.fetched_at && (
+        <p>
+          {q.data.stale ? t("stale") : t("freshness")}:{" "}
+          {new Date(q.data.fetched_at).toLocaleString()}
         </p>
       )}
       {q.isPending || (exclude && library.isPending) ? (

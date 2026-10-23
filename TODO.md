@@ -19,6 +19,10 @@ Do these checks after the remaining implementation increments are pushed. Use a 
 - [ ] Inspect a current private SIMKL JSON backup locally against [the import acceptance steps](docs/local-acceptance.md). Confirm actual status, date, episode-gap, rating and custom-list field coverage. Keep the original backup private; share only a deliberately redacted minimal example if a mismatch needs a code fix. Unsupported and ambiguous records must remain visible in the review queue, not be guessed or silently discarded.
 - [ ] If using optional direct custom-list fetching, test with your existing AUTH V2 client ID and eligible SIMKL account/token. Enter the token only in the app's temporary password field over HTTPS or loopback. Verify complete pagination, denied/premium-only errors, preview without writes, explicit apply, repeat-import behavior, original cache timestamps and account isolation. No ongoing sync, new authorization grant or credential creation is performed by the app. A complete API-response file is an alternative when live access is unavailable.
 
+## Source-dependent coverage decision
+
+- [ ] Review native AniDB coverage after implementation: native title search, metadata, related titles, cached creator credits and the official Hot Anime feed are supported. The selected HTTP/title-index integration does not supply full creator biographies/filmographies, a global upcoming catalog, or a verified equivalence between AniDB tags and TMDB genres. If those must be identical across providers, approve an additional documented source and its identity/attribution rules before implementation; do not invent a genre mapping or merge people by matching names/numeric IDs. Current cached-only/source-specific limits remain visible in the UI.
+
 ## Browser and device acceptance
 
 - [ ] Run [local acceptance](docs/local-acceptance.md) in a real desktop and phone browser. Chromium cannot run in the current command workspace; jsdom tests are not browser/visual acceptance. Check both English and Turkish, narrow screens, touch controls, loading/error/empty/retry states, keyboard navigation, dialog focus/escape/return focus and visible equivalents of shortcuts. Report screenshots with private data and credentials removed.
@@ -31,7 +35,7 @@ Do these checks after the remaining implementation increments are pushed. Use a 
 
 - [ ] Run the [Compose smoke check](docs/deployment.md) on a local machine with a container runtime and the disposable configuration above. Verify actual startup/migrations, readiness, login, frontend/API serving, restart persistence and graceful shutdown. Image builds and `/healthz` alone do not prove this.
 - [ ] Validate the Helm chart, then smoke-test only in a disposable Kubernetes environment you explicitly choose and authorize. Supply an existing Secret and external PostgreSQL. Verify the single replica, readiness, configuration, login and cached tracking. Do not deploy to an existing homelab merely to complete the checklist.
-- [ ] Verify recovery in your intended runtime: dump a disposable populated database, restore to a different empty database, then log in and inspect private history/date precision with the intended OIDC/session configuration. Physical synthetic recovery through 16 migrations has already passed in this workspace; this item is runtime/login acceptance, not a claim that recovery code is missing.
+- [ ] Verify recovery in your intended runtime: dump a disposable populated database, restore to a different empty database, then log in and inspect private history/date precision with the intended OIDC/session configuration. Physical synthetic recovery through 17 migrations has already passed in this workspace; this item is runtime/login acceptance, not a claim that recovery code is missing.
 
 ## Completion rule
 

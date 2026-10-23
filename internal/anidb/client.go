@@ -42,52 +42,60 @@ type APIError struct{ Message string }
 func (e *APIError) Error() string { return "AniDB returned an API error" }
 func (e *APIError) Banned() bool  { return strings.Contains(strings.ToLower(e.Message), "banned") }
 func (c *Client) Fetch(ctx context.Context, id string) (Anime, []byte, error) {
-	if !c.Available() {
-		return Anime{}, nil, errors.New("AniDB requires a registered HTTP client name and version")
-	}
-	n, err := strconv.ParseInt(id, 10, 64)
-	if err != nil || n < 1 || strconv.FormatInt(n, 10) != id {
+	if _, ok := positiveIdentity(id); !ok {
 		return Anime{}, nil, errors.New("invalid AniDB identity")
+	}
+	raw, err := c.request(ctx, "anime", url.Values{"aid": {id}})
+	if err != nil {
+		return Anime{}, nil, err
+	}
+	anime, err := Parse(raw, id)
+	return anime, raw, err
+}
+func (c *Client) request(ctx context.Context, request string, parameters url.Values) ([]byte, error) {
+	if !c.Available() {
+		return nil, errors.New("AniDB requires a registered HTTP client name and version")
 	}
 	u, err := url.Parse(c.URL)
 	if err != nil {
-		return Anime{}, nil, err
+		return nil, err
 	}
 	q := u.Query()
 	q.Set("client", c.Config.Client)
 	q.Set("clientver", strconv.Itoa(c.Config.Version))
 	q.Set("protover", "1")
-	q.Set("request", "anime")
-	q.Set("aid", id)
+	q.Set("request", request)
+	for key, values := range parameters {
+		q[key] = values
+	}
 	u.RawQuery = q.Encode()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
-		return Anime{}, nil, err
+		return nil, err
 	}
 	req.Header.Set("Accept-Encoding", "gzip")
 	response, err := c.HTTP.Do(req)
 	if err != nil {
-		return Anime{}, nil, errors.New("AniDB request failed")
+		return nil, errors.New("AniDB request failed")
 	}
 	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusOK {
-		return Anime{}, nil, fmt.Errorf("AniDB HTTP status %d", response.StatusCode)
+		return nil, fmt.Errorf("AniDB HTTP status %d", response.StatusCode)
 	}
 	var reader io.Reader = response.Body
 	if strings.EqualFold(response.Header.Get("Content-Encoding"), "gzip") {
 		gz, e := gzip.NewReader(reader)
 		if e != nil {
-			return Anime{}, nil, errors.New("invalid AniDB compression")
+			return nil, errors.New("invalid AniDB compression")
 		}
 		defer func() { _ = gz.Close() }()
 		reader = gz
 	}
 	raw, err := io.ReadAll(io.LimitReader(reader, (8<<20)+1))
 	if err != nil || len(raw) > 8<<20 {
-		return Anime{}, nil, errors.New("invalid or oversized AniDB response")
+		return nil, errors.New("invalid or oversized AniDB response")
 	}
-	anime, err := Parse(raw, id)
-	return anime, raw, err
+	return raw, nil
 }
 
 type Title struct {

@@ -93,3 +93,50 @@ test("movie cast and crew filters stay distinct and switching content type clear
   expect(last).not.toContain("with_cast");
   expect(last).not.toContain("with_crew");
 });
+
+test("native discovery uses the labelled source feed without silently forwarding TMDB filters", async () => {
+  location.hash = "discover";
+  const paths: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string) => {
+      paths.push(path);
+      const data =
+        path === "/api/me"
+          ? { ID: "fixture", Name: "Fixture", Admin: false, Settings: { language: "en" } }
+          : path.startsWith("/api/discover/anime")
+            ? {
+                results: [{ id: 41, name: "Native hot title", media_type: "anime" }],
+                total_pages: 1,
+                exhaustive: false,
+                search_scope: "native_hot",
+                fetched_at: "2026-01-01T00:00:00Z",
+                stale: true,
+              }
+            : path.startsWith("/api/discover/")
+              ? { results: [], total_pages: 1 }
+              : [];
+      return Promise.resolve(new Response(JSON.stringify(data)));
+    }),
+  );
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <App />
+    </QueryClientProvider>,
+  );
+  fireEvent.change(await screen.findByRole("combobox", { name: en.kind }), {
+    target: { value: "anime" },
+  });
+  expect(await screen.findByText(en.nativeHotScope, { exact: false })).toBeTruthy();
+  expect(screen.getByRole("link", { name: /Native hot title/ }).getAttribute("href")).toBe(
+    "#detail/anime/41",
+  );
+  expect(screen.queryByLabelText(en.genre)).toBeNull();
+  expect(screen.queryByLabelText(en.minVotes)).toBeNull();
+  const path = paths.find((path) => path.startsWith("/api/discover/anime")) ?? "";
+  expect(path).not.toContain("vote_count");
+  expect(path).not.toContain("sort_by");
+  expect(screen.getByText(en.stale, { exact: false })).toBeTruthy();
+});
