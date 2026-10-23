@@ -1,0 +1,17 @@
+.git
+node_modules
+web/node_modules
+web/dist
+build
+.env
+.env.*
+work
+imports
+exports
+backups
+data
+*.log
+*.dump
+coverage
+test-results
+playwright-report

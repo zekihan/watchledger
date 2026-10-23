@@ -1,0 +1,6 @@
+apiVersion: v2
+name: watchledger
+description: Private movie, TV and anime tracking application
+type: application
+version: 0.1.0
+appVersion: "0.1.0-dev"
