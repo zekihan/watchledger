@@ -112,7 +112,18 @@ func (r *Runner) one(ctx context.Context) error {
 				e = json.Unmarshal(d.Metadata, &meta)
 				if e == nil {
 					for _, season := range meta.Seasons {
-						if _, e = r.Cache.Season(jobctx, in.ID, season.Number, ""); e != nil {
+						var raw json.RawMessage
+						raw, e = r.Cache.Season(jobctx, in.ID, season.Number, "")
+						if e == nil {
+							var result struct {
+								Stale bool `json:"stale"`
+							}
+							e = json.Unmarshal(raw, &result)
+							if e == nil && result.Stale {
+								e = errors.New("season refresh failed; cached episodes retained")
+							}
+						}
+						if e != nil {
 							break
 						}
 					}

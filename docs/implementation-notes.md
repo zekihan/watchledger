@@ -207,3 +207,11 @@ Keyboard users can skip persistent navigation without changing the app route. Cu
 Season selection now has a shareable route. Episode titles, native Up next cards and calendar entries link to the selected season and actual provider episode ID, not an assumed cross-source number. Season details expose available summary/artwork/date; selected episode details show runtime, source identity, date precision and a source-validated still only after spoiler reveal or watched-state permission. A missing/renumbered source episode gets an explicit retained-history notice instead of silently selecting a different episode. Existing single-episode tracking and consent/date safeguards are reused.
 
 Tests cover explicit season loading, stable identity in watch requests, hidden synopsis/images before reveal, failed-image fallback, missing identities and native specials links. Aggregate Up next cards retain their native-anchor alternate view links. Real-browser checks remain in TODO.md.
+
+### Notice acknowledgement and partial refresh failures
+
+Notices now have an explicit per-user Mark as read action. Acknowledgement preserves the notice row, is idempotent, rejects another user's notice and removes only that account's read notice from the bounded newest-first unread feed. The UI does not acknowledge merely by displaying a notice, and failed writes remain visible/retryable.
+
+A TMDB show metadata refresh can succeed while a season refresh falls back to cached episodes. Such a job now remains failed/retryable instead of being incorrectly reported as successful and deleted. Synthetic database/provider tests verify the retained cache and retry state. Authorization recovery now has a server-side runbook that corrects configuration and reevaluates current claims without implicit admin promotion, local login or a role bypass.
+
+Refreshed-ID-token tests additionally verify current admission/admin changes, subject, audience, issuer, expiry and invalid-token rejection. An invalid or insufficient new ID token must not be rescued by a permissive UserInfo response. Existing matching-subject UserInfo tests cover the no-ID-token path; live identity-provider compatibility remains an operator check.

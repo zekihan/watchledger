@@ -1,4 +1,6 @@
 export const en = {
+  markRead: "Mark as read",
+  noticeUpdated: "There is an update to review.",
   allEpisodes: "All episodes in this season",
   missingEpisode:
     "This source episode is not in the loaded season. Its recorded history has not been moved or deleted. Return to the series to review it.",
@@ -354,6 +356,8 @@ export const en = {
 };
 export type Key = keyof typeof en;
 export const tr: Record<Key, string> = {
+  markRead: "Okundu olarak işaretle",
+  noticeUpdated: "İncelenecek bir güncelleme var.",
   allEpisodes: "Bu sezondaki tüm bölümler",
   missingEpisode:
     "Bu kaynak bölümü yüklenen sezonda yok. Kayıtlı geçmişi taşınmadı veya silinmedi. İncelemek için diziye dönün.",

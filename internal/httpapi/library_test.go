@@ -257,4 +257,40 @@ func TestPrivateTrackingAndStatusLocks(t *testing.T) {
 		t.Fatal("missing watched flag accepted", w.Code)
 	}
 
+	var ownNotice, foreignNotice string
+	for _, fixture := range []struct {
+		user   string
+		target *string
+	}{{uid, &ownNotice}, {other, &foreignNotice}} {
+		if e = p.QueryRow(ctx, "INSERT INTO notices(user_id,kind,data) VALUES($1,'mapping_changed','{}') RETURNING id", fixture.user).Scan(fixture.target); e != nil {
+			t.Fatal(e)
+		}
+	}
+	if w := request("GET", "/api/notices", "", true); w.Code != 200 || !strings.Contains(w.Body.String(), ownNotice) || strings.Contains(w.Body.String(), foreignNotice) {
+		t.Fatal("notice isolation", w.Code, w.Body.String())
+	}
+	if w := request("POST", "/api/notices/"+foreignNotice+"/read", "{}", true); w.Code != 404 {
+		t.Fatal("foreign notice acknowledged", w.Code)
+	}
+	if w := request("POST", "/api/notices/invalid/read", "{}", true); w.Code != 400 {
+		t.Fatal("invalid notice", w.Code)
+	}
+	if w := request("POST", "/api/notices/"+ownNotice+"/read", "{}", false); w.Code != 401 {
+		t.Fatal("unauthenticated notice", w.Code)
+	}
+	for range 2 {
+		if w := request("POST", "/api/notices/"+ownNotice+"/read", "{}", true); w.Code != 204 {
+			t.Fatal(w.Code, w.Body.String())
+		}
+	}
+	if w := request("GET", "/api/notices", "", true); w.Code != 200 || strings.Contains(w.Body.String(), ownNotice) {
+		t.Fatal("read notice still unread", w.Code, w.Body.String())
+	}
+	if e = p.QueryRow(ctx, "SELECT count(*) FROM notices WHERE id=$1 AND read_at IS NOT NULL", ownNotice).Scan(&count); e != nil || count != 1 {
+		t.Fatal("notice deleted rather than acknowledged", count, e)
+	}
+	if e = p.QueryRow(ctx, "SELECT count(*) FROM notices WHERE id=$1 AND read_at IS NULL", foreignNotice).Scan(&count); e != nil || count != 1 {
+		t.Fatal("foreign notice changed", count, e)
+	}
+
 }

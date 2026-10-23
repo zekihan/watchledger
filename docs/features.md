@@ -24,7 +24,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [x] Separate configurable admin claim.
 - [x] No automatic first-user admin promotion or manual account creation.
 - [x] Current admission/admin claim evaluation at login and token refresh.
-- [ ] Current claims from validated refreshed ID token or subject-validated UserInfo.
+- [x] Current claims from validated refreshed ID token or subject-validated UserInfo.
 - [x] Access denial when admission claims are absent.
 - [x] Admin-right removal when admin claims are absent.
 - [x] Require login when current authorization claims cannot be obtained.
@@ -162,7 +162,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Display known release timestamps in each user's timezone.
 - [ ] Per-user spoiler preference hiding unwatched episode summaries and images.
 - [ ] Explicit spoiler reveal controls.
-- [ ] In-app notices.
+- [x] Private in-app notices with explicit, idempotent acknowledgement and retryable errors.
 
 ## Manual and smart lists
 

@@ -184,3 +184,38 @@ func TestAnimeRefreshPreservesHistoryAndRespectsCooldown(t *testing.T) {
 		t.Fatal(count, err)
 	}
 }
+
+func TestStaleSeasonRefreshRemainsRetryable(t *testing.T) {
+	p := jobDatabase(t)
+	ctx := context.Background()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/tv/91" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = fmt.Fprint(w, `{"id":91,"name":"Synthetic","seasons":[{"season_number":1}]}`)
+			return
+		}
+		http.Error(w, "synthetic season outage", http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+	provider := catalog.New("synthetic")
+	provider.BaseURL = server.URL
+	r := Runner{Cache: &catalog.Cache{DB: p, Provider: provider}}
+	_, err := p.Exec(ctx, `INSERT INTO catalog(id,source,source_id,kind,title) VALUES('tmdb:tv:91','tmdb','91','tv','Synthetic');
+ INSERT INTO episodes(id,catalog_id,source,source_id,season,number,metadata) VALUES('tmdb:episode:911','tmdb:tv:91','tmdb','911',1,1,'{"id":911,"episode_number":1,"season_number":1,"name":"Cached episode"}');
+ INSERT INTO jobs(id,kind,payload) VALUES('metadata:tmdb:tv:91','metadata','{"kind":"tv","source_id":"91"}');`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = r.one(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var attempts int
+	var message string
+	if err = p.QueryRow(ctx, "SELECT attempts,last_error FROM jobs WHERE id='metadata:tmdb:tv:91'").Scan(&attempts, &message); err != nil || attempts != 1 || message != "season refresh failed; cached episodes retained" {
+		t.Fatal(attempts, message, err)
+	}
+	var count int
+	if err = p.QueryRow(ctx, "SELECT count(*) FROM episodes WHERE id='tmdb:episode:911'").Scan(&count); err != nil || count != 1 {
+		t.Fatal(count, err)
+	}
+}

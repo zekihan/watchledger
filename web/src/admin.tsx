@@ -343,6 +343,11 @@ export function MappingPage({ t, admin }: { t: T; admin: boolean }) {
   );
 }
 export function Notices({ t }: { t: T }) {
+  const client = useQueryClient();
+  const markRead = useMutation({
+    mutationFn: (id: string) => api(`/notices/${encodeURIComponent(id)}/read`, "POST", {}),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["notices"] }),
+  });
   const q = useQuery({
     queryKey: ["notices"],
     queryFn: () =>
@@ -352,9 +357,26 @@ export function Notices({ t }: { t: T }) {
   });
   return (
     <>
+      {(q.error || markRead.error) && (
+        <p role="alert">
+          {q.error?.message ?? markRead.error?.message}
+          <button
+            onClick={() => {
+              markRead.reset();
+              void q.refetch();
+            }}
+          >
+            {t("retry")}
+          </button>
+        </p>
+      )}
       {q.data?.map((n) => (
         <div className="notice" role="status" key={n.id}>
-          {n.kind === "mapping_changed" ? t("mappingChanged") : t("episodeChanged")}{" "}
+          {n.kind === "mapping_changed"
+            ? t("mappingChanged")
+            : n.kind === "episode_reconciliation"
+              ? t("episodeChanged")
+              : t("noticeUpdated")}{" "}
           <a
             href={
               n.data.mapping_id
@@ -364,6 +386,14 @@ export function Notices({ t }: { t: T }) {
           >
             {t("details")} →
           </a>
+          <button
+            disabled={markRead.isPending}
+            onClick={() => {
+              markRead.mutate(n.id);
+            }}
+          >
+            {t("markRead")}
+          </button>
         </div>
       ))}
     </>

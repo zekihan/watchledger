@@ -3,6 +3,7 @@ package httpapi
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/zekihan/watchledger/internal/auth"
 	"github.com/zekihan/watchledger/internal/mapping"
 	"net/http"
@@ -17,6 +18,7 @@ func (a *API) mappingRoutes(m *http.ServeMux) {
 	m.HandleFunc("POST /api/mappings/{id}/confirm", a.confirmMapping)
 	m.HandleFunc("GET /api/admin/accounts", a.accounts)
 	m.HandleFunc("GET /api/notices", a.notices)
+	m.HandleFunc("POST /api/notices/{id}/read", a.readNotice)
 	m.HandleFunc("GET /api/admin/jobs", a.jobStatus)
 }
 func (a *API) mappings(w http.ResponseWriter, r *http.Request) {
@@ -203,12 +205,30 @@ func (a *API) accounts(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) notices(w http.ResponseWriter, r *http.Request) {
 	var result []byte
-	e := a.DB.QueryRow(r.Context(), "SELECT coalesce(jsonb_agg(to_jsonb(n)-'user_id'),'[]') FROM notices n WHERE user_id=$1", auth.Current(r.Context()).ID).Scan(&result)
+	e := a.DB.QueryRow(r.Context(), "SELECT coalesce(jsonb_agg(to_jsonb(n)-'user_id' ORDER BY n.created_at DESC,n.id),'[]') FROM (SELECT * FROM notices WHERE user_id=$1 AND read_at IS NULL ORDER BY created_at DESC,id LIMIT 100) n", auth.Current(r.Context()).ID).Scan(&result)
 	if e != nil {
 		http.Error(w, "notices unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	writeJSON(w, json.RawMessage(result))
+}
+
+func (a *API) readNotice(w http.ResponseWriter, r *http.Request) {
+	var id pgtype.UUID
+	if err := id.Scan(r.PathValue("id")); err != nil || !id.Valid {
+		http.Error(w, "invalid notice identity", http.StatusBadRequest)
+		return
+	}
+	result, err := a.DB.Exec(r.Context(), "UPDATE notices SET read_at=coalesce(read_at,now()) WHERE id=$1 AND user_id=$2", id, auth.Current(r.Context()).ID)
+	if err != nil {
+		http.Error(w, "notice unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if result.RowsAffected() == 0 {
+		http.Error(w, "notice not found", http.StatusNotFound)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (a *API) jobStatus(w http.ResponseWriter, r *http.Request) {
