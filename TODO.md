@@ -6,7 +6,7 @@ Do these checks after the remaining implementation increments are pushed. Use a 
 
 ## Required asset
 
-- [ ] Supply an approved TMDB logo from the [official logo gallery](https://www.themoviedb.org/about/logos-attribution). The gallery blocks automated access in this workspace. Upload the approved SVG/PNG asset or place it in a private handoff location; do not recreate or alter the logo. The implementation can then include it on the credits page, less prominently than Watchledger branding, alongside the existing non-endorsement notice. Verify against [TMDB attribution requirements](https://developer.themoviedb.org/docs/faq). Current text attribution alone does not complete this requirement.
+- [x] Include an approved TMDB logo from the [official logo gallery](https://www.themoviedb.org/about/logos-attribution). Retrieved the official Alt short (blue) SVG through Chrome on 2026-10-23; the unchanged asset is `web/public/credits/tmdb.svg`, with provenance in [data sources](docs/data-sources.md#tmdb-logo). The credits page displays it at 80 pixels wide alongside the existing non-endorsement notice. [TMDB attribution requirements](https://developer.themoviedb.org/docs/faq) were rechecked. Overall live-provider attribution acceptance remains separate.
 
 ## Existing provider accounts and configuration
 
