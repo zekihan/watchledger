@@ -244,6 +244,14 @@ export const en = {
   yes: "Yes",
   seasonScope: "Season",
   partialMovieStats: "Partially watched movies",
+  simklReadAPI: "Read a SIMKL list directly",
+  simklReadAPIHint:
+    "Optional read-only import using your AUTH V2 client ID and PRO/VIP access token. Only the selected list is read. The token is cleared after this request and is not saved, exported or used for background sync. Auto lists are cached for 24 hours; other lists for five minutes. Nothing is applied before your preview and confirmation.",
+  simklClientID: "SIMKL AUTH V2 client ID",
+  simklAccessToken: "Temporary SIMKL access token",
+  simklListID: "SIMKL list ID",
+  fetchListPreview: "Fetch list preview",
+  sourceRules: "Source API rules",
   movieAliases: "Movie aliases",
   mappingKind: "Mapping kind",
   movieAliasSafety:
@@ -560,6 +568,14 @@ export const tr: Record<Key, string> = {
   yes: "Evet",
   seasonScope: "Sezon",
   partialMovieStats: "Kısmen izlenen filmler",
+  simklReadAPI: "SIMKL listesini doğrudan oku",
+  simklReadAPIHint:
+    "AUTH V2 istemci kimliğiniz ve PRO/VIP erişim belirtecinizle isteğe bağlı, salt okunur aktarım. Yalnızca seçilen liste okunur. Belirteç bu istekten sonra temizlenir; kaydedilmez, dışa aktarılmaz ve arka plan eşitlemesinde kullanılmaz. Otomatik listeler 24 saat, diğer listeler beş dakika önbellekte tutulur. Önizleme ve onayınız olmadan hiçbir değişiklik uygulanmaz.",
+  simklClientID: "SIMKL AUTH V2 istemci kimliği",
+  simklAccessToken: "Geçici SIMKL erişim belirteci",
+  simklListID: "SIMKL liste kimliği",
+  fetchListPreview: "Liste önizlemesini getir",
+  sourceRules: "Kaynak API kuralları",
   movieAliases: "Film eş kimlikleri",
   mappingKind: "Eşleştirme türü",
   movieAliasSafety:

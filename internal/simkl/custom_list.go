@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"slices"
 	"sort"
 	"strconv"
@@ -13,9 +14,10 @@ import (
 )
 
 type ListMember struct {
-	Key    string `json:"key"`
-	Title  string `json:"title"`
-	Target string `json:"target"`
+	SourceURL string `json:"source_url,omitempty"`
+	Key       string `json:"key"`
+	Title     string `json:"title"`
+	Target    string `json:"target"`
 }
 type CustomList struct {
 	ID       string       `json:"id"`
@@ -157,7 +159,16 @@ func ParseCustomList(raw []byte) (CustomList, error) {
 					normalized.IDs[provider] = value
 				}
 			}
-			result.Members = append(result.Members, ListMember{Key: key, Title: item.Title, Target: normalized.Target()})
+			section := group
+			if section == "shows" {
+				section = "tv"
+			}
+			sourceURL := "https://simkl.com/" + section + "/" + a + "/"
+			var slug string
+			if json.Unmarshal(item.IDs["slug"], &slug) == nil && slug != "" && slug != "." && slug != ".." && len(slug) <= 512 {
+				sourceURL += url.PathEscape(slug)
+			}
+			result.Members = append(result.Members, ListMember{Key: key, Title: item.Title, Target: normalized.Target(), SourceURL: sourceURL})
 		}
 	}
 	if len(result.Members) != pages[0].Pagination.TotalItems {

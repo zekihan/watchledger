@@ -107,14 +107,16 @@ type HistoryTombstone struct {
 }
 
 type Import struct {
-	ID        pgtype.UUID        `json:"id"`
-	UserID    pgtype.UUID        `json:"user_id"`
-	Kind      string             `json:"kind"`
-	Checksum  string             `json:"checksum"`
-	Archive   []byte             `json:"archive"`
-	Preview   []byte             `json:"preview"`
-	State     string             `json:"state"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ID           pgtype.UUID        `json:"id"`
+	UserID       pgtype.UUID        `json:"user_id"`
+	Kind         string             `json:"kind"`
+	Checksum     string             `json:"checksum"`
+	Archive      []byte             `json:"archive"`
+	Preview      []byte             `json:"preview"`
+	State        string             `json:"state"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	ApiFetchedAt pgtype.Timestamptz `json:"api_fetched_at"`
+	ApiListType  pgtype.Text        `json:"api_list_type"`
 }
 
 type ImportReview struct {

@@ -6,12 +6,14 @@ import (
 	"github.com/zekihan/watchledger/internal/anidb"
 	"github.com/zekihan/watchledger/internal/auth"
 	"github.com/zekihan/watchledger/internal/catalog"
+	"github.com/zekihan/watchledger/internal/simkl"
 	"net/http"
 	"net/url"
 	"strconv"
 )
 
 type API struct {
+	SIMKL   *simkl.ReadOnlyClient
 	DB      *pgxpool.Pool
 	Catalog *catalog.Cache
 	Anime   *anidb.Cache

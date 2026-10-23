@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"sort"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/zekihan/watchledger/internal/auth"
@@ -18,6 +19,7 @@ type queryRows interface {
 	Query(context.Context, string, ...interface{}) (pgx.Rows, error)
 }
 type listResolution struct {
+	SourceURL string `json:"source_url,omitempty"`
 	Key       string `json:"key"`
 	Title     string `json:"title"`
 	CatalogID string `json:"catalog_id"`
@@ -75,7 +77,7 @@ func resolveCustomMembers(ctx context.Context, db queryRows, uid string, source 
 	}
 	result := make([]listResolution, 0, len(source.Members))
 	for _, member := range source.Members {
-		resolved := listResolution{Key: member.Key, Title: member.Title}
+		resolved := listResolution{Key: member.Key, Title: member.Title, SourceURL: member.SourceURL}
 		set := targets[member.Key]
 		if len(set) > 1 {
 			resolved.Reason = "conflicting_source_identity"
@@ -116,6 +118,9 @@ func (a *API) customListPreview(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "backup exceeds 32 MiB or cannot be read", http.StatusBadRequest)
 		return
 	}
+	a.previewCustomList(w, r, raw, nil, "")
+}
+func (a *API) previewCustomList(w http.ResponseWriter, r *http.Request, raw []byte, fetchedAt *time.Time, listType string, cachedImport ...string) {
 	source, err := simkl.ParseCustomList(raw)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -163,12 +168,19 @@ func (a *API) customListPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var id string
-	err = a.DB.QueryRow(r.Context(), `INSERT INTO imports(user_id,kind,checksum,archive,preview) VALUES($1,'simkl',$2,$3,$4) ON CONFLICT(user_id,checksum) DO UPDATE SET preview=EXCLUDED.preview,state='preview' WHERE imports.kind='simkl' RETURNING id`, uid, fmt.Sprintf("%x", sha256.Sum256(raw)), raw, summary).Scan(&id)
+	if len(cachedImport) > 0 {
+		err = a.DB.QueryRow(r.Context(), "UPDATE imports SET preview=$3,state='preview' WHERE user_id=$1 AND id=$2 AND kind='simkl' RETURNING id", uid, cachedImport[0], summary).Scan(&id)
+	} else {
+		err = a.DB.QueryRow(r.Context(), `INSERT INTO imports(user_id,kind,checksum,archive,preview,api_fetched_at,api_list_type) VALUES($1,'simkl',$2,$3,$4,$5,$6) ON CONFLICT(user_id,checksum) DO UPDATE SET preview=EXCLUDED.preview,state='preview',api_fetched_at=coalesce(EXCLUDED.api_fetched_at,imports.api_fetched_at),api_list_type=CASE WHEN EXCLUDED.api_fetched_at IS NOT NULL THEN EXCLUDED.api_list_type ELSE imports.api_list_type END WHERE imports.kind='simkl' RETURNING id`, uid, fmt.Sprintf("%x", sha256.Sum256(raw)), raw, summary, fetchedAt, listType).Scan(&id)
+	}
 	if err != nil {
 		http.Error(w, "list preview unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	preview["id"] = id
+	if fetchedAt != nil {
+		preview["api_fetched_at"] = fetchedAt
+	}
 	writeJSON(w, preview)
 }
 func (a *API) customListApply(w http.ResponseWriter, r *http.Request) {

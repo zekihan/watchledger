@@ -60,3 +60,12 @@ The feature branch is not a completed first release. Run these checks on a dispo
 - Change a mapping after recording alternate history. The event must remain visible, its original date must survive, and removing your own retained event must still work. New watching through an unconfirmed link must remain blocked.
 - Export and restore this synthetic history to a second account. Alternate history containers must survive without restoring mapping consent or manufacturing aggregate ratings/statuses. Repeat restore and check that records do not duplicate.
 - Compare Up next in native/show modes, move cards with both drag and visible buttons, save unrelated settings, and verify ordering remains. Unmapped or unaired counterparts must fall back visibly rather than advertise a guessed next episode.
+
+## Optional live SIMKL custom-list import
+
+- Use an existing AUTH V2 client ID and a PRO/VIP token belonging to your test account. Enter the temporary token only in the application's password field over HTTPS or loopback, never in chat, URLs, source files, logs or uploaded backups. Do not configure request-body logging at a reverse proxy.
+- Fetch one known list ID. Confirm that the field clears immediately, all pages produce a preview, and no list/history/rating changes before explicit application. The app does not obtain new grants or perform ongoing sync.
+- Verify premium-only, wrong-generation token, denied access, expired token and rate-limit errors are meaningful and do not display the token. Never use production credentials in recorded screenshots.
+- Fetch an auto list again within a day and verify its original freshness timestamp remains. Confirm another application account cannot read that private cached response.
+- Choose another file or leave the screen during a fetch. An old response must not become the active preview.
+- Download your current export, apply explicitly, and repeat import. The existing source identity and app-edits-win rules must prevent duplicate memberships or unwanted rewrites. Inspect exports and the source archive to confirm they contain list data but no access token.

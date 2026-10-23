@@ -220,6 +220,8 @@ Current support is partial: explicit TMDB movie/show IDs can be loaded on demand
 
 - [x] JSON-backup ingestion and validation.
 - [ ] Read-only API import when verified JSON coverage is insufficient.
+  - [x] Optional GET-only custom-list fetch with ephemeral credentials, complete pagination, private caching and preview/apply safeguards.
+  - [ ] Live AUTH V2 and source-account coverage acceptance.
 - [ ] Import source identifiers without unsafe anime merges.
 - [ ] Import statuses and episode progress.
 - [ ] Import recorded watched dates and personal ratings.

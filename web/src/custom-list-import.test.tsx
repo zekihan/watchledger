@@ -114,3 +114,48 @@ test("existing app deletion is explicit and results are reported as retained rat
   expect(await screen.findByText(en.customListRetained)).toBeTruthy();
   expect(screen.queryByText(en.customListCreated)).toBeNull();
 });
+
+test("read-only API preview clears its temporary token and never applies automatically", async () => {
+  let finish: ((response: Response) => void) | undefined;
+  const pending = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  const requests: { path: string; body: unknown }[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string, init?: RequestInit) => {
+      requests.push({
+        path,
+        body: typeof init?.body === "string" ? (JSON.parse(init.body) as unknown) : null,
+      });
+      return path.endsWith("/fetch")
+        ? pending
+        : Promise.resolve(new Response("[]", { status: 200 }));
+    }),
+  );
+  mount(true);
+  await userEvent.click(screen.getByText(en.simklReadAPI));
+  await userEvent.type(screen.getByRole("textbox", { name: en.simklClientID }), "synthetic-client");
+  await userEvent.type(screen.getByLabelText(en.simklAccessToken), "synthetic-private-token");
+  await userEvent.type(screen.getByRole("textbox", { name: en.simklListID }), "42");
+  await userEvent.click(screen.getByRole("button", { name: en.fetchListPreview }));
+  expect(screen.getByLabelText<HTMLInputElement>(en.simklAccessToken).value).toBe("");
+  expect(requests).toEqual([
+    {
+      path: "/api/simkl/custom-lists/fetch",
+      body: {
+        client_id: "synthetic-client",
+        access_token: "synthetic-private-token",
+        list_id: "42",
+      },
+    },
+  ]);
+  finish?.(
+    new Response(JSON.stringify({ ...preview, api_fetched_at: "2026-01-01T00:00:00Z" }), {
+      status: 200,
+    }),
+  );
+  expect(await screen.findByText("Synthetic list")).toBeTruthy();
+  expect(requests.some((r) => r.path.endsWith("/apply"))).toBe(false);
+  expect(screen.getByLabelText<HTMLInputElement>(en.simklAccessToken).value).toBe("");
+});

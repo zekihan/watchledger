@@ -16,6 +16,7 @@ func (a *API) portableRoutes(m *http.ServeMux) {
 	m.HandleFunc("POST /api/restore/{id}/apply", a.restoreApply)
 	m.HandleFunc("GET /api/imports", a.imports)
 	m.HandleFunc("POST /api/simkl/custom-lists/preview", a.customListPreview)
+	m.HandleFunc("POST /api/simkl/custom-lists/fetch", a.fetchCustomList)
 	m.HandleFunc("POST /api/simkl/custom-lists/{id}/apply", a.customListApply)
 	m.HandleFunc("POST /api/simkl/preview", a.simklPreview)
 	m.HandleFunc("POST /api/simkl/{id}/apply", a.simklApply)

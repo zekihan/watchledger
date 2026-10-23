@@ -1,11 +1,18 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import type { T } from "./App";
 interface ListPreview {
+  api_fetched_at?: string;
   id: string;
   source: { id: string; name: string; warnings: string[] };
-  members: { key: string; title: string; catalog_id: string; reason?: string }[];
+  members: {
+    key: string;
+    title: string;
+    catalog_id: string;
+    reason?: string;
+    source_url?: string;
+  }[];
   action: string;
   unresolved: number;
   existing_list_id: string;
@@ -13,6 +20,17 @@ interface ListPreview {
 export function CustomListImport({ t, backed }: { t: T; backed: boolean }) {
   const client = useQueryClient();
   const generation = useRef(0);
+  const abort = useRef<AbortController | null>(null);
+  useEffect(
+    () => () => {
+      generation.current++;
+      abort.current?.abort();
+    },
+    [],
+  );
+  const [apiClientID, setAPIClientID] = useState(""),
+    [apiToken, setAPIToken] = useState(""),
+    [apiListID, setAPIListID] = useState("");
   const [preview, setPreview] = useState<ListPreview | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -27,6 +45,8 @@ export function CustomListImport({ t, backed }: { t: T; backed: boolean }) {
   });
   async function read(files: FileList | null) {
     const current = ++generation.current;
+    abort.current?.abort();
+    abort.current = null;
     setPreview(null);
     setError("");
     setBusy(false);
@@ -61,11 +81,98 @@ export function CustomListImport({ t, backed }: { t: T; backed: boolean }) {
       if (current === generation.current) setBusy(false);
     }
   }
+  async function fetchSource() {
+    const current = ++generation.current;
+    abort.current?.abort();
+    const controller = new AbortController();
+    abort.current = controller;
+    setPreview(null);
+    setError("");
+    setBusy(true);
+    setPage(0);
+    apply.reset();
+    const body = {
+      client_id: apiClientID.trim(),
+      access_token: apiToken.trim(),
+      list_id: apiListID.trim(),
+    };
+    setAPIToken("");
+    try {
+      const pending = api<ListPreview>(
+        "/simkl/custom-lists/fetch",
+        "POST",
+        body,
+        controller.signal,
+      );
+      body.access_token = "";
+      const result = await pending;
+      if (current === generation.current) {
+        setPreview(result);
+        await client.invalidateQueries({ queryKey: ["imports"] });
+      }
+    } catch (e) {
+      if (current === generation.current) setError(e instanceof Error ? e.message : t("error"));
+    } finally {
+      body.access_token = "";
+      if (current === generation.current) {
+        setBusy(false);
+        abort.current = null;
+      }
+    }
+  }
   return (
     <section className="panel" aria-label={t("customListImport")}>
       <h3>{t("customListImport")}</h3>
       <p>{t("customListImportHint")}</p>
       <p className="notice">{t("customListAtomic")}</p>
+      <details>
+        <summary>{t("simklReadAPI")}</summary>
+        <p>{t("simklReadAPIHint")}</p>
+        <p>
+          <a href="https://api.simkl.org/guides/custom-lists" target="_blank" rel="noreferrer">
+            SIMKL API
+          </a>{" "}
+          ·{" "}
+          <a href="https://api.simkl.org/api-rules" target="_blank" rel="noreferrer">
+            {t("sourceRules")}
+          </a>
+        </p>
+        <fieldset disabled={busy || apply.isPending}>
+          <label>
+            {t("simklClientID")}
+            <input
+              autoComplete="off"
+              value={apiClientID}
+              onChange={(e) => setAPIClientID(e.target.value)}
+            />
+          </label>
+          <label>
+            {t("simklAccessToken")}
+            <input
+              type="password"
+              autoComplete="off"
+              value={apiToken}
+              onChange={(e) => setAPIToken(e.target.value)}
+            />
+          </label>
+          <label>
+            {t("simklListID")}
+            <input
+              inputMode="numeric"
+              value={apiListID}
+              onChange={(e) => setAPIListID(e.target.value)}
+            />
+          </label>
+          <button
+            disabled={!apiClientID.trim() || !apiToken.trim() || !/^\d+$/.test(apiListID)}
+            onClick={() => {
+              void fetchSource();
+            }}
+          >
+            {t("fetchListPreview")}
+          </button>
+        </fieldset>
+      </details>
       <label>
         {t("customListFiles")}
         <input
@@ -88,6 +195,20 @@ export function CustomListImport({ t, backed }: { t: T; backed: boolean }) {
         <div className="preview">
           <h4>{preview.source.name}</h4>
           <p>
+            <img
+              src="https://us.simkl.in/img_favicon/v2/favicon-192x192.png"
+              alt="Simkl"
+              width="18"
+              height="18"
+            />{" "}
+            SIMKL
+          </p>
+          {preview.api_fetched_at && (
+            <p>
+              {t("freshness")}: {new Date(preview.api_fetched_at).toLocaleString()}
+            </p>
+          )}
+          <p>
             {preview.members.length} {t("title")} · {t("unresolved")}: {preview.unresolved}
           </p>
           {preview.source.warnings.length > 0 && <p>{t("manualSnapshot")}</p>}
@@ -97,6 +218,12 @@ export function CustomListImport({ t, backed }: { t: T; backed: boolean }) {
             {preview.members.slice(page * 50, page * 50 + 50).map((member) => (
               <li key={member.key}>
                 {member.title} · {member.catalog_id || member.reason}
+                {member.source_url && (
+                  <a href={member.source_url} target="_blank" rel="noreferrer">
+                    {" "}
+                    · SIMKL ↗
+                  </a>
+                )}
               </li>
             ))}
           </ol>
