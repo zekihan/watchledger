@@ -28,16 +28,16 @@ type effectiveSnapshot struct {
 
 // Tracking callers lock the mapping table before their account lock, preventing
 // revision changes during apply without reversing the mapping-notice lock order.
-func loadEffective(ctx context.Context, db queryRows, uid, catalogID string) (effectiveSnapshot, error) {
+func loadEffective(ctx context.Context, db queryRows, uid, catalogID string, extraCatalogs ...string) (effectiveSnapshot, error) {
 	out := effectiveSnapshot{Direct: map[string]recordedLink{}}
 	query := `WITH related AS (
- SELECT DISTINCT m.id FROM mappings m CROSS JOIN LATERAL jsonb_array_elements(m.relationships) edge JOIN episodes e ON e.id=edge->>'from' OR e.id=edge->>'to' WHERE e.catalog_id=$2 OR ($2='' AND EXISTS(SELECT 1 FROM library l WHERE l.user_id=$1 AND l.catalog_id=e.catalog_id))
+ SELECT DISTINCT m.id FROM mappings m CROSS JOIN LATERAL jsonb_array_elements(m.relationships) edge JOIN episodes e ON e.id=edge->>'from' OR e.id=edge->>'to' WHERE e.catalog_id=$2 OR e.catalog_id=ANY($3::text[]) OR ($2='' AND EXISTS(SELECT 1 FROM library l WHERE l.user_id=$1 AND l.catalog_id=e.catalog_id))
  ), vertices AS (
  SELECT edge->>'from' AS id FROM mappings m JOIN related r ON r.id=m.id CROSS JOIN LATERAL jsonb_array_elements(m.relationships) edge
  UNION SELECT edge->>'to' FROM mappings m JOIN related r ON r.id=m.id CROSS JOIN LATERAL jsonb_array_elements(m.relationships) edge
  )
  SELECT m.id,m.revision,m.relationships,(m.reviewed AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(m.relationships) edge LEFT JOIN episodes src ON src.id=edge->>'from' LEFT JOIN episodes dst ON dst.id=edge->>'to' WHERE src.id IS NULL OR dst.id IS NULL OR src.retired OR dst.retired)),m.requires_consent,coalesce(c.revision,'') FROM mappings m LEFT JOIN mapping_consents c ON c.mapping_id=m.id AND c.user_id=$1 WHERE m.id IN(SELECT id FROM related) OR EXISTS(SELECT 1 FROM jsonb_array_elements(m.relationships) edge WHERE edge->>'from' IN(SELECT id FROM vertices) OR edge->>'to' IN(SELECT id FROM vertices)) ORDER BY m.id`
-	rows, err := db.Query(ctx, query, uid, catalogID)
+	rows, err := db.Query(ctx, query, uid, catalogID, extraCatalogs)
 	if err != nil {
 		return out, err
 	}

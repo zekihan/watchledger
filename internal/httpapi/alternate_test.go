@@ -137,6 +137,35 @@ func TestPrivateAlternateProjectionConsentAndCorrections(t *testing.T) {
 		t.Fatal("target missing")
 		return mapping.State{}
 	}
+
+	labels := request("GET", "/api/mappings", "", true)
+	if labels.Code != 200 {
+		t.Fatal(labels.Code, labels.Body.String())
+	}
+	var listed []struct {
+		ID       string `json:"id"`
+		Episodes map[string]struct {
+			Title  string `json:"title"`
+			Season int    `json:"season"`
+			Number int    `json:"number"`
+		} `json:"episodes"`
+	}
+	if err := json.Unmarshal(labels.Body.Bytes(), &listed); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, m := range listed {
+		if m.ID == mid {
+			found = true
+			label := m.Episodes[target+"ep"]
+			if label.Title != "Alternate show" || label.Season != 2 || label.Number != 5 {
+				t.Fatal("missing human-readable episode labels", label)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("mapping absent from review")
+	}
 	if state := targetState(read()); state.Derived || !state.Blocked {
 		t.Fatal("unconfirmed cross-view propagation", state)
 	}
@@ -180,6 +209,50 @@ func TestPrivateAlternateProjectionConsentAndCorrections(t *testing.T) {
 	if e = p.QueryRow(ctx, "SELECT anime_view FROM library WHERE user_id=$1 AND catalog_id=$2", uid, id).Scan(&viewSetting); e != nil || viewSetting != nil {
 		t.Fatal("default structure not restored", e)
 	}
+
+	// Separate cours linked to distinct episodes of the same show remain
+	// separate native entries, while the show aggregates both sets of progress.
+	exec := func(query string, args ...interface{}) {
+		t.Helper()
+		if _, err := p.Exec(ctx, query, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cour := id + ":cour2"
+	exec("INSERT INTO catalog(id,source,source_id,kind,title) VALUES($1,'fixture',$1,'anime','Second cour')", cour)
+	exec("INSERT INTO episodes(id,catalog_id,source,source_id,season,number) VALUES($1,$2,'fixture',$1,1,1)", cour+"e", cour)
+	exec("INSERT INTO episodes(id,catalog_id,source,source_id,season,number) VALUES($1,$2,'fixture',$1,3,1)", target+"second", target)
+	secondEdges, secondRev, _, _ := mapping.Canonical([]mapping.Edge{{From: cour + "e", To: target + "second"}})
+	secondRaw, _ := json.Marshal(secondEdges)
+	var secondID string
+	if err := p.QueryRow(ctx, `INSERT INTO mappings(revision,provenance,relationships,requires_consent,reviewed) VALUES($1,'{"source":"synthetic","version":"2"}',$2,false,true) RETURNING id`, secondRev, secondRaw).Scan(&secondID); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _, _ = p.Exec(ctx, "DELETE FROM mappings WHERE id=$1", secondID) }()
+	exec("INSERT INTO library(user_id,catalog_id,base,rating) VALUES($1,$2,'completed',10)", other, cour)
+	checkCour := func(wantRating *int, wantWatched int) {
+		t.Helper()
+		seen := false
+		for _, title := range read().Titles {
+			if title.ID == cour {
+				seen = true
+				if (title.Rating == nil) != (wantRating == nil) || (wantRating != nil && *title.Rating != *wantRating) || title.Watched != wantWatched {
+					t.Fatal("cour privacy/progress", title)
+				}
+			}
+			if title.ID == target && title.Watched != wantWatched {
+				t.Fatal("show did not aggregate separate cour", title)
+			}
+		}
+		if !seen {
+			t.Fatal("second cour omitted")
+		}
+	}
+	checkCour(nil, 0)
+	exec("INSERT INTO library(user_id,catalog_id,base,rating) VALUES($1,$2,'completed',7)", uid, cour)
+	exec("INSERT INTO history(user_id,catalog_id,episode_id) VALUES($1,$2,$3)", uid, cour, cour+"e")
+	seven := 7
+	checkCour(&seven, 1)
 	if _, e = p.Exec(ctx, "UPDATE sessions SET user_id=$2 WHERE token_hash=$1", sum, other); e != nil {
 		t.Fatal(e)
 	}

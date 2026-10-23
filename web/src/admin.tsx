@@ -5,6 +5,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import type { T } from "./App";
 export interface Mapping {
+  episodes?: Record<
+    string,
+    {
+      catalog_id: string;
+      title: string;
+      name: string;
+      season: number;
+      number: number;
+      kind: string;
+      retired: boolean;
+    }
+  >;
   proposal_id?: string;
   id: string;
   revision: string;
@@ -43,7 +55,11 @@ export function MappingPage({ t, admin }: { t: T; admin: boolean }) {
     [note, setNote] = useState("");
   const confirm = useMutation({
     mutationFn: (m: Mapping) => api(`/mappings/${m.id}/confirm`, "POST", { revision: m.revision }),
-    onSuccess: () => client.invalidateQueries({ queryKey: ["mappings"] }),
+    onSuccess: async () => {
+      for (const key of ["mappings", "alternate", "effective", "dashboard", "statistics"]) {
+        await client.invalidateQueries({ queryKey: [key] });
+      }
+    },
   });
   const save = useMutation({
     mutationFn: (m: Mapping) =>
@@ -211,9 +227,15 @@ export function MappingPage({ t, admin }: { t: T; admin: boolean }) {
           </small>
           {m.relationships.map((edge, i) => (
             <div className="activity-row" key={i}>
-              <code>{edge.from}</code>
+              <span>
+                {episodeLabel(m, edge.from)}
+                <small> · {edge.from}</small>
+              </span>
               <span>→</span>
-              <code>{edge.to}</code>
+              <span>
+                {episodeLabel(m, edge.to)}
+                <small> · {edge.to}</small>
+              </span>
             </div>
           ))}
           {m.requires_consent && <p className="notice">{t("mappingSafety")}</p>}
@@ -248,7 +270,7 @@ export function MappingPage({ t, admin }: { t: T; admin: boolean }) {
             {m.requires_consent && !m.confirmed && (
               <button
                 className="primary"
-                disabled={confirm.isPending}
+                disabled={confirm.isPending || !m.reviewed}
                 onClick={() => {
                   if (window.confirm(t("confirmMapping"))) confirm.mutate(m);
                 }}
@@ -324,4 +346,9 @@ export function Notices({ t }: { t: T }) {
       ))}
     </>
   );
+}
+
+function episodeLabel(m: Mapping, id: string) {
+  const e = m.episodes?.[id];
+  return e ? `${e.title} · ${e.season}:${e.number}${e.name ? ` · ${e.name}` : ""}` : id;
 }

@@ -20,7 +20,7 @@ func (a *API) mappingRoutes(m *http.ServeMux) {
 	m.HandleFunc("GET /api/admin/jobs", a.jobStatus)
 }
 func (a *API) mappings(w http.ResponseWriter, r *http.Request) {
-	rows, e := a.DB.Query(r.Context(), `SELECT jsonb_build_object('id',m.id,'revision',m.revision,'provenance',m.provenance,'relationships',m.relationships,'requires_consent',m.requires_consent,'reviewed',m.reviewed,'confirmed',coalesce(c.revision=m.revision,false)) FROM mappings m LEFT JOIN mapping_consents c ON c.mapping_id=m.id AND c.user_id=$1 ORDER BY m.updated_at DESC`, auth.Current(r.Context()).ID)
+	rows, e := a.DB.Query(r.Context(), `SELECT jsonb_build_object('id',m.id,'revision',m.revision,'provenance',m.provenance,'relationships',m.relationships,'requires_consent',m.requires_consent,'reviewed',m.reviewed,'confirmed',coalesce(c.revision=m.revision,false),'episodes',coalesce((SELECT jsonb_object_agg(e.id,jsonb_build_object('catalog_id',cat.id,'title',catalog_display_title(cat.kind,cat.metadata,cat.title,u.settings),'name',coalesce(e.metadata->>'name',''),'season',e.season,'number',e.number,'kind',e.kind,'retired',e.retired)) FROM episodes e JOIN catalog cat ON cat.id=e.catalog_id JOIN users u ON u.id=$1 WHERE EXISTS(SELECT 1 FROM jsonb_array_elements(m.relationships) edge WHERE e.id=edge->>'from' OR e.id=edge->>'to')),'{}'::jsonb)) FROM mappings m LEFT JOIN mapping_consents c ON c.mapping_id=m.id AND c.user_id=$1 ORDER BY m.updated_at DESC`, auth.Current(r.Context()).ID)
 	if e != nil {
 		http.Error(w, "mappings unavailable", http.StatusServiceUnavailable)
 		return

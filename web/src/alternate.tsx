@@ -40,6 +40,7 @@ export function AlternateView({ id, t }: { id: string; t: T }) {
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ["alternate", id] });
       await client.invalidateQueries({ queryKey: ["library"] });
+      await client.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
   const q = useQuery({
@@ -113,7 +114,19 @@ export function AlternateView({ id, t }: { id: string; t: T }) {
                   {ep.state.sources.length > 0 && (
                     <small>
                       {" "}
-                      ({t("connectedEpisodes")}: {ep.state.sources.join(", ")})
+                      ({t("connectedEpisodes")}:{" "}
+                      {ep.state.sources
+                        .map((id) => {
+                          const title = q.data?.titles.find((title) =>
+                            title.episodes.some((e) => e.id === id),
+                          );
+                          const e = title?.episodes.find((e) => e.id === id);
+                          return title && e
+                            ? `${title.title} · ${e.season}:${e.number}${e.name ? ` · ${e.name}` : ""}`
+                            : id;
+                        })
+                        .join(", ")}
+                      )
                     </small>
                   )}
                 </li>

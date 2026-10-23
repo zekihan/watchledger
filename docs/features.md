@@ -189,9 +189,11 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] One shared underlying episode history across views.
 - [ ] Stable source identities without merging entries solely on shared TMDB IDs.
 - [x] Mapping provenance and dataset versions.
-- [ ] Native-entry statuses and ratings visible in aggregate show views.
+- [x] Native-entry statuses and ratings visible in aggregate show views.
 - [ ] Aggregate progress without fabricated combined ratings.
 - [ ] Up next cards follow the selected structure.
+  - [x] Effective-progress native-to-show cards, incomplete source fallback, and private displayed-card ordering.
+  - [ ] Full alternate-view tracking and browser acceptance.
 - [ ] Missing/ambiguous mappings retain usable source entries.
 - [ ] Incomplete alternate-view indicators.
 - [ ] Admin mapping review and local override tools.
@@ -199,7 +201,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
   - [ ] Movie relationships and full browser acceptance.
 - [x] Explicit versus inferred mapping distinction.
 - [ ] Per-user confirmation before split/combined cross-view progress linking.
-- [ ] Explain connected episodes during mapping confirmation.
+- [x] Explain connected episodes during mapping confirmation.
 - [x] Prevent unconfirmed mapping propagation.
 - [ ] Preserve recorded events when mappings change.
 - [ ] Recompute derived progress after corrections.
@@ -261,7 +263,8 @@ Backend regression coverage verifies private counts, runtime unknowns, metadata-
 - [ ] AniDB integration after access-policy verification.
   - [x] On-demand native metadata/episode loading, registered client configuration, persistent cooldowns, source-ID-safe tracking and cached outage fallback.
   - [x] Official title-index file import and native title search.
-  - [ ] Native artwork and complete native/alternate-view acceptance.
+  - [x] Native artwork URL validation and failed-artwork fallback.
+  - [ ] Complete native/alternate-view browser acceptance.
 - [x] Versioned animap ingestion with applicable attribution and license handling.
 - [ ] On-demand metadata fetching and PostgreSQL caching.
 - [ ] Daily refresh of active shows.
