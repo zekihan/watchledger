@@ -48,6 +48,8 @@ jobs:
       - run: git diff --exit-code
       - name: Build application container
         run: docker build -t watchledger:ci .
+      - name: Smoke test Compose startup, OIDC and restart persistence
+        run: bash scripts/compose-smoke.sh
       - name: Validate Helm chart
         run: |
           curl -fsSL https://get.helm.sh/helm-v3.19.0-linux-amd64.tar.gz -o /tmp/helm.tar.gz

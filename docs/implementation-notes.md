@@ -241,3 +241,9 @@ Physical recovery was repeated after migration 017: source and fresh restored da
 Custom-status removal now asks for a separate explicit destination instead of reusing the unrelated new-status form selection. The destination can be a fixed base or another custom status owned by the same user. The transaction locks source/destination, preserves history and ratings, moves library references and locks a newly used destination's base mapping. Self/foreign/missing destinations fail without deletion. The named dialog defaults to cancellation and requires a selection; errors remain in the dialog.
 
 Logout failures are now visible and retryable rather than silently resetting an unrelated settings mutation. Calendar errors expose a retry action, and the remaining native source-link label uses the English/Turkish translation boundary. Backend and frontend regressions cover the replacement and failure paths.
+
+### Synthetic runtime smoke coverage
+
+A standalone synthetic OIDC fixture now exercises the real running app with PKCE, nonce, signed tokens and verified short-lived TLS. It is a test executable, not a production login mode. A local process smoke run passed actual startup/migrations, login, non-admin authorization, preview-without-application restore, explicit restore, known-date movie tracking, portable export without authority, unavailable uncached metadata and session/history persistence after restart.
+
+CI now runs the same HTTP checks against the built image using the actual Compose definition plus a CI-only isolated PostgreSQL/OIDC override. Its unique project, test certificate/key, database and files are ephemeral; no operator credentials, real history or homelab are used. Compose runtime acceptance must be confirmed by the exact-head CI result, not inferred from the process run or image build. Real-provider/browser/Kubernetes acceptance remains separate in TODO.md.
