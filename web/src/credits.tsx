@@ -6,6 +6,7 @@ export function CreditsPage({ t }: { t: T }) {
       <p>{t("sourceRights")}</p>
       <section>
         <h2>TMDB</h2>
+        <img src="/credits/tmdb.svg" alt="TMDB" width="80" style={{ height: "auto" }} />
         <p>{t("attribution")}</p>
         <a href="https://www.themoviedb.org" target="_blank" rel="noreferrer">
           TMDB ↗

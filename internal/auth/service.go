@@ -12,7 +12,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -39,17 +41,18 @@ type flow struct {
 	until           time.Time
 }
 type Service struct {
-	pool     *pgxpool.Pool
-	q        *dbgen.Queries
-	provider *oidc.Provider
-	verifier *oidc.IDTokenVerifier
-	oauth    oauth2.Config
-	policy   Policy
-	origin   string
-	secure   bool
-	box      cipher.AEAD
-	mu       sync.Mutex
-	flows    map[string]flow
+	pool         *pgxpool.Pool
+	q            *dbgen.Queries
+	provider     *oidc.Provider
+	verifier     *oidc.IDTokenVerifier
+	oauth        oauth2.Config
+	policy       Policy
+	origin       string
+	secure       bool
+	box          cipher.AEAD
+	mu           sync.Mutex
+	flows        map[string]flow
+	claimsSource string
 }
 
 func New(ctx context.Context, pool *pgxpool.Pool, c config.Config) (*Service, error) {
@@ -69,7 +72,13 @@ func New(ctx context.Context, pool *pgxpool.Pool, c config.Config) (*Service, er
 	if e != nil {
 		return nil, fmt.Errorf("OIDC discovery: %w", e)
 	}
-	return &Service{pool: pool, q: dbgen.New(pool), provider: provider, verifier: provider.Verifier(&oidc.Config{ClientID: c.ClientID}), oauth: oauth2.Config{ClientID: c.ClientID, ClientSecret: c.ClientSecret, Endpoint: provider.Endpoint(), RedirectURL: strings.TrimRight(c.PublicURL, "/") + "/auth/callback", Scopes: []string{oidc.ScopeOpenID, "profile", "offline_access"}}, policy: Policy{c.AdmissionClaim, c.AdmissionValue, c.AdminClaim, c.AdminValue}, origin: strings.TrimRight(c.PublicURL, "/"), secure: strings.HasPrefix(c.PublicURL, "https:"), box: box, flows: map[string]flow{}}, nil
+	scopes := []string{oidc.ScopeOpenID, "profile", "offline_access"}
+	for _, scope := range c.OIDCExtraScopes {
+		if !slices.Contains(scopes, scope) {
+			scopes = append(scopes, scope)
+		}
+	}
+	return &Service{pool: pool, q: dbgen.New(pool), provider: provider, verifier: provider.Verifier(&oidc.Config{ClientID: c.ClientID}), oauth: oauth2.Config{ClientID: c.ClientID, ClientSecret: c.ClientSecret, Endpoint: provider.Endpoint(), RedirectURL: strings.TrimRight(c.PublicURL, "/") + "/auth/callback", Scopes: scopes}, policy: Policy{c.AdmissionClaim, c.AdmissionValue, c.AdminClaim, c.AdminValue}, origin: strings.TrimRight(c.PublicURL, "/"), secure: strings.HasPrefix(c.PublicURL, "https:"), box: box, flows: map[string]flow{}, claimsSource: c.OIDCClaimsSource}, nil
 }
 func random() string       { return oauth2.GenerateVerifier() }
 func hash(s string) string { x := sha256.Sum256([]byte(s)); return hex.EncodeToString(x[:]) }
@@ -113,6 +122,17 @@ func (s *Service) Callback(w http.ResponseWriter, r *http.Request) {
 	exchangeCtx := context.WithValue(r.Context(), oauth2.HTTPClient, &http.Client{Timeout: 20 * time.Second})
 	tok, e := s.oauth.Exchange(exchangeCtx, r.URL.Query().Get("code"), oauth2.VerifierOption(f.verifier))
 	if e != nil {
+		var providerError *oauth2.RetrieveError
+		if errors.As(e, &providerError) && providerError.Response != nil {
+			code := "other"
+			switch providerError.ErrorCode {
+			case "invalid_client", "invalid_grant", "invalid_scope", "invalid_request", "unauthorized_client", "unsupported_grant_type", "server_error", "temporarily_unavailable":
+				code = providerError.ErrorCode
+			}
+			slog.Warn("OIDC login exchange failed", "http_status", providerError.Response.StatusCode, "oauth_error", code)
+		} else {
+			slog.Warn("OIDC login exchange failed", "error_type", fmt.Sprintf("%T", e))
+		}
 		http.Error(w, "login exchange failed", http.StatusUnauthorized)
 		return
 	}
@@ -126,6 +146,13 @@ func (s *Service) Callback(w http.ResponseWriter, r *http.Request) {
 	if e = id.Claims(&claims); e != nil {
 		http.Error(w, "invalid identity claims", http.StatusUnauthorized)
 		return
+	}
+	if s.claimsSource == "userinfo" {
+		claims, e = s.userInfoClaims(r.Context(), tok, id.Subject)
+		if e != nil {
+			http.Error(w, "current identity claims unavailable", http.StatusUnauthorized)
+			return
+		}
 	}
 	admin, e := s.policy.Evaluate(claims)
 	if e != nil {
@@ -217,20 +244,31 @@ func (s *Service) refresh(ctx context.Context, tok *oauth2.Token, subject string
 		if err = id.Claims(&claims); err != nil {
 			return nil, false, err
 		}
-	} else {
-		info, err := s.provider.UserInfo(ctx, oauth2.StaticTokenSource(fresh))
-		if err != nil {
-			return nil, false, err
-		}
-		if info.Subject != subject {
-			return nil, false, errors.New("userinfo subject changed")
-		}
-		if err = info.Claims(&claims); err != nil {
-			return nil, false, err
+	}
+	if s.claimsSource == "userinfo" || len(claims) == 0 {
+		claims, e = s.userInfoClaims(ctx, fresh, subject)
+		if e != nil {
+			return nil, false, e
 		}
 	}
 	admin, e := s.policy.Evaluate(claims)
 	return fresh, admin, e
+}
+
+func (s *Service) userInfoClaims(ctx context.Context, tok *oauth2.Token, subject string) (map[string]interface{}, error) {
+	ctx = context.WithValue(ctx, oauth2.HTTPClient, &http.Client{Timeout: 20 * time.Second})
+	info, err := s.provider.UserInfo(ctx, oauth2.StaticTokenSource(tok))
+	if err != nil {
+		return nil, err
+	}
+	if info.Subject != subject {
+		return nil, errors.New("userinfo subject changed")
+	}
+	claims := map[string]interface{}{}
+	if err = info.Claims(&claims); err != nil {
+		return nil, err
+	}
+	return claims, nil
 }
 func (s *Service) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -96,7 +96,7 @@ export function AlternateView({ id, t, timezone }: { id: string; t: T; timezone?
               {title.title} · {title.watched}/{title.total}
             </h3>
             <p>
-              {title.base ?? t("notInLibrary")} · {t("rating")}: {title.rating ?? t("unknown")}
+              {title.base ?? t("notInLibrary")} · {t("rating")}: {title.rating ?? t("noRating")}
             </p>
             {title.incomplete && <p>{t("alternateIncomplete")}</p>}
             <a href={`#detail/${title.id.split(":").slice(1).join("/")}`}>{t("details")}</a>

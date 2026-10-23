@@ -9,6 +9,8 @@ publicURL: ""
 oidc:
   issuer: ""
   clientID: watchledger
+  extraScopes: ""
+  claimsSource: auto
   admissionClaim: groups
   admissionValue: watchledger-users
   adminClaim: groups

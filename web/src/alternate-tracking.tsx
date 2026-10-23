@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import { ChoiceDialog } from "./tracking-ui";
+import { useTrackingDialogFocus } from "./use-tracking-dialog-focus";
 import { localDay } from "./dates";
 import type { T } from "./App";
 export interface AlternateScope {
@@ -96,6 +97,7 @@ export function useAlternateTracking(t: T, timezone?: string) {
       }
     },
   });
+  const trackingFocus = useTrackingDialogFocus(mutation.isPending);
   const controls = (
     <>
       <label>
@@ -127,6 +129,7 @@ export function useAlternateTracking(t: T, timezone?: string) {
           submit={t("save")}
           cancel={t("cancel")}
           onClose={(value) => {
+            trackingFocus.requestRestore();
             pending.current = null;
             prompt.resolve(value);
             setPrompt(null);
@@ -137,7 +140,10 @@ export function useAlternateTracking(t: T, timezone?: string) {
   );
   return {
     controls,
-    run: (scope: AlternateScope) => mutation.mutate(scope),
+    run: (scope: AlternateScope) => {
+      trackingFocus.capture();
+      mutation.mutate(scope);
+    },
     pending: mutation.isPending,
   };
 }

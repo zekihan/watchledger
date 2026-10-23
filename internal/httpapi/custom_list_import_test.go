@@ -74,8 +74,9 @@ func TestCustomListImportPreservesAppEditsAndPortableSource(t *testing.T) {
 		handler.ServeHTTP(w, r)
 		return w
 	}
-	firstNumber := fmt.Sprint(time.Now().UnixNano())
-	secondNumber := fmt.Sprint(time.Now().UnixNano())
+	numberSeed := time.Now().UnixNano()
+	firstNumber := fmt.Sprint(numberSeed)
+	secondNumber := fmt.Sprint(numberSeed + 1)
 	first, second := "tmdb:movie:"+firstNumber, "tmdb:movie:"+secondNumber
 	for _, number := range []string{firstNumber, secondNumber} {
 		if _, e = p.Exec(ctx, `INSERT INTO catalog(id,source,source_id,kind,title) VALUES($1,'tmdb',$2,'movie','Synthetic movie')`, "tmdb:movie:"+number, number); e != nil {

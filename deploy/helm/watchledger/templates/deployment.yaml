@@ -45,6 +45,10 @@ spec:
               value: {{ required "oidc.issuer is required" .Values.oidc.issuer | quote }}
             - name: OIDC_CLIENT_ID
               value: {{ .Values.oidc.clientID | quote }}
+            - name: OIDC_EXTRA_SCOPES
+              value: {{ .Values.oidc.extraScopes | default "" | quote }}
+            - name: OIDC_CLAIMS_SOURCE
+              value: {{ .Values.oidc.claimsSource | default "auto" | quote }}
             - name: OIDC_ADMISSION_CLAIM
               value: {{ .Values.oidc.admissionClaim | quote }}
             - name: OIDC_ADMISSION_VALUE

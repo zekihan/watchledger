@@ -45,15 +45,24 @@ func TestOIDCLoginAndStableIdentity(t *testing.T) {
 	var mu sync.Mutex
 	nonce, name := "", "Original name"
 	admitted := true
+	infoSubject := "stable-subject"
+	infoRoles := []string{"member", "admin"}
+	infoStatus := http.StatusOK
 	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		mu.Lock()
 		defer mu.Unlock()
 		switch r.URL.Path {
 		case "/.well-known/openid-configuration":
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{"issuer": issuer, "authorization_endpoint": issuer + "/authorize", "token_endpoint": issuer + "/token", "jwks_uri": issuer + "/keys", "id_token_signing_alg_values_supported": []string{"RS256"}})
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"issuer": issuer, "authorization_endpoint": issuer + "/authorize", "token_endpoint": issuer + "/token", "userinfo_endpoint": issuer + "/userinfo", "jwks_uri": issuer + "/keys", "id_token_signing_alg_values_supported": []string{"RS256"}})
 		case "/keys":
 			_ = json.NewEncoder(w).Encode(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{{Key: &key.PublicKey, KeyID: "fixture", Algorithm: "RS256", Use: "sig"}}})
+		case "/userinfo":
+			if r.Header.Get("Authorization") != "Bearer synthetic-access" {
+				t.Error("missing UserInfo bearer token")
+			}
+			w.WriteHeader(infoStatus)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"sub": infoSubject, "roles": infoRoles, "name": name})
 		case "/token":
 			if err := r.ParseForm(); err != nil {
 				http.Error(w, "invalid request", http.StatusBadRequest)
@@ -147,4 +156,38 @@ func TestOIDCLoginAndStableIdentity(t *testing.T) {
 	if forged.Code != http.StatusBadRequest {
 		t.Fatal("forged state accepted")
 	}
+	s, e = New(ctx, pool, config.Config{Issuer: issuer, ClientID: "client", PublicURL: "http://127.0.0.1:8080", SessionKey: base64.StdEncoding.EncodeToString(make([]byte, 32)), AdmissionClaim: "roles", AdmissionValue: "member", AdminClaim: "roles", AdminValue: "admin", OIDCClaimsSource: "userinfo", OIDCExtraScopes: []string{"groups", "openid", "groups"}})
+	if e != nil {
+		t.Fatal(e)
+	}
+	if len(s.oauth.Scopes) != 4 || s.oauth.Scopes[3] != "groups" {
+		t.Fatal("extra scopes not deduplicated", s.oauth.Scopes)
+	}
+	for _, test := range []struct {
+		name, subject string
+		roles         []string
+		status, want  int
+		admin         bool
+	}{
+		{"userinfo admits despite absent ID admission", "stable-subject", []string{"member", "admin"}, http.StatusOK, http.StatusSeeOther, true},
+		{"userinfo removes admin", "stable-subject", []string{"member"}, http.StatusOK, http.StatusSeeOther, false},
+		{"userinfo denies admission", "stable-subject", []string{"admin"}, http.StatusOK, http.StatusForbidden, false},
+		{"userinfo subject mismatch", "other-subject", []string{"member", "admin"}, http.StatusOK, http.StatusUnauthorized, false},
+		{"userinfo unavailable", "stable-subject", []string{"member", "admin"}, http.StatusServiceUnavailable, http.StatusUnauthorized, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			mu.Lock()
+			infoSubject, infoRoles, infoStatus = test.subject, test.roles, test.status
+			mu.Unlock()
+			if result := login(); result.Code != test.want {
+				t.Fatalf("status=%d want=%d", result.Code, test.want)
+			}
+			if test.want == http.StatusSeeOther {
+				if err := pool.QueryRow(ctx, "SELECT admin FROM users WHERE issuer=$1 AND subject='stable-subject'", issuer).Scan(&admin); err != nil || admin != test.admin {
+					t.Fatal("wrong current UserInfo admin", admin, err)
+				}
+			}
+		})
+	}
+
 }

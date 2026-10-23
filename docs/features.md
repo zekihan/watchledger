@@ -11,9 +11,9 @@ The final section is explicitly deferred and does not count toward first-release
 ## Verification prerequisites
 
 - [x] Verify current AniDB API access, registration, rate, cache, and attribution requirements.
-- [ ] Inspect a private SIMKL JSON backup and document actual import field coverage using redacted examples.
-- [ ] Verify the configured OIDC provider supplies current access/admin claims at refresh or UserInfo.
-- [ ] Verify mapping coverage for ordinary shows, split cours, specials, and split/combined anime episodes.
+- [x] Inspect a private SIMKL JSON backup and document actual import field coverage using [synthetic examples and validation limits](acceptance-next-steps.md#observed-simkl-backup-coverage).
+- [x] Verify the configured OIDC provider supplies current access/admin claims at refresh or UserInfo: real Authelia admin login and forced refresh passed on 2026-10-24; operator-deferred non-admin/revocation cases remain separate.
+- [x] Verify mapping coverage for ordinary shows, split cours, specials, and split/combined anime episodes. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] Pin compatible implementation dependencies and mapping dataset versions.
 
 Checked behaviors below are supported by the named regression tests in [implementation evidence](implementation-notes.md). Browser, live-provider, and anime cross-view acceptance remain separate and unchecked.
@@ -30,7 +30,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [x] Access denial when admission claims are absent.
 - [x] Admin-right removal when admin claims are absent.
 - [x] Require login when current authorization claims cannot be obtained.
-- [ ] Server-side authorization configuration recovery without an implicit role bypass.
+- [x] Server-side authorization configuration recovery without an implicit role bypass. Verified in the [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] Private per-user libraries, history, ratings, lists, statuses, settings, and import data.
 - [x] Authorization checks on every user-scoped API and admin operation.
 - [x] Admin account oversight without exposing private library browsing.
@@ -40,6 +40,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Original polished dark, poster-focused interface with compact controls.
 - [ ] Responsive desktop layouts.
 - [ ] Responsive phone layouts and touch-friendly quick actions.
+  - [x] Main English/Turkish screens fit verified Chrome phone viewports; mapping-panel overflow fixed. Physical Android Chrome acceptance remains deferred.
 - [ ] Installable web-app manifest and icons.
   - [x] Dimension-verified raster manifest/touch icons and explicit browser-provided install flow.
   - [ ] Target-device installation and authentication-return checks.
@@ -54,7 +55,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Person detail screens.
 - [ ] Manual-list and smart-list screens.
 - [ ] Calendar screens.
-- [ ] Statistics screen.
+- [x] Statistics screen. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [ ] User settings and import/export screens.
 - [ ] Import preview, conflicts, and review queue screens.
 - [ ] Admin mapping and account-oversight screens.
@@ -115,7 +116,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Subscription, rental, and purchase categories.
 - [ ] Provider or availability-page outbound links.
 - [ ] Unknown/unavailable provider states.
-- [ ] Availability freshness display.
+- [x] Availability freshness display. Verified in the [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [ ] Required TMDB and JustWatch attribution.
 
 ## Library statuses and ratings
@@ -206,8 +207,8 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Up next cards follow the selected structure.
   - [x] Effective-progress native-to-show cards, incomplete source fallback, and private displayed-card ordering.
   - [ ] Full alternate-view tracking and browser acceptance.
-- [ ] Missing/ambiguous mappings retain usable source entries.
-- [ ] Incomplete alternate-view indicators.
+- [x] Missing/ambiguous mappings retain usable source entries. See the Frieren correction exercise in [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Incomplete alternate-view indicators. See the Frieren correction exercise in [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [ ] Admin mapping review and local override tools.
   - [x] Versioned episode proposals, local override protection, revision history and provenance validation.
   - [x] Explicit movie-alias proposals, local overrides, distinct consent and source-safe tracking.
@@ -216,8 +217,8 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Per-user confirmation before split/combined cross-view progress linking.
 - [x] Explain connected episodes during mapping confirmation.
 - [x] Prevent unconfirmed mapping propagation.
-- [ ] Preserve recorded events when mappings change.
-- [ ] Recompute derived progress after corrections.
+- [x] Preserve recorded events when mappings change. See the Frieren correction exercise in [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Recompute derived progress after corrections. See the Frieren correction exercise in [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] Notify affected users about mapping corrections.
 - [x] Renew confirmation for materially changed split/combined relationships.
 - [ ] Avoid double-counting history across alternate views.
@@ -259,42 +260,42 @@ Current support is partial: explicit TMDB movie/show IDs can be loaded on demand
 - [ ] Per-user UI restore with validation and preview.
 - [ ] Restore conflict handling consistent with migration.
 - [ ] Exclude authorization roles, server secrets, and sessions from library restore authority.
-- [ ] Document infrastructure database backup and restoration.
+- [x] Document infrastructure database backup and restoration. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] Validate a database recovery workflow with synthetic data.
 
 ## Statistics
 
-Backend regression coverage verifies private counts, runtime unknowns, metadata-language selection and timezone/date precision. End-to-end visual acceptance remains open.
+Backend regressions verify private counts, runtime unknowns, metadata-language selection and timezone/date precision. Chrome additionally verified native-unit totals/runtime, partial/source-part counts, visible genre/monthly charts and unknown-date exclusion; this is representative synthetic-data acceptance.
 
-- [ ] Watched movie counts.
-- [ ] Watched episode counts.
-- [ ] Estimated watched runtime.
-- [ ] Monthly activity.
-- [ ] Genre breakdowns.
-- [ ] Exclude unknown watched dates from date-based charts.
+- [x] Watched movie counts. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Watched episode counts. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Estimated watched runtime. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Monthly activity. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Genre breakdowns. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Exclude unknown watched dates from date-based charts. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
 
 ## Metadata and background operation
 
-- [ ] TMDB metadata adapter.
-- [ ] TMDB/JustWatch availability adapter.
-- [ ] AniDB integration after access-policy verification.
+- [x] TMDB metadata adapter. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] TMDB/JustWatch availability adapter. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] AniDB integration after access-policy verification. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).
   - [x] On-demand native metadata/episode loading, registered client configuration, persistent cooldowns, source-ID-safe tracking and cached outage fallback.
   - [x] Official title-index file import and native title search.
   - [x] Native artwork URL validation and failed-artwork fallback.
   - [ ] Complete native/alternate-view browser acceptance.
 - [x] Versioned animap ingestion with applicable attribution and license handling.
-- [ ] On-demand metadata fetching and PostgreSQL caching.
+- [x] On-demand metadata fetching and PostgreSQL caching. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [ ] Daily refresh of active shows.
   - [x] Queue saved TMDB and native AniDB metadata with provider-aware retry/cooldown handling.
   - [ ] Live deployment refresh acceptance.
 - [ ] Weekly refresh of other saved titles.
 - [ ] Daily availability refresh for recently used countries.
-- [ ] Manual refresh.
-- [ ] Visible metadata freshness.
-- [ ] Retryable background jobs and visible failures.
-- [ ] Cached library metadata and tracking during provider outages.
-- [ ] Retryable errors for uncached search/details.
-- [ ] Graceful missing external artwork behavior.
+- [x] Manual refresh. Verified in the [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Visible metadata freshness. Verified in the [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Retryable background jobs and visible failures. Verified in the [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Cached library metadata and tracking during provider outages. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Retryable errors for uncached search/details. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Graceful missing external artwork behavior. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
 
 ## Architecture and packaging
 
@@ -309,7 +310,7 @@ Backend regression coverage verifies private counts, runtime unknowns, metadata-
 - [ ] Docker Compose deployment.
   - [x] Synthetic runtime startup, OIDC login, restore/tracking/export and restart persistence in CI.
   - [ ] Operator configuration/environment acceptance.
-- [ ] Helm chart deployment.
+- [x] Helm chart deployment. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] External PostgreSQL connection configuration.
 - [x] OIDC/provider secret configuration without committed credentials.
 - [x] Document build, lint, test, configuration, and deployment commands.
@@ -329,8 +330,8 @@ Backend regression coverage verifies private counts, runtime unknowns, metadata-
 - [ ] Desktop and phone visual review.
 - [ ] Keyboard and focus accessibility review.
 - [x] Synthetic Compose deployment smoke check; actual provider configuration remains in TODO.md.
-- [ ] Helm deployment smoke check.
-- [ ] Provider-outage behavior check.
+- [x] Helm deployment smoke check. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Provider-outage behavior check. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] Synthetic/redacted committed fixtures only.
 
 ## Deferred beyond the first release

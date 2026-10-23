@@ -1,10 +1,10 @@
 # Local acceptance checklist
 
-The feature branch is not a completed first release. [TODO.md](../TODO.md) collects the checks and assets needing operator involvement. Run these checks on a disposable local installation before using real history. Source-dependent limitations in `implementation-notes.md` are not waived by this checklist.
+The merged implementation is not an accepted first release. [TODO.md](../TODO.md) collects the checks and assets needing operator involvement. Run these checks on a disposable local installation before using real history. Source-dependent limitations in `implementation-notes.md` are not waived by this checklist.
 
 ## Setup and credentials
 
-1. Check out `feat/first-release` and use the Go/Node versions pinned in the repository.
+1. Use the revision being accepted and record its commit ID. Use the Go/Node versions pinned in the repository.
 2. Follow `development.md` and `deployment.md` to configure a disposable PostgreSQL database and an OIDC test client with an exact callback URL. Keep admission and admin claims separate.
 3. Keep credentials in your local environment or a git-ignored local `.env` file. The binary does not automatically load `.env`. Never commit credentials or include them in logs/screenshots.
 4. Configure the TMDB API Read Access Token as `TMDB_TOKEN`, not the shorter API key. Confirm that your terminal can reach the official API before diagnosing authentication.

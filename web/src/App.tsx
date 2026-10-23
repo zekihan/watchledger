@@ -3,6 +3,7 @@ import { episodeLink } from "./episode-links";
 import { useInstall } from "./use-install";
 import { CreditsPage } from "./credits";
 import { ChoiceDialog } from "./tracking-ui";
+import { useTrackingDialogFocus } from "./use-tracking-dialog-focus";
 import { localDay } from "./dates";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -966,9 +967,17 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
       track.mutate({ whole: true, watched });
     },
   });
+  const trackingFocus = useTrackingDialogFocus(track.isPending || bulk.isPending);
   const refresh = useMutation({
-    mutationFn: () => api(`/catalog/${kind}/${id}/refresh?language=${language}`, "POST", {}),
-    onSuccess: () => client.invalidateQueries({ queryKey: ["detail", kind, id] }),
+    mutationFn: () =>
+      api<NonNullable<typeof q.data>>(
+        `/catalog/${kind}/${id}/refresh?language=${language}`,
+        "POST",
+        {},
+      ),
+    onSuccess: (data) => {
+      client.setQueryData(["detail", kind, id, language, user.Settings.anime_title], data);
+    },
   });
   useEffect(() => {
     if (selectedEpisode && q.data && (kind === "anime" || eps.data))
@@ -1002,6 +1011,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
           submit={t("save")}
           cancel={t("cancel")}
           onClose={(value) => {
+            trackingFocus.requestRestore();
             pendingChoice.current = null;
             prompt.resolve(value);
             setPrompt(null);
@@ -1157,7 +1167,13 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
             {t("providers")} · {user.Settings.country ?? "TR"}
           </h2>
           {offers.error ? (
-            <ErrorBox error={offers.error} t={t} />
+            <ErrorBox
+              error={offers.error}
+              retry={() => {
+                void offers.refetch();
+              }}
+              t={t}
+            />
           ) : offers.data?.offers ? (
             <div className="offers">
               {(["flatrate", "rent", "buy"] as const).map((k) => (
@@ -1177,7 +1193,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
                 </div>
               ))}
               <small>
-                JustWatch · {t("freshness")}:{" "}
+                JustWatch · {offers.data.stale ? t("stale") : t("freshness")}:{" "}
                 {new Date(offers.data.fetched_at).toLocaleDateString(language)}
               </small>
             </div>
@@ -1216,6 +1232,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
               data-watch-action="movie"
               disabled={track.isPending || effective.isPending || !!effective.error}
               onClick={() => {
+                trackingFocus.capture();
                 track.mutate({
                   watched: !(history.data?.length || effective.data?.[key]?.derived),
                 });
@@ -1231,6 +1248,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
           <button
             disabled={bulk.isPending || track.isPending}
             onClick={() => {
+              trackingFocus.capture();
               bulk.mutate(true);
             }}
           >
@@ -1239,6 +1257,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
           <button
             disabled={bulk.isPending || track.isPending}
             onClick={() => {
+              trackingFocus.capture();
               bulk.mutate(false);
             }}
           >
@@ -1268,6 +1287,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
               <button
                 disabled={track.isPending}
                 onClick={() => {
+                  trackingFocus.capture();
                   track.mutate({ season, watched: false });
                 }}
               >
@@ -1278,6 +1298,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
               <button
                 disabled={track.isPending}
                 onClick={() => {
+                  trackingFocus.capture();
                   track.mutate({ season, watched: true });
                 }}
               >
@@ -1356,6 +1377,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
                       className={seen ? "checked" : ""}
                       disabled={track.isPending || effective.isPending || !!effective.error}
                       onClick={() => {
+                        trackingFocus.capture();
                         track.mutate({ episode_id: eid, watched: !seen });
                       }}
                     >
@@ -1399,6 +1421,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
               <button
                 disabled={track.isPending}
                 onClick={() => {
+                  trackingFocus.capture();
                   track.mutate({
                     ...(event.episode_id ? { episode_id: event.episode_id } : {}),
                     watched: false,

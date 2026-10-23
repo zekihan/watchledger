@@ -82,6 +82,7 @@ test("alternate view explains derived history and never manufactures an aggregat
   expect(await screen.findByText(en.derivedWatch)).toBeTruthy();
   expect(screen.getByText(en.mappingNeedsReview, { exact: false })).toBeTruthy();
   expect(screen.getByText(en.alternateHistoryNotice)).toBeTruthy();
+  expect(screen.getByText(`${en.notInLibrary} · ${en.rating}: ${en.noRating}`)).toBeTruthy();
   expect(screen.getAllByRole("heading", { level: 3 })[0]?.textContent).toContain(
     "Synthetic native",
   );
