@@ -1,4 +1,10 @@
 export const en = {
+  linkedReturnPrompt: "Some affected titles are Completed. Move those titles back to Watching?",
+  linkedUnwatchPrompt:
+    "This also removes the following recorded source history. Other linked views may become unwatched. Continue?",
+  unwatchLinked: "Unwatch linked records",
+  sourceHistory: "History recorded on this source",
+
   mappingHistory: "Mapping revision history",
   mappingDatasets: "Versioned anime mapping datasets",
   mappingDatasetHint:
@@ -299,6 +305,13 @@ export const en = {
 };
 export type Key = keyof typeof en;
 export const tr: Record<Key, string> = {
+  linkedReturnPrompt:
+    "Etkilenen bazı başlıklar Tamamlandı durumunda. Bu başlıklar İzleniyor durumuna taşınsın mı?",
+  linkedUnwatchPrompt:
+    "Bu işlem aşağıdaki kayıtlı kaynak geçmişini de kaldırır. Diğer bağlantılı görünümler izlenmemiş duruma gelebilir. Devam edilsin mi?",
+  unwatchLinked: "Bağlantılı kayıtları izlenmedi yap",
+  sourceHistory: "Bu kaynakta kayıtlı geçmiş",
+
   mappingHistory: "Eşleme sürüm geçmişi",
   mappingDatasets: "Sürümlü anime eşleme veri kümeleri",
   mappingDatasetHint:

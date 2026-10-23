@@ -731,6 +731,18 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
     queryFn: () => api<History[]>(`/library/${key}/history`),
   });
   const entry = lib.data?.find((x) => x.id === key);
+  const effective = useQuery({
+    queryKey: ["effective", key],
+    queryFn: () =>
+      api<
+        Record<
+          string,
+          { direct: boolean; derived: boolean; explicit_unwatch?: boolean; sources: string[] }
+        >
+      >(`/library/${key}/effective`),
+    enabled: !!entry,
+  });
+
   const [season, setSeason] = useState(1),
     [dateMode, setDateMode] = useState("today"),
     [day, setDay] = useState(() => localDay(user.Settings.timezone)),
@@ -803,11 +815,12 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
         dateMode === "unknown"
           ? {}
           : { day: dateMode === "today" ? localDay(user.Settings.timezone) : day };
-      const preview = await api<{ earlier: unknown[]; offer_return_watching: boolean }>(
-        `/library/${key}/track`,
-        "POST",
-        { ...scope, date, preview: true },
-      );
+      const preview = await api<{
+        earlier: unknown[];
+        offer_return_watching: boolean;
+        linked_changes?: { episode_id: string; catalog_id: string; title: string }[] | null;
+        linked_plan?: string;
+      }>(`/library/${key}/track`, "POST", { ...scope, date, preview: true });
       if (!active.current) return;
       let earlier = false;
       if (scope.watched && scope.episode_id && preview.earlier.length > 0) {
@@ -815,9 +828,30 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
         if (decision === null || !active.current) return;
         earlier = decision;
       }
+      let includeLinked = false;
+      if (!scope.watched && preview.linked_changes?.length) {
+        const names = preview.linked_changes
+          .slice(0, 12)
+          .map((x) => x.title + " · " + x.episode_id)
+          .join("\n");
+        const decision = await ask(
+          t("linkedUnwatchPrompt") +
+            "\n" +
+            names +
+            (preview.linked_changes.length > 12 ? "\n…" : ""),
+          t("unwatchLinked"),
+          t("cancel"),
+        );
+        if (!decision || !active.current) return;
+        includeLinked = true;
+      }
       let returnWatching = false;
       if (preview.offer_return_watching) {
-        const decision = await ask(t("returnPrompt"), t("yes"), t("keep"));
+        const decision = await ask(
+          t(preview.linked_changes?.length ? "linkedReturnPrompt" : "returnPrompt"),
+          t("yes"),
+          t("keep"),
+        );
         if (decision === null || !active.current) return;
         returnWatching = decision;
       }
@@ -827,6 +861,8 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
         date,
         earlier,
         return_watching: returnWatching,
+        include_linked: includeLinked,
+        linked_plan: includeLinked ? preview.linked_plan : undefined,
       });
     },
     onSuccess: async () => {
@@ -834,6 +870,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
       await client.invalidateQueries({ queryKey: ["library"] });
       await client.invalidateQueries({ queryKey: ["dashboard"] });
       await client.invalidateQueries({ queryKey: ["alternate"] });
+      await client.invalidateQueries({ queryKey: ["effective"] });
     },
   });
   const bulk = useMutation({
@@ -1149,7 +1186,11 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
               : eps.data?.episodes
             )?.map((ep) => {
               const eid = `${kind === "anime" ? "anidb" : "tmdb"}:episode:${String(ep.id)}`,
-                seen = history.data?.some((h) => h.episode_id === eid);
+                seen = !!(
+                  effective.data?.[eid]?.direct ||
+                  effective.data?.[eid]?.derived ||
+                  history.data?.some((h) => h.episode_id === eid)
+                );
               const show = seen || user.Settings.spoilers || reveal.includes(eid);
               return (
                 <article className="episode" key={ep.id}>
@@ -1158,6 +1199,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
                   </span>
                   <div>
                     <h3>{ep.name}</h3>
+                    {effective.data?.[eid]?.derived && <small>{t("derivedWatch")}</small>}
                     <small>{ep.air_date ?? t("unknown")}</small>
                     {show ? (
                       <p>{ep.overview}</p>
@@ -1176,7 +1218,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
                     <button
                       data-watch-action="episode"
                       className={seen ? "checked" : ""}
-                      disabled={track.isPending}
+                      disabled={track.isPending || effective.isPending || !!effective.error}
                       onClick={() => {
                         track.mutate({ episode_id: eid, watched: !seen });
                       }}
@@ -1191,11 +1233,20 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
           )}
         </section>
       )}
+      {effective.error && (
+        <ErrorBox
+          error={effective.error}
+          retry={() => {
+            void effective.refetch();
+          }}
+          t={t}
+        />
+      )}
       {entry && <AlternateView id={key} t={t} />}
       {entry && (
         <details className="panel">
           <summary>
-            {t("history")} ({history.data?.length ?? 0})
+            {t("sourceHistory")} ({history.data?.length ?? 0})
           </summary>
           {history.error && <p className="error">{history.error.message}</p>}
           {history.data?.map((event, i) => (

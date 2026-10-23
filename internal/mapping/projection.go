@@ -13,12 +13,13 @@ type Definition struct {
 	Consented       string
 }
 type State struct {
-	Direct    bool     `json:"direct"`
-	Derived   bool     `json:"derived"`
-	Blocked   bool     `json:"blocked"`
-	Sources   []string `json:"sources"`
-	MappingID string   `json:"mapping_id,omitempty"`
-	Revision  string   `json:"revision,omitempty"`
+	ExplicitUnwatch bool     `json:"explicit_unwatch,omitempty"`
+	Direct          bool     `json:"direct"`
+	Derived         bool     `json:"derived"`
+	Blocked         bool     `json:"blocked"`
+	Sources         []string `json:"sources"`
+	MappingID       string   `json:"mapping_id,omitempty"`
+	Revision        string   `json:"revision,omitempty"`
 }
 
 func Project(definitions []Definition, watched map[string]bool) map[string]State {

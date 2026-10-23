@@ -63,27 +63,12 @@ func (a *API) alternateView(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "mappings unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	rows, err = tx.Query(r.Context(), `SELECT episode_id FROM history WHERE user_id=$1 AND episode_id IS NOT NULL`, uid)
+	snapshot, err := loadEffective(r.Context(), tx, uid, id)
 	if err != nil {
-		http.Error(w, "history unavailable", http.StatusServiceUnavailable)
+		http.Error(w, "effective history unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	watched := map[string]bool{}
-	for rows.Next() {
-		var eid string
-		if err = rows.Scan(&eid); err != nil {
-			rows.Close()
-			http.Error(w, "history unavailable", http.StatusServiceUnavailable)
-			return
-		}
-		watched[eid] = true
-	}
-	rows.Close()
-	if rows.Err() != nil {
-		http.Error(w, "history unavailable", http.StatusServiceUnavailable)
-		return
-	}
-	states := mapping.Project(definitions, watched)
+	states := snapshot.States
 	var sourceEpisodes []string
 	err = tx.QueryRow(r.Context(), `SELECT coalesce(array_agg(id),'{}'::text[]) FROM episodes WHERE catalog_id=$1`, id).Scan(&sourceEpisodes)
 	if err != nil {

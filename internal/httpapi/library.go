@@ -24,6 +24,7 @@ func (a *API) libraryRoutes(m *http.ServeMux) {
 	m.HandleFunc("GET /api/library", a.library)
 	m.HandleFunc("PUT /api/library/{id}", a.saveLibrary)
 	m.HandleFunc("GET /api/library/{id}/history", a.history)
+	m.HandleFunc("GET /api/library/{id}/effective", a.effectiveHistory)
 	m.HandleFunc("POST /api/library/{id}/track", a.track)
 	m.HandleFunc("GET /api/statuses", a.statuses)
 	m.HandleFunc("POST /api/statuses", a.saveStatus)
@@ -132,6 +133,8 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 		Earlier        bool          `json:"earlier"`
 		ReturnWatching bool          `json:"return_watching"`
 		Preview        bool          `json:"preview"`
+		IncludeLinked  bool          `json:"include_linked"`
+		LinkedPlan     string        `json:"linked_plan"`
 	}
 	if !decode(w, r, &in) {
 		return
@@ -166,6 +169,12 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() { _ = tx.Rollback(r.Context()) }()
+	// Lock mapping changes before the account row, matching correction-notice
+	// ordering and keeping a confirmed cross-view plan stable during this write.
+	if _, e = tx.Exec(r.Context(), "LOCK TABLE mappings IN SHARE MODE"); e != nil {
+		http.Error(w, "mapping state unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	// Coordinate tracking with restore/import and other account-scoped mutations.
 	if _, e = tx.Exec(r.Context(), "SELECT id FROM users WHERE id=$1 FOR UPDATE", uid); e != nil {
 		http.Error(w, "tracking unavailable", http.StatusServiceUnavailable)
@@ -201,6 +210,15 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 	if rows.Err() != nil {
 		http.Error(w, "episodes unavailable", http.StatusServiceUnavailable)
 		return
+	}
+	snapshot, e := loadEffective(r.Context(), tx, uid, id)
+	if e != nil {
+		http.Error(w, "linked history unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	for i := range episodes {
+		state := snapshot.States[episodes[i].ID]
+		episodes[i].Watched = state.Direct || state.Derived
 	}
 	location, _ := time.LoadLocation(timezone(r))
 	now := time.Now().In(location)
@@ -290,8 +308,29 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	linkedChanges, linkedPlan := linkedRemovalPlan(uid, targets, snapshot)
+	if watched {
+		linkedChanges = nil
+	}
+	offerReturn := !watched && base == "completed"
+	if !watched && len(linkedChanges) > 0 {
+		catalogs := []string{}
+		for _, change := range linkedChanges {
+			catalogs = append(catalogs, change.CatalogID)
+		}
+		var otherCompleted bool
+		if e = tx.QueryRow(r.Context(), "SELECT EXISTS(SELECT 1 FROM library WHERE user_id=$1 AND catalog_id=ANY($2::text[]) AND base='completed')", uid, catalogs).Scan(&otherCompleted); e != nil {
+			http.Error(w, "linked status unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		offerReturn = offerReturn || otherCompleted
+	}
 	if in.Preview {
-		writeJSON(w, map[string]interface{}{"earlier": earlier, "target_count": len(targets), "offer_return_watching": !watched && base == "completed"})
+		writeJSON(w, map[string]interface{}{"earlier": earlier, "target_count": len(targets), "offer_return_watching": offerReturn, "linked_changes": linkedChanges, "linked_plan": linkedPlan})
+		return
+	}
+	if !watched && (len(linkedChanges) > 0 || in.IncludeLinked) && (!in.IncludeLinked || in.LinkedPlan != linkedPlan) {
+		http.Error(w, "linked history changed or was not confirmed; preview again", http.StatusConflict)
 		return
 	}
 	var day interface{}
@@ -302,6 +341,18 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 		episodeKey := ""
 		if ep != nil {
 			episodeKey = *ep
+		}
+		if watched && ep != nil && snapshot.RawStates[*ep].Derived {
+			if _, e = tx.Exec(r.Context(), "DELETE FROM history_tombstones WHERE user_id=$1 AND catalog_id=$2 AND episode_key=$3", uid, id, *ep); e != nil {
+				http.Error(w, "tracking failed", http.StatusServiceUnavailable)
+				return
+			}
+			for i := range episodes {
+				if episodes[i].ID == *ep {
+					episodes[i].Watched = true
+				}
+			}
+			continue
 		}
 		if watched {
 			_, e = tx.Exec(r.Context(), "DELETE FROM history_tombstones WHERE user_id=$1 AND catalog_id=$2 AND episode_key=$3", uid, id, episodeKey)
@@ -314,7 +365,7 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if watched {
-			_, e = tx.Exec(r.Context(), `INSERT INTO history(user_id,catalog_id,episode_id,watched_date,watched_time,provenance) VALUES($1,$2,$3,$4,$5,'{"source":"app"}') ON CONFLICT(user_id,catalog_id,episode_id) DO NOTHING`, uid, id, ep, day, in.Date.Timestamp)
+			_, e = tx.Exec(r.Context(), `INSERT INTO history(user_id,catalog_id,episode_id,watched_date,watched_time,provenance,local_action_at) VALUES($1,$2,$3,$4,$5,'{"source":"app"}',now()) ON CONFLICT(user_id,catalog_id,episode_id) DO NOTHING`, uid, id, ep, day, in.Date.Timestamp)
 		} else {
 			_, e = tx.Exec(r.Context(), "DELETE FROM history WHERE user_id=$1 AND catalog_id=$2 AND episode_id IS NOT DISTINCT FROM $3::text", uid, id, ep)
 		}
@@ -325,6 +376,25 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 		for i := range episodes {
 			if ep != nil && episodes[i].ID == *ep {
 				episodes[i].Watched = watched
+			}
+		}
+	}
+	if !watched {
+		for _, change := range linkedChanges {
+			_, e = tx.Exec(r.Context(), "INSERT INTO history_tombstones(user_id,catalog_id,episode_key) VALUES($1,$2,$3) ON CONFLICT(user_id,catalog_id,episode_key) DO UPDATE SET deleted_at=now()", uid, change.CatalogID, change.EpisodeID)
+			if e != nil {
+				http.Error(w, "linked unwatch failed", http.StatusServiceUnavailable)
+				return
+			}
+			if _, e = tx.Exec(r.Context(), "DELETE FROM history WHERE user_id=$1 AND catalog_id=$2 AND episode_id=$3", uid, change.CatalogID, change.EpisodeID); e != nil {
+				http.Error(w, "linked unwatch failed", http.StatusServiceUnavailable)
+				return
+			}
+			if in.ReturnWatching {
+				if _, e = tx.Exec(r.Context(), "UPDATE library SET base='watching',status_id=NULL,updated_at=now() WHERE user_id=$1 AND catalog_id=$2 AND base='completed'", uid, change.CatalogID); e != nil {
+					http.Error(w, "linked status failed", http.StatusServiceUnavailable)
+					return
+				}
 			}
 		}
 	}

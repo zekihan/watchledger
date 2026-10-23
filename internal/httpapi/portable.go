@@ -46,7 +46,7 @@ func (a *API) export(w http.ResponseWriter, r *http.Request) {
  'list_source_tombstones',coalesce((SELECT jsonb_agg(to_jsonb(t)-'user_id') FROM list_source_tombstones t WHERE t.user_id=u.id),'[]'),
  'simkl_links',coalesce((SELECT jsonb_agg(to_jsonb(k)-'user_id') FROM simkl_episode_links k WHERE k.user_id=u.id),'[]'),
  'tombstones',coalesce((SELECT jsonb_agg(to_jsonb(t)-'user_id') FROM history_tombstones t WHERE t.user_id=u.id),'[]'),
- 'history',coalesce((SELECT jsonb_agg(to_jsonb(h)-'user_id') FROM history h WHERE h.user_id=u.id),'[]'),
+ 'history',coalesce((SELECT jsonb_agg(to_jsonb(h)-'user_id'-'local_action_at') FROM history h WHERE h.user_id=u.id),'[]'),
  'lists',coalesce((SELECT jsonb_agg((to_jsonb(l)-'user_id') || jsonb_build_object('members',coalesce((SELECT jsonb_agg(catalog_id ORDER BY position) FROM list_members m WHERE m.user_id=u.id AND m.list_id=l.id),'[]'))) FROM lists l WHERE l.user_id=u.id),'[]')) FROM users u WHERE u.id=$1`, uid).Scan(&data)
 	if e != nil {
 		http.Error(w, "export unavailable", http.StatusServiceUnavailable)

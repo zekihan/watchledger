@@ -81,15 +81,16 @@ type ExternalEpisodeLink struct {
 }
 
 type History struct {
-	ID          pgtype.UUID        `json:"id"`
-	UserID      pgtype.UUID        `json:"user_id"`
-	CatalogID   string             `json:"catalog_id"`
-	EpisodeID   pgtype.Text        `json:"episode_id"`
-	WatchedDate pgtype.Date        `json:"watched_date"`
-	WatchedTime pgtype.Timestamptz `json:"watched_time"`
-	Provenance  []byte             `json:"provenance"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	ID            pgtype.UUID        `json:"id"`
+	UserID        pgtype.UUID        `json:"user_id"`
+	CatalogID     string             `json:"catalog_id"`
+	EpisodeID     pgtype.Text        `json:"episode_id"`
+	WatchedDate   pgtype.Date        `json:"watched_date"`
+	WatchedTime   pgtype.Timestamptz `json:"watched_time"`
+	Provenance    []byte             `json:"provenance"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+	LocalActionAt pgtype.Timestamptz `json:"local_action_at"`
 }
 
 type HistoryTombstone struct {

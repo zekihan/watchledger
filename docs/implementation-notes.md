@@ -131,3 +131,11 @@ Saving a dataset mapping requires a matching, unexpired server proposal. The ser
 Series overrides now have a dedicated narrow update endpoint, preserve existing statuses/ratings, and survive unrelated library edits. Users can return to their account default. Approved mappings take precedence over unreviewed suggestions; conflicting approved mappings remain blocked. Mapping/source attribution is visible in both review and linked-view screens.
 
 Regression evidence includes the actual pinned release decoder, synthetic differing TVDB/TMDB numbering, a two-native-to-one-target relationship, explicit consent, correction notices, unchanged source history, provenance tampering rejection, local override preservation, revision history, and UI proposal review. Cross-view editing, mapping movies, full Up next aggregation and complete browser acceptance remain further work.
+
+## Linked main tracking and explicit source edits
+
+Main episode tracking now reads effective watched flags from reviewed mappings and revision-bound consent. Marking an already-linked watched episode does not create another history copy or replace its source date. Linked unwatch is a separate explicit choice showing the affected source records. The applied plan is bound to the selected episodes, mapping state and recorded history IDs; changed mappings or replacement source records require a fresh preview.
+
+Unwatch tombstones suppress older/imported counterpart facts. A later genuine local watch action can update the linked view, while imports/restores cannot claim local intent authority. The local action marker is omitted from portable exports and never populated by restore. Mapping changes are locked before account writes to avoid a correction-notice lock inversion. Effective lookups fetch only the relevant mapping neighborhood and source records rather than every private event.
+
+Regression tests cover cancellation, explicit linked confirmation, stale plans, split/combined flags, source-date preservation, no duplicate writes, imported-fact suppression, new local watch intent, portable exclusion and account isolation. Frontend tests flush asynchronous query notifications inside React’s test boundary and bound worker concurrency to two, without relaxing assertions. Movie-link tracking and canonical cross-view statistics remain subsequent work.
