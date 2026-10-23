@@ -3,6 +3,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SimklPanel } from "./imports";
+import { PortabilityPanel } from "./pages";
 import { en } from "./i18n";
 afterEach(() => {
   cleanup();
@@ -103,4 +104,41 @@ test("older preview response cannot replace newer uploaded backup", async () => 
   expect(await screen.findByText(/9 ·/)).toBeTruthy();
   resolveOld?.(new Response(JSON.stringify(preview), { status: 200 }));
   await waitFor(() => expect(screen.getByText(/9 ·/)).toBeTruthy());
+});
+
+test("restore discards an earlier valid preview when a replacement file is invalid", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((input: string) =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify(
+            input === "/api/restore/preview"
+              ? { id: "restore", additions: 1, conflicts: [], history_candidates: 1 }
+              : [],
+          ),
+          { status: 200 },
+        ),
+      ),
+    ),
+  );
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+        })
+      }
+    >
+      <PortabilityPanel t={(key) => en[key]} />
+    </QueryClientProvider>,
+  );
+  await userEvent.click(screen.getByRole("checkbox", { name: en.backupSaved }));
+  await userEvent.upload(screen.getByLabelText(en.restore), file("valid.json", '{"version":1}'));
+  expect((await screen.findByRole<HTMLButtonElement>("button", { name: en.apply })).disabled).toBe(
+    false,
+  );
+  await userEvent.upload(screen.getByLabelText(en.restore), file("bad.json", "not json"));
+  await waitFor(() => expect(screen.queryByRole("button", { name: en.apply })).toBeNull());
+  expect(await screen.findByRole("alert")).toBeTruthy();
 });

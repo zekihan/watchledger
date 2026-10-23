@@ -1,5 +1,5 @@
 import { SimklPanel } from "./imports";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import type { LibraryItem, List, Rule, Settings, Status, User } from "./api";
@@ -669,36 +669,51 @@ export function SettingsPage({ user, t }: { user: User; t: T }) {
   );
 }
 
-function PortabilityPanel({ t }: { t: T }) {
+export function PortabilityPanel({ t }: { t: T }) {
   const client = useQueryClient();
   const [backed, setBacked] = useState(false);
   const [localError, setLocalError] = useState("");
-  const preview = useMutation({
-    mutationFn: (backup: unknown) =>
-      api<{ id: string; additions: number; conflicts: string[]; history_candidates: number }>(
-        "/restore/preview",
-        "POST",
-        backup,
-      ),
-  });
+  const generation = useRef(0);
+  const [preview, setPreview] = useState<{
+    id: string;
+    additions: number;
+    conflicts: string[];
+    history_candidates: number;
+  } | null>(null);
+  const [reading, setReading] = useState(false);
   const apply = useMutation({
     mutationFn: (id: string) => api(`/restore/${id}/apply`, "POST", {}),
     onSuccess: async () => {
+      setPreview(null);
       await client.invalidateQueries();
     },
   });
   async function read(file: File | undefined) {
+    const current = ++generation.current;
+    setPreview(null);
+    setReading(false);
+    setLocalError("");
+    apply.reset();
     if (!file) return;
     if (file.size > 32 * 1024 * 1024) {
-      setLocalError("32 MiB maximum");
+      setLocalError(t("importSize"));
       return;
     }
+    setReading(true);
     try {
       const value: unknown = JSON.parse(await file.text());
-      setLocalError("");
-      preview.mutate(value);
-    } catch {
-      setLocalError(t("error"));
+      const result = await api<{
+        id: string;
+        additions: number;
+        conflicts: string[];
+        history_candidates: number;
+      }>("/restore/preview", "POST", value);
+      if (current === generation.current) setPreview(result);
+    } catch (error) {
+      if (current === generation.current)
+        setLocalError(error instanceof Error ? error.message : t("error"));
+    } finally {
+      if (current === generation.current) setReading(false);
     }
   }
   return (
@@ -722,36 +737,37 @@ function PortabilityPanel({ t }: { t: T }) {
         <input
           type="file"
           accept="application/json,.json"
+          disabled={apply.isPending}
           onChange={(e) => {
             void read(e.target.files?.[0]);
           }}
         />
       </label>
-      {preview.isPending && <p>{t("loading")}</p>}
-      {[localError, preview.error?.message, apply.error?.message].filter(Boolean).map((e, i) => (
+      {reading && <p>{t("loading")}</p>}
+      {[localError, apply.error?.message].filter(Boolean).map((e, i) => (
         <p role="alert" className="error" key={i}>
           {e}
         </p>
       ))}
-      {preview.data && (
+      {preview && (
         <div className="preview">
           <h3>{t("previewReady")}</h3>
           <p>
-            {t("additions")}: {preview.data.additions}
+            {t("additions")}: {preview.additions}
           </p>
           <p>
-            {t("conflicts")}: {preview.data.conflicts.length}
+            {t("conflicts")}: {preview.conflicts.length}
           </p>
           <ul>
-            {preview.data.conflicts.map((id) => (
+            {preview.conflicts.map((id) => (
               <li key={id}>{id}</li>
             ))}
           </ul>
           <button
             className="primary"
-            disabled={!backed || apply.isPending}
+            disabled={!backed || apply.isPending || reading}
             onClick={() => {
-              if (preview.data) apply.mutate(preview.data.id);
+              if (preview) apply.mutate(preview.id);
             }}
           >
             {t("apply")}
