@@ -12,8 +12,10 @@ import (
 	"time"
 
 	"github.com/zekihan/watchledger/internal/auth"
+	"github.com/zekihan/watchledger/internal/catalog"
 	"github.com/zekihan/watchledger/internal/config"
 	"github.com/zekihan/watchledger/internal/httpapi"
+	"github.com/zekihan/watchledger/internal/jobs"
 	"github.com/zekihan/watchledger/internal/store"
 )
 
@@ -44,6 +46,11 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	runner := &jobs.Runner{Cache: &catalog.Cache{DB: pool, Provider: catalog.New(c.TMDBToken)}}
+	jobCtx, cancelJobs := context.WithCancel(ctx)
+	jobsDone := make(chan struct{})
+	go func() { defer close(jobsDone); runner.Run(jobCtx) }()
+	defer func() { cancelJobs(); <-jobsDone }()
 	handler := httpapi.NewApplication(c.WebDir, pool, identity, c.TMDBToken)
 
 	server := &http.Server{

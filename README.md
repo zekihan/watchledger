@@ -4,11 +4,11 @@ A self-hosted movie, TV, and anime tracker with private user libraries, episode 
 
 ## Project status
 
-**Bootstrap skeleton. No product features are implemented yet.**
+**First release in progress; not production-ready or acceptance-complete.**
 
-The first release is defined in the [application specification](docs/specification.md). Track implementation in the [feature checklist](docs/features.md); every item starts unchecked.
+The first release is defined in the [application specification](docs/specification.md). Track implementation in the [feature checklist](docs/features.md); partial or unverified items remain unchecked.
 
-The repository includes a Go liveness server, a placeholder React page, shared lint/build commands, and CI configuration. Authentication, persistence, tracking, container packaging, and deployment charts are not implemented.
+Implemented increments include PostgreSQL persistence, OIDC authentication, TMDB adapters and caching, private tracking, nested lists, portable backup APIs, mapping review foundations, and connected English/Turkish React screens. Compose and Helm packaging is present. AniDB access, faithful SIMKL migration, full anime presentation, real-provider acceptance and browser verification remain incomplete. See the [implementation evidence](docs/implementation-notes.md) and [deployment guide](docs/deployment.md).
 
 ## Local development
 
@@ -19,7 +19,7 @@ make install
 make lint test build
 ```
 
-Run `make dev-api` and `make dev-web` in separate terminals for the long-running development servers. The skeleton has no authentication; keep it on loopback.
+Run `make dev-api` and `make dev-web` in separate terminals for the long-running development servers. Configure PostgreSQL, OIDC, public origin and session encryption as described in `.env.example`; keep development servers on loopback.
 
 ## Planned first release
 
@@ -34,14 +34,14 @@ Run `make dev-api` and `make dev-web` in separate terminals for the long-running
 - Up next, a release calendar, statistics, and portable per-user export and restore.
 - Docker Compose and Helm deployment options.
 
-## Planned stack
+## Stack
 
 - Go HTTP backend with `pgx` and `sqlc`.
 - React, TypeScript, Vite, Tailwind CSS, accessible UI primitives, and TanStack Query.
 - PostgreSQL for application state, metadata caching, and background jobs.
 - One app container serving the frontend and API and running background jobs, with PostgreSQL alongside it or provided externally.
 
-The Go/React build and lint tooling is bootstrapped. pgx/sqlc and database jobs remain planned until real persistence is added.
+Database migrations and sqlc queries are committed. Background refresh runs in the application process with PostgreSQL job state; no extra worker service is used.
 
 ## Documentation
 

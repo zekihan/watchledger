@@ -153,4 +153,104 @@ func TestPrivateTrackingAndStatusLocks(t *testing.T) {
 		t.Fatal("non-admin mapping access", w.Code)
 	}
 
+	for _, path := range []string{"/api/dashboard", "/api/statistics", "/api/calendar?month=2020-01"} {
+		w := request("GET", path, "", true)
+		if w.Code != 200 {
+			t.Fatal(path, w.Code, w.Body.String())
+		}
+	}
+
+	created := request("POST", "/api/statuses", `{"Name":"Focused","Base":"watching"}`, true)
+	if created.Code != 200 {
+		t.Fatal(created.Code, created.Body.String())
+	}
+	var custom struct {
+		ID string `json:"id"`
+	}
+	if e = json.Unmarshal(created.Body.Bytes(), &custom); e != nil {
+		t.Fatal(e)
+	}
+	if w := request("PUT", "/api/library/"+id, fmt.Sprintf(`{"base":"watching","status_id":%q,"rating":8}`, custom.ID), true); w.Code != 204 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if w := request("POST", "/api/statuses", fmt.Sprintf(`{"ID":%q,"Name":"Focused","Base":"completed"}`, custom.ID), true); w.Code != 409 {
+		t.Fatal("used mapping changed", w.Code)
+	}
+	if w := request("POST", "/api/statuses", fmt.Sprintf(`{"ID":%q,"Name":"Renamed","Base":"watching"}`, custom.ID), true); w.Code != 200 {
+		t.Fatal("rename broke identity", w.Code)
+	}
+	if w := request("POST", "/api/library/"+id+"/track", fmt.Sprintf(`{"episode_id":%q,"watched":true,"date":{}}`, id+"1"), true); w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	var retained string
+	if e = p.QueryRow(ctx, "SELECT status_id::text FROM library WHERE user_id=$1 AND catalog_id=$2", uid, id).Scan(&retained); e != nil || retained != custom.ID {
+		t.Fatal("same-base custom status lost", retained, e)
+	}
+	if w := request("PUT", "/api/library/"+id, `{"base":"watching","rating":0}`, true); w.Code != 400 {
+		t.Fatal("invalid personal rating accepted", w.Code)
+	}
+	if w := request("DELETE", "/api/statuses/"+custom.ID, `{"replacement":"planned"}`, true); w.Code != 204 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if e = p.QueryRow(ctx, "SELECT base FROM library WHERE user_id=$1 AND catalog_id=$2", uid, id).Scan(&base); e != nil || base != "planned" {
+		t.Fatal("status replacement failed", base, e)
+	}
+	manual := request("POST", "/api/lists", fmt.Sprintf(`{"name":"Manual","kind":"manual","sort":"title","members":[%q]}`, id), true)
+	if manual.Code != 200 {
+		t.Fatal(manual.Code, manual.Body.String())
+	}
+	var manualID struct {
+		ID string `json:"id"`
+	}
+	if e = json.Unmarshal(manual.Body.Bytes(), &manualID); e != nil {
+		t.Fatal(e)
+	}
+	dependent := request("POST", "/api/lists", fmt.Sprintf(`{"name":"Dependent","kind":"smart","sort":"rating","rule":{"op":"eq","field":"list","value":%q},"members":[]}`, manualID.ID), true)
+	if dependent.Code != 200 {
+		t.Fatal(dependent.Code, dependent.Body.String())
+	}
+	if w := request("DELETE", "/api/lists/"+manualID.ID, `{}`, true); w.Code != 409 {
+		t.Fatal("referenced list deleted", w.Code)
+	}
+	renamed := request("POST", "/api/lists", fmt.Sprintf(`{"id":%q,"name":"Renamed list","kind":"manual","sort":"title","members":[%q]}`, manualID.ID, id), true)
+	if renamed.Code != 200 {
+		t.Fatal(renamed.Code, renamed.Body.String())
+	}
+	matching := request("POST", "/api/lists/preview", fmt.Sprintf(`{"rule":{"op":"eq","field":"list","value":%q},"sort":"title"}`, manualID.ID), true)
+	if matching.Code != 200 || !strings.Contains(matching.Body.String(), `"count":1`) {
+		t.Fatal("rename broke references", matching.Code, matching.Body.String())
+	}
+	forgedRequest := httptest.NewRequestWithContext(ctx, "PUT", "/api/library/"+id, strings.NewReader(`{"base":"dropped"}`))
+	forgedRequest.Header.Set("Origin", "https://evil.example")
+	forgedRequest.AddCookie(&http.Cookie{Name: "wl_session", Value: sid})
+	forgedResponse := httptest.NewRecorder()
+	handler.ServeHTTP(forgedResponse, forgedRequest)
+	if forgedResponse.Code != 403 {
+		t.Fatal("cross-site mutation accepted")
+	}
+
+	if w := request("POST", "/api/library/"+id+"/track", `{"season":1,"watched":true,"date":{}}`, true); w.Code != 200 {
+		t.Fatal("season tracking", w.Code, w.Body.String())
+	}
+	if e = p.QueryRow(ctx, "SELECT count(*) FROM history WHERE user_id=$1 AND catalog_id=$2", uid, id).Scan(&count); e != nil || count != 2 {
+		t.Fatal("season progress", count, e)
+	}
+	if w := request("POST", "/api/library/"+id+"/track", `{"whole":true,"watched":false,"date":{}}`, true); w.Code != 200 {
+		t.Fatal("whole unwatch", w.Code, w.Body.String())
+	}
+	if e = p.QueryRow(ctx, "SELECT count(*) FROM history WHERE user_id=$1 AND catalog_id=$2", uid, id).Scan(&count); e != nil || count != 0 {
+		t.Fatal("whole unwatch preserved flags", count, e)
+	}
+	if w := request("PUT", "/api/settings", `{"language":"en","country":"TR","timezone":"Europe/Istanbul","anime_view":"native"}`, true); w.Code != 204 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if _, e = p.Exec(ctx, "UPDATE episodes SET air_date=NULL,air_time='2020-01-31T23:30:00Z' WHERE id=$1", id+"1"); e != nil {
+		t.Fatal(e)
+	}
+	january := request("GET", "/api/calendar?month=2020-01", "", true)
+	february := request("GET", "/api/calendar?month=2020-02", "", true)
+	if january.Code != 200 || february.Code != 200 || strings.Contains(january.Body.String(), `"id":"`+id+`1"`) || !strings.Contains(february.Body.String(), `"id":"`+id+`1"`) {
+		t.Fatal("timezone month boundary", january.Body.String(), february.Body.String())
+	}
+
 }

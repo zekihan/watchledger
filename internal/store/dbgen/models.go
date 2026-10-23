@@ -26,6 +26,13 @@ type Catalog struct {
 	FetchedAt pgtype.Timestamptz `json:"fetched_at"`
 }
 
+type CatalogLocalization struct {
+	CatalogID string             `json:"catalog_id"`
+	Language  string             `json:"language"`
+	Metadata  []byte             `json:"metadata"`
+	FetchedAt pgtype.Timestamptz `json:"fetched_at"`
+}
+
 type Episode struct {
 	ID        string             `json:"id"`
 	CatalogID string             `json:"catalog_id"`
@@ -153,6 +160,14 @@ type Notice struct {
 	Data      []byte             `json:"data"`
 	ReadAt    pgtype.Timestamptz `json:"read_at"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type SeasonCache struct {
+	CatalogID string             `json:"catalog_id"`
+	Season    int32              `json:"season"`
+	Language  string             `json:"language"`
+	Metadata  []byte             `json:"metadata"`
+	FetchedAt pgtype.Timestamptz `json:"fetched_at"`
 }
 
 type Session struct {

@@ -34,6 +34,7 @@ func (a *API) export(w http.ResponseWriter, r *http.Request) {
  'episodes',coalesce((SELECT jsonb_agg(to_jsonb(e)) FROM episodes e JOIN library l ON l.catalog_id=e.catalog_id WHERE l.user_id=u.id),'[]'),
  'statuses',coalesce((SELECT jsonb_agg(to_jsonb(s)-'user_id') FROM statuses s WHERE s.user_id=u.id),'[]'),
  'library',coalesce((SELECT jsonb_agg(to_jsonb(l)-'user_id') FROM library l WHERE l.user_id=u.id),'[]'),
+ 'tombstones',coalesce((SELECT jsonb_agg(to_jsonb(t)-'user_id') FROM history_tombstones t WHERE t.user_id=u.id),'[]'),
  'history',coalesce((SELECT jsonb_agg(to_jsonb(h)-'user_id') FROM history h WHERE h.user_id=u.id),'[]'),
  'lists',coalesce((SELECT jsonb_agg((to_jsonb(l)-'user_id') || jsonb_build_object('members',coalesce((SELECT jsonb_agg(catalog_id ORDER BY position) FROM list_members m WHERE m.user_id=u.id AND m.list_id=l.id),'[]'))) FROM lists l WHERE l.user_id=u.id),'[]')) FROM users u WHERE u.id=$1`, uid).Scan(&data)
 	if e != nil {
@@ -221,6 +222,12 @@ func (a *API) restoreApply(w http.ResponseWriter, r *http.Request) {
 		}
 
 		_, e = tx.Exec(r.Context(), `INSERT INTO history(user_id,catalog_id,episode_id,watched_date,watched_time,provenance,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(user_id,catalog_id,episode_id) DO NOTHING`, uid, h.CatalogID, h.EpisodeID, h.WatchedDate, h.WatchedTime, h.Provenance, h.CreatedAt, h.UpdatedAt)
+		if fail(e) {
+			return
+		}
+	}
+	for _, t := range s.Tombstones {
+		_, e = tx.Exec(r.Context(), "INSERT INTO history_tombstones(user_id,catalog_id,episode_key,deleted_at) SELECT $1,$2,$3,$4 WHERE NOT EXISTS(SELECT 1 FROM history WHERE user_id=$1 AND catalog_id=$2 AND coalesce(episode_id,'')=$3) ON CONFLICT DO NOTHING", uid, t.CatalogID, t.EpisodeKey, t.DeletedAt)
 		if fail(e) {
 			return
 		}

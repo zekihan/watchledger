@@ -31,7 +31,7 @@ func (a *API) libraryRoutes(m *http.ServeMux) {
 	m.HandleFunc("PUT /api/settings", a.settings)
 }
 func (a *API) library(w http.ResponseWriter, r *http.Request) {
-	rows, e := a.DB.Query(r.Context(), `SELECT jsonb_build_object('id',l.catalog_id,'title',c.title,'kind',c.kind,'metadata',c.metadata,'base',l.base,'status_id',l.status_id,'status_name',s.name,'rating',l.rating,'added_at',l.added_at,'position',l.position,'anime_view',l.anime_view) FROM library l JOIN catalog c ON c.id=l.catalog_id LEFT JOIN statuses s ON s.user_id=l.user_id AND s.id=l.status_id WHERE l.user_id=$1 ORDER BY l.position,c.title`, auth.Current(r.Context()).ID)
+	rows, e := a.DB.Query(r.Context(), `SELECT jsonb_build_object('id',l.catalog_id,'title',coalesce(nullif(c.metadata->coalesce(u.settings->>'metadata_language','en')->>'title',''),nullif(c.metadata->coalesce(u.settings->>'metadata_language','en')->>'name',''),c.title),'kind',c.kind,'metadata',jsonb_build_object('selected',coalesce(c.metadata->coalesce(u.settings->>'metadata_language','en'),c.metadata->'',(SELECT value FROM jsonb_each(c.metadata) LIMIT 1))),'base',l.base,'status_id',l.status_id,'status_name',s.name,'rating',l.rating,'added_at',l.added_at,'position',l.position,'anime_view',l.anime_view) FROM library l JOIN users u ON u.id=l.user_id JOIN catalog c ON c.id=l.catalog_id LEFT JOIN statuses s ON s.user_id=l.user_id AND s.id=l.status_id WHERE l.user_id=$1 ORDER BY l.position,c.title`, auth.Current(r.Context()).ID)
 	if e != nil {
 		http.Error(w, "library unavailable", http.StatusServiceUnavailable)
 		return
@@ -192,7 +192,29 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "episodes unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	now := time.Now()
+	location, _ := time.LoadLocation(timezone(r))
+	now := time.Now().In(location)
+	if in.Whole && kind != "movie" && in.Watched {
+		var variants map[string]struct {
+			Count int `json:"number_of_episodes"`
+		}
+		_ = json.Unmarshal(meta, &variants)
+		expected := 0
+		for _, m := range variants {
+			expected = max(expected, m.Count)
+		}
+		regular := 0
+		for _, ep := range episodes {
+			if !ep.Special {
+				regular++
+			}
+		}
+		if expected == 0 || regular < expected {
+			http.Error(w, "load all seasons before marking the whole show; catalog is incomplete", http.StatusConflict)
+			return
+		}
+	}
+
 	targets := []*string{}
 	earlier := []tracking.Episode{}
 	if kind == "movie" {
@@ -215,6 +237,36 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 			} else if (in.Whole || (in.Season != nil && *in.Season == ep.Season)) && (!in.Watched || ep.Aired(now)) {
 				v := ep.ID
 				targets = append(targets, &v)
+			}
+		}
+		if !in.Watched {
+			historyRows, err := tx.Query(r.Context(), "SELECT h.episode_id FROM history h LEFT JOIN episodes e ON e.id=h.episode_id WHERE h.user_id=$1 AND h.catalog_id=$2 AND ($3 OR ($4::text IS NOT NULL AND h.episode_id=$4) OR ($5::int IS NOT NULL AND e.season=$5))", uid, id, in.Whole, in.EpisodeID, in.Season)
+			if err != nil {
+				http.Error(w, "history unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			seen := map[string]bool{}
+			for _, target := range targets {
+				if target != nil {
+					seen[*target] = true
+				}
+			}
+			for historyRows.Next() {
+				var ep *string
+				if err = historyRows.Scan(&ep); err != nil {
+					historyRows.Close()
+					http.Error(w, "history unavailable", http.StatusServiceUnavailable)
+					return
+				}
+				if ep != nil && !seen[*ep] {
+					targets = append(targets, ep)
+					seen[*ep] = true
+				}
+			}
+			historyRows.Close()
+			if historyRows.Err() != nil {
+				http.Error(w, "history unavailable", http.StatusServiceUnavailable)
+				return
 			}
 		}
 		if len(targets) == 0 {

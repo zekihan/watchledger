@@ -316,7 +316,7 @@ func (a *API) previewList(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 			}
-			item.Values["availability"] = []string{country}
+			item.Values["availability"] = []string{}
 			item.Values["service"] = []string{}
 			for _, vals := range data {
 				for _, v := range vals {
@@ -324,15 +324,26 @@ func (a *API) previewList(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+		if len(item.Values["service"]) > 0 {
+			item.Values["availability"] = []string{country}
+		}
+		memo := map[string]smart.Truth{}
 		var member smart.Membership
 		member = func(list, id string) (smart.Truth, error) {
+			if v, ok := memo[list]; ok {
+				return v, nil
+			}
 			if set, ok := members[list]; ok {
 				if set[id] {
 					return smart.True, nil
 				}
 				return smart.False, nil
 			}
-			return smart.Eval(rules[list], item, member)
+			v, e := smart.Eval(rules[list], item, member)
+			if e == nil {
+				memo[list] = v
+			}
+			return v, e
 		}
 		v, err := smart.Eval(in.Rule, item, member)
 		if err != nil {

@@ -6,9 +6,15 @@ export class APIError extends Error {
     super(message);
   }
 }
-export async function api<T>(path: string, method = "GET", body?: unknown): Promise<T> {
+export async function api<T>(
+  path: string,
+  method = "GET",
+  body?: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
   const response = await fetch(`/api${path}`, {
     method,
+    signal,
     credentials: "same-origin",
     headers: body === undefined ? {} : { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -52,6 +58,7 @@ export interface Title {
   release_date?: string;
   first_air_date?: string;
   runtime?: number;
+  popularity?: number;
   vote_average?: number;
   vote_count?: number;
   media_type?: string;

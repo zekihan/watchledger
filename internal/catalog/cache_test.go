@@ -9,6 +9,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -34,7 +36,9 @@ func TestCachedDetailsSurviveProviderOutage(t *testing.T) {
 			http.Error(w, "synthetic outage", http.StatusServiceUnavailable)
 			return
 		}
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{"id": 991234, "title": "Synthetic cache test", "overview": "Test fixture"})
+		parts := strings.Split(r.URL.Path, "/")
+		sourceID, _ := strconv.ParseInt(parts[len(parts)-1], 10, 64)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"id": sourceID, "title": "Synthetic cache test", "overview": "Test fixture"})
 	}))
 	defer s.Close()
 	provider := New("fixture")
@@ -53,6 +57,10 @@ func TestCachedDetailsSurviveProviderOutage(t *testing.T) {
 	_ = json.Unmarshal(d.Metadata, &b)
 	if e != nil || !cached.Stale || !reflect.DeepEqual(a, b) {
 		t.Fatal("cache unavailable", e)
+	}
+	fallback, err := c.Detail(ctx, "movie", id, "tr", true)
+	if err != nil || !fallback.Stale || fallback.Language != "en" {
+		t.Fatal("cached language fallback unavailable", err)
 	}
 	if _, e = c.Detail(ctx, "movie", "99999999", "", true); e == nil {
 		t.Fatal("uncached outage silently succeeded")

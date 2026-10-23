@@ -5,6 +5,8 @@ import type { Dashboard, Episode, History, LibraryItem, Status, Title, User } fr
 import { en, tr } from "./i18n";
 import type { Key } from "./i18n";
 import { ListsPage, SettingsPage } from "./pages";
+import { AnalyticsPage, CalendarPage } from "./analytics";
+import { MappingPage, Notices } from "./admin";
 export type T = (key: Key) => string;
 const bases = ["planned", "watching", "completed", "hold", "dropped"] as const;
 const nav = ["home", "library", "discover", "lists", "calendar", "statistics", "settings"] as const;
@@ -61,27 +63,35 @@ function Poster({ title, path }: { title: string; path?: string }) {
 function Cards({ results, kind, t }: { results: Title[]; kind?: string; t: T }) {
   return (
     <div className="poster-grid">
-      {results.map((item) => (
-        <a
-          className="poster-card"
-          key={`${item.media_type ?? kind}:${String(item.id)}`}
-          href={`#detail/${item.media_type ?? kind ?? "movie"}/${String(item.id)}`}
-        >
-          <div className="poster">
-            <Poster
-              title={item.title ?? item.name ?? t("unknown")}
-              path={item.poster_path ?? item.profile_path}
-            />
-            {item.vote_average !== undefined && (
-              <span className="score">★ {item.vote_average.toFixed(1)}</span>
-            )}
-          </div>
-          <strong>{item.title ?? item.name}</strong>
-          <small>
-            {(item.release_date ?? item.first_air_date)?.slice(0, 4)} · {item.media_type ?? kind}
-          </small>
-        </a>
-      ))}
+      {results
+        .filter(
+          (item, i, all) =>
+            all.findIndex(
+              (other) =>
+                other.id === item.id && (other.media_type ?? kind) === (item.media_type ?? kind),
+            ) === i,
+        )
+        .map((item) => (
+          <a
+            className="poster-card"
+            key={`${item.media_type ?? kind}:${String(item.id)}`}
+            href={`#detail/${item.media_type ?? kind ?? "movie"}/${String(item.id)}`}
+          >
+            <div className="poster">
+              <Poster
+                title={item.title ?? item.name ?? t("unknown")}
+                path={item.poster_path ?? item.profile_path}
+              />
+              {item.vote_average !== undefined && (
+                <span className="score">★ {item.vote_average.toFixed(1)}</span>
+              )}
+            </div>
+            <strong>{item.title ?? item.name}</strong>
+            <small>
+              {(item.release_date ?? item.first_air_date)?.slice(0, 4)} · {item.media_type ?? kind}
+            </small>
+          </a>
+        ))}
     </div>
   );
 }
@@ -100,6 +110,35 @@ export function App() {
   }, [language]);
   useEffect(() => {
     const listener = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const editing =
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement;
+      if (
+        !editing &&
+        e.key.toLowerCase() === "w" &&
+        document.activeElement instanceof HTMLButtonElement &&
+        document.activeElement.dataset.watchAction
+      ) {
+        e.preventDefault();
+        document.activeElement.click();
+        return;
+      }
+      if (!editing && (e.key === "ArrowRight" || e.key === "ArrowLeft")) {
+        const cards = Array.from(document.querySelectorAll<HTMLAnchorElement>(".poster-card"));
+        if (cards.length) {
+          const active = cards.findIndex((card) => card === document.activeElement);
+          const next =
+            e.key === "ArrowRight"
+              ? Math.min(active + 1, cards.length - 1)
+              : Math.max(active - 1, 0);
+          e.preventDefault();
+          cards[next]?.focus();
+          return;
+        }
+      }
+
       if (
         e.key === "/" &&
         !(e.target instanceof HTMLInputElement) &&
@@ -123,7 +162,7 @@ export function App() {
             <span>W</span> watchledger
           </div>
           <div className="login-copy">
-            <p className="eyebrow">YOUR NEXT CHAPTER</p>
+            <p className="eyebrow">{t("nextChapter")}</p>
             <h1>{t("intro")}</h1>
             <p>{t("subtitle")}</p>
             <a className="button primary" href="/auth/login">
@@ -141,7 +180,7 @@ export function App() {
           </div>
           <div className="login-art" aria-hidden="true">
             <div>W</div>
-            <span>WATCH · REMEMBER · DISCOVER</span>
+            <span>{t("watchRemember")}</span>
           </div>
         </main>
       );
@@ -166,7 +205,7 @@ export function App() {
         <a className="wordmark" href="#home">
           <span>W</span> watchledger
         </a>
-        <p className="nav-label">YOUR COLLECTION</p>
+        <p className="nav-label">{t("collection")}</p>
         <nav>
           {nav.map((item, i) => (
             <a key={item} className={root === item ? "active" : ""} href={`#${item}`}>
@@ -209,6 +248,7 @@ export function App() {
           </a>
         </header>
         <main className="content">
+          <Notices t={t} />
           {root === "detail" ? (
             <DetailPage key={page} parts={page.split("/")} user={user} t={t} />
           ) : root === "library" ? (
@@ -222,13 +262,14 @@ export function App() {
             />
           ) : root === "lists" ? (
             <ListsPage t={t} />
+          ) : root === "statistics" ? (
+            <AnalyticsPage t={t} />
+          ) : root === "calendar" ? (
+            <CalendarPage t={t} user={user} />
           ) : root === "settings" ? (
             <SettingsPage user={user} t={t} />
-          ) : root === "admin" ? (
-            <>
-              <h1>{t("mapping")}</h1>
-              <p className="notice">{t("mappingGated")}</p>
-            </>
+          ) : root === "admin" || root === "mappings" ? (
+            <MappingPage t={t} admin={user.Admin} />
           ) : (
             <DashboardPage page={root} user={user} t={t} />
           )}
@@ -253,6 +294,8 @@ function LibraryPage({ t }: { t: T }) {
   const [filter, setFilter] = useState("all"),
     [term, setTerm] = useState(""),
     [table, setTable] = useState(false);
+  const [order, setOrder] = useState("title"),
+    [contentType, setContentType] = useState("all");
   if (q.isPending) return <p>{t("loading")}</p>;
   if (q.error)
     return (
@@ -266,14 +309,20 @@ function LibraryPage({ t }: { t: T }) {
     );
   const entries = (q.data ?? []).filter(
     (x) =>
+      (contentType === "all" || contentType === x.kind) &&
       (filter === "all" || x.base === filter) &&
       x.title.toLocaleLowerCase().includes(term.toLocaleLowerCase()),
   );
+  entries.sort((a, b) => {
+    if (order === "rating") return (b.rating ?? 0) - (a.rating ?? 0);
+    if (order === "added") return b.added_at.localeCompare(a.added_at);
+    return a.title.localeCompare(b.title);
+  });
   return (
     <>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">YOUR STORIES, YOUR WAY</p>
+          <p className="eyebrow">{t("yourStories")}</p>
           <h1>{t("library")}</h1>
         </div>
         <button
@@ -304,6 +353,32 @@ function LibraryPage({ t }: { t: T }) {
           {bases.map((b) => (
             <option key={b} value={b}>
               {t(b)}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label={t("kind")}
+          value={contentType}
+          onChange={(e) => {
+            setContentType(e.target.value);
+          }}
+        >
+          {["all", "movie", "tv", "anime"].map((k) => (
+            <option key={k} value={k}>
+              {t(k as Key)}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label={t("sort")}
+          value={order}
+          onChange={(e) => {
+            setOrder(e.target.value);
+          }}
+        >
+          {["title", "rating", "added"].map((k) => (
+            <option key={k} value={k}>
+              {t(k as Key)}
             </option>
           ))}
         </select>
@@ -375,6 +450,13 @@ function Empty({ t }: { t: T }) {
   );
 }
 function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T }) {
+  const [advanced, setAdvanced] = useState<Record<string, string>>({});
+  const [browse, setBrowse] = useState("popular");
+  const [exclude, setExclude] = useState(false);
+  const library = useQuery({
+    queryKey: ["library"],
+    queryFn: () => api<LibraryItem[]>("/library"),
+  });
   const [kind, setKind] = useState(search ? "multi" : "movie"),
     [page, setPage] = useState(1),
     [year, setYear] = useState(""),
@@ -393,16 +475,34 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
     if (genre) params.set("with_genres", genre);
     if (score) params.set("vote_average.gte", score);
     params.set("vote_count.gte", votes);
+    if (browse === "upcoming") {
+      params.set(
+        kind === "tv" ? "first_air_date.gte" : "primary_release_date.gte",
+        localDay(user.Settings.timezone),
+      );
+      params.set("sort_by", kind === "tv" ? "first_air_date.asc" : "primary_release_date.asc");
+    } else {
+      params.set("sort_by", "popularity.desc");
+    }
+  }
+  for (const [key, value] of Object.entries(advanced)) {
+    if (value) params.set(key, value);
   }
   const path = search ? `/search?${params.toString()}` : `/discover/${kind}?${params.toString()}`;
   const q = useQuery({
     queryKey: ["catalog", path],
-    queryFn: () => api<{ results: Title[]; total_pages: number }>(path),
+    queryFn: () =>
+      api<{
+        results: Title[];
+        total_pages: number;
+        exhaustive?: boolean;
+        enrichment_failures?: number;
+      }>(path),
     retry: false,
   });
   return (
     <>
-      <p className="eyebrow">FIND YOUR NEXT FAVORITE</p>
+      <p className="eyebrow">{t("findFavorite")}</p>
       <h1>{search ? `“${search}”` : t("discover")}</h1>
       <div className="toolbar">
         <select
@@ -421,6 +521,19 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
         </select>
         {!search && (
           <>
+            <select
+              aria-label={t("browse")}
+              value={browse}
+              onChange={(e) => {
+                setBrowse(e.target.value);
+                setVotes(e.target.value === "upcoming" ? "0" : "50");
+                setPage(1);
+              }}
+            >
+              <option value="popular">{t("popularity")}</option>
+              <option value="upcoming">{t("upcoming")}</option>
+            </select>
+
             <input
               aria-label={t("year")}
               placeholder={t("year")}
@@ -465,6 +578,80 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
           </>
         )}
       </div>
+      {!search && (
+        <details className="panel">
+          <summary>{t("filters")}</summary>
+          <div className="settings-grid">
+            {(
+              [
+                ["with_original_language", "originalLanguage"],
+                ["with_runtime.gte", "minRuntime"],
+                ["with_runtime.lte", "maxRuntime"],
+                [kind === "tv" ? "first_air_date.gte" : "primary_release_date.gte", "fromDate"],
+                [kind === "tv" ? "first_air_date.lte" : "primary_release_date.lte", "toDate"],
+                [kind === "tv" ? "person_id" : "with_people", "personID"],
+                ["watch_region", "country"],
+                ["with_watch_providers", "service"],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key}>
+                {t(label)}
+                <input
+                  value={advanced[key] ?? ""}
+                  onChange={(e) => {
+                    setAdvanced({ ...advanced, [key]: e.target.value });
+                    setPage(1);
+                  }}
+                />
+              </label>
+            ))}
+            {kind === "tv" && (
+              <label>
+                {t("cast")} / {t("crew")}
+                <select
+                  value={advanced.credit ?? "cast"}
+                  onChange={(e) => {
+                    setAdvanced({ ...advanced, credit: e.target.value });
+                    setPage(1);
+                  }}
+                >
+                  <option value="cast">{t("cast")}</option>
+                  <option value="crew">{t("crew")}</option>
+                </select>
+              </label>
+            )}
+            <button
+              onClick={() => {
+                setAdvanced({
+                  ...advanced,
+                  watch_region: user.Settings.country ?? "TR",
+                  with_watch_providers: user.Settings.services?.join("|") ?? "",
+                  with_watch_monetization_types: "flatrate",
+                });
+                setPage(1);
+              }}
+            >
+              {t("myServices")}
+            </button>
+          </div>
+        </details>
+      )}
+      <label className="check-label">
+        <input
+          type="checkbox"
+          checked={exclude}
+          onChange={(e) => {
+            setExclude(e.target.checked);
+          }}
+        />
+        {t("excludeWatched")}
+      </label>
+      {q.data?.exhaustive === false && (
+        <p className="notice">
+          {t("candidateNotice")}{" "}
+          {q.data.enrichment_failures ? `${t("error")}: ${String(q.data.enrichment_failures)}` : ""}
+        </p>
+      )}
       {q.isPending ? (
         <p>{t("loading")}</p>
       ) : q.error ? (
@@ -476,7 +663,19 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
           t={t}
         />
       ) : q.data?.results.length ? (
-        <Cards results={q.data.results} kind={kind} t={t} />
+        <Cards
+          results={q.data.results.filter(
+            (item) =>
+              !exclude ||
+              !library.data?.some(
+                (l) =>
+                  l.id === `tmdb:${item.media_type ?? kind}:${String(item.id)}` &&
+                  l.base === "completed",
+              ),
+          )}
+          kind={kind}
+          t={t}
+        />
       ) : (
         <Empty t={t} />
       )}
@@ -609,6 +808,14 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
       await client.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
+  const bulk = useMutation({
+    mutationFn: async (watched: boolean) => {
+      for (const item of q.data?.metadata.seasons ?? []) {
+        await api(`/catalog/tv/${id}/seasons/${String(item.season_number)}?language=${language}`);
+      }
+      track.mutate({ whole: true, watched });
+    },
+  });
   const refresh = useMutation({
     mutationFn: () => api(`/catalog/${kind}/${id}/refresh?language=${language}`, "POST", {}),
     onSuccess: () => client.invalidateQueries({ queryKey: ["detail", kind, id] }),
@@ -663,6 +870,21 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
           </p>
           <h1>{m.title ?? m.name}</h1>
           <div className="tags">
+            {m.status && (
+              <span>
+                {m.status === "Ended"
+                  ? t("ended")
+                  : m.status === "Returning Series"
+                    ? t("ongoing")
+                    : m.status}
+              </span>
+            )}
+            {m.runtime !== undefined && m.runtime > 0 && (
+              <span>
+                {m.runtime} {t("minutes")}
+              </span>
+            )}
+
             {m.genres?.map((g) => (
               <span key={g.id}>{g.name}</span>
             ))}
@@ -745,6 +967,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
           </button>
         </div>
       </section>
+      {q.data.warning && <p className="notice">{q.data.warning}</p>}
       {[save.error, track.error, refresh.error]
         .filter((e): e is Error => !!e)
         .map((e, i) => (
@@ -822,6 +1045,27 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
           )}
         </div>
       )}
+      {entry && kind === "tv" && (
+        <div className="toolbar">
+          <button
+            disabled={bulk.isPending || track.isPending}
+            onClick={() => {
+              bulk.mutate(true);
+            }}
+          >
+            {t("wholeShow")}
+          </button>
+          <button
+            disabled={bulk.isPending || track.isPending}
+            onClick={() => {
+              bulk.mutate(false);
+            }}
+          >
+            {t("unwatchShow")}
+          </button>
+          {bulk.error && <p role="alert">{bulk.error.message}</p>}
+        </div>
+      )}
       {kind === "tv" && (
         <section>
           <div className="section-heading">
@@ -839,6 +1083,16 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
                 </option>
               ))}
             </select>
+            {entry && (
+              <button
+                disabled={track.isPending}
+                onClick={() => {
+                  track.mutate({ season, watched: false });
+                }}
+              >
+                {t("unwatchSeason")}
+              </button>
+            )}
             {entry && (
               <button
                 disabled={track.isPending}
@@ -880,6 +1134,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
                   </div>
                   {entry && (
                     <button
+                      data-watch-action="episode"
                       className={seen ? "checked" : ""}
                       disabled={track.isPending}
                       onClick={() => {
@@ -895,6 +1150,38 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
             })
           )}
         </section>
+      )}
+      {entry && (
+        <details className="panel">
+          <summary>
+            {t("history")} ({history.data?.length ?? 0})
+          </summary>
+          {history.error && <p className="error">{history.error.message}</p>}
+          {history.data?.map((event, i) => (
+            <div className="activity-row" key={event.episode_id ?? String(i)}>
+              <strong>{event.episode_id ?? m.title ?? m.name}</strong>
+              <small>
+                {event.watched_date ??
+                  (event.watched_time
+                    ? new Date(event.watched_time).toLocaleString(user.Settings.language, {
+                        timeZone: user.Settings.timezone,
+                      })
+                    : t("unknown"))}
+              </small>
+              <button
+                disabled={track.isPending}
+                onClick={() => {
+                  track.mutate({
+                    ...(event.episode_id ? { episode_id: event.episode_id } : {}),
+                    watched: false,
+                  });
+                }}
+              >
+                {t("unwatched")}
+              </button>
+            </div>
+          ))}
+        </details>
       )}
       {m.credits && (
         <section>
@@ -943,19 +1230,23 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
           <Cards results={m.recommendations.results} kind={kind} t={t} />
         </section>
       )}
-      {m.combined_credits && (
-        <>
-          <h2>{t("cast")}</h2>
-          <Cards results={m.combined_credits.cast} t={t} />
-          <h2>{t("crew")}</h2>
-          <Cards results={m.combined_credits.crew} t={t} />
-        </>
-      )}
+      {m.combined_credits && <Filmography credits={m.combined_credits} t={t} />}
     </>
   );
 }
 function DashboardPage({ page, user, t }: { page: string | undefined; user: User; t: T }) {
   const q = useQuery({ queryKey: ["dashboard"], queryFn: () => api<Dashboard>("/dashboard") });
+  const client = useQueryClient();
+  const [dragged, setDragged] = useState<string | null>(null);
+  const order = useMutation({
+    mutationFn: (ids: string[]) => api("/up-next/order", "PUT", { ids }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["dashboard"] }),
+  });
+  function move(id: string, before: string) {
+    const ids = (q.data?.up_next ?? []).map((e) => e.catalog_id).filter((x) => x !== id);
+    ids.splice(Math.max(0, ids.indexOf(before)), 0, id);
+    order.mutate(ids);
+  }
   if (q.isPending) return <p>{t("loading")}</p>;
   if (q.error)
     return (
@@ -972,7 +1263,7 @@ function DashboardPage({ page, user, t }: { page: string | undefined; user: User
   if (page === "statistics")
     return (
       <>
-        <p className="eyebrow">YOUR WATCHING STORY</p>
+        <p className="eyebrow">{t("watchingStory")}</p>
         <h1>{t("statistics")}</h1>
         <div className="metric-grid">
           <div>
@@ -1027,7 +1318,7 @@ function DashboardPage({ page, user, t }: { page: string | undefined; user: User
     <>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">MAKE TIME FOR A GOOD STORY</p>
+          <p className="eyebrow">{t("makeTime")}</p>
           <h1>{t("home")}</h1>
           <p className="muted">{user.Name}</p>
         </div>
@@ -1047,15 +1338,49 @@ function DashboardPage({ page, user, t }: { page: string | undefined; user: User
             <a
               key={e.episode_id}
               className="next-card"
+              draggable
+              onDragStart={() => {
+                setDragged(e.catalog_id);
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                if (dragged) move(dragged, e.catalog_id);
+              }}
+
               href={`#detail/${e.catalog_id.split(":").slice(1).join("/")}`}
             >
               <span className="play">▷</span>
+
               <p>
                 S{e.season} · E{e.number}
               </p>
               <h2>{e.title}</h2>
               <span>{t("details")} →</span>
             </a>
+          ))}
+        </div>
+      )}
+      {order.error && (
+        <p className="error" role="alert">
+          {order.error.message}
+        </p>
+      )}
+      {d.up_next.length > 1 && (
+        <div className="toolbar">
+          {d.up_next.slice(1).map((item, i) => (
+            <button
+              key={item.catalog_id}
+              disabled={order.isPending}
+              onClick={() => {
+                const before = d.up_next[i];
+                if (before) move(item.catalog_id, before.catalog_id);
+              }}
+            >
+              ↑ {item.title}
+            </button>
           ))}
         </div>
       )}
@@ -1171,5 +1496,61 @@ function ChoiceDialog({
         </div>
       </form>
     </dialog>
+  );
+}
+
+function Filmography({ credits, t }: { credits: { cast: Title[]; crew: Title[] }; t: T }) {
+  const [role, setRole] = useState("cast"),
+    [kind, setKind] = useState("all"),
+    [order, setOrder] = useState("release");
+  const results = (role === "cast" ? credits.cast : credits.crew)
+    .filter((item) => kind === "all" || item.media_type === kind)
+    .sort((a, b) =>
+      order === "popularity"
+        ? (b.popularity ?? 0) - (a.popularity ?? 0)
+        : (b.release_date ?? b.first_air_date ?? "").localeCompare(
+            a.release_date ?? a.first_air_date ?? "",
+          ),
+    );
+  return (
+    <section>
+      <h2>{t("filmography")}</h2>
+      <div className="toolbar">
+        <select
+          aria-label={t("credits")}
+          value={role}
+          onChange={(e) => {
+            setRole(e.target.value);
+          }}
+        >
+          <option value="cast">{t("cast")}</option>
+          <option value="crew">{t("crew")}</option>
+        </select>
+        <select
+          aria-label={t("kind")}
+          value={kind}
+          onChange={(e) => {
+            setKind(e.target.value);
+          }}
+        >
+          {["all", "movie", "tv"].map((k) => (
+            <option key={k} value={k}>
+              {t(k as Key)}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label={t("sort")}
+          value={order}
+          onChange={(e) => {
+            setOrder(e.target.value);
+          }}
+        >
+          <option value="release">{t("release")}</option>
+          <option value="popularity">{t("popularity")}</option>
+        </select>
+      </div>
+      <Cards results={results} t={t} />
+    </section>
   );
 }

@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zekihan/watchledger/internal/catalog"
 	"net/http"
@@ -20,6 +19,9 @@ func (a *API) routes(mux *http.ServeMux) {
 	a.portableRoutes(mux)
 	a.mappingRoutes(mux)
 	mux.HandleFunc("GET /api/dashboard", a.dashboard)
+	mux.HandleFunc("PUT /api/up-next/order", a.upNextOrder)
+	mux.HandleFunc("GET /api/statistics", a.statistics)
+	mux.HandleFunc("GET /api/calendar", a.calendar)
 	mux.HandleFunc("GET /api/search", a.search)
 	mux.HandleFunc("GET /api/discover/{kind}", a.discover)
 	mux.HandleFunc("GET /api/catalog/{kind}/{id}", a.detail)
@@ -30,6 +32,10 @@ func (a *API) routes(mux *http.ServeMux) {
 }
 func (a *API) search(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
+	if kind := q.Get("kind"); kind != "" && kind != "multi" && !catalog.ValidKind(kind) {
+		http.Error(w, "catalog source is not available for this kind", http.StatusBadRequest)
+		return
+	}
 	if q.Get("query") == "" {
 		http.Error(w, "search query is required", http.StatusBadRequest)
 		return
@@ -47,6 +53,15 @@ func (a *API) search(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) discover(w http.ResponseWriter, r *http.Request) {
 	kind := r.PathValue("kind")
+	if kind == "tv" && r.URL.Query().Get("person_id") != "" {
+		raw, e := a.Catalog.PeopleTV(r.Context(), r.URL.Query().Get("person_id"), r.URL.Query())
+		if e != nil {
+			http.Error(w, e.Error(), http.StatusBadGateway)
+			return
+		}
+		writeJSON(w, raw)
+		return
+	}
 	params, e := catalog.Discovery(kind, r.URL.Query())
 	if e != nil {
 		http.Error(w, e.Error(), http.StatusBadRequest)
@@ -100,47 +115,10 @@ func (a *API) providerList(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, raw)
 }
 func (a *API) providers(w http.ResponseWriter, r *http.Request) {
-	kind, id := r.PathValue("kind"), r.PathValue("id")
-	key, e := catalog.Identity(kind, id)
-	if e != nil || kind == "person" {
-		http.Error(w, "invalid title", http.StatusBadRequest)
-		return
-	}
-	if _, e = a.Catalog.Detail(r.Context(), kind, id, "", false); e != nil {
-		http.Error(w, e.Error(), http.StatusBadGateway)
-		return
-	}
-	country := r.URL.Query().Get("country")
-	if len(country) != 2 {
-		http.Error(w, "country is required", http.StatusBadRequest)
-		return
-	}
-	var cached json.RawMessage
-	var fetched interface{}
-	_ = a.DB.QueryRow(r.Context(), "SELECT offers,fetched_at FROM availability WHERE catalog_id=$1 AND country=$2", key, country).Scan(&cached, &fetched)
-	raw, e := a.Catalog.Provider.Get(r.Context(), "/"+kind+"/"+id+"/watch/providers", nil)
+	out, e := a.Catalog.Availability(r.Context(), r.PathValue("kind"), r.PathValue("id"), r.URL.Query().Get("country"), false)
 	if e != nil {
-		if len(cached) > 0 {
-			writeJSON(w, map[string]interface{}{"offers": cached, "fetched_at": fetched, "stale": true, "warning": e.Error()})
-			return
-		}
 		http.Error(w, e.Error(), http.StatusBadGateway)
 		return
 	}
-	var result struct {
-		Results map[string]json.RawMessage `json:"results"`
-	}
-	if e = json.Unmarshal(raw, &result); e != nil {
-		http.Error(w, "invalid provider response", http.StatusBadGateway)
-		return
-	}
-	offers := result.Results[country]
-	if len(offers) == 0 {
-		offers = json.RawMessage(`null`)
-	}
-	if e = a.DB.QueryRow(r.Context(), `INSERT INTO availability(catalog_id,country,offers) VALUES($1,$2,$3) ON CONFLICT(catalog_id,country) DO UPDATE SET offers=EXCLUDED.offers,fetched_at=now(),used_at=now() RETURNING fetched_at`, key, country, offers).Scan(&fetched); e != nil {
-		http.Error(w, "availability cache unavailable", http.StatusServiceUnavailable)
-		return
-	}
-	writeJSON(w, map[string]interface{}{"offers": offers, "fetched_at": fetched, "stale": false, "attribution": "JustWatch via TMDB"})
+	writeJSON(w, out)
 }

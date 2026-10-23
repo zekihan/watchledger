@@ -31,7 +31,7 @@ make build
 WATCHLEDGER_WEB_DIR=web/dist ./build/watchledger
 ```
 
-The second command is long-running and serves the built frontend at `http://127.0.0.1:8080`. Production deployment packaging is not implemented yet.
+The second command is long-running and serves the built frontend at `http://127.0.0.1:8080`. See `deployment.md` for Compose and Helm packaging and its outstanding smoke checks.
 
 `WATCHLEDGER_ADDR` overrides the Go listening address. `WATCHLEDGER_WEB_DIR` enables static file serving from a directory. The process does not automatically load `.env`; export settings in your shell when needed. `DATABASE_URL`, `PUBLIC_URL`, OIDC settings, and `SESSION_KEY` are required. The session key is base64 of 32 random bytes and encrypts stored OAuth tokens. Losing it invalidates existing sessions. Register `PUBLIC_URL/auth/callback` at the identity provider. Claim paths use dot-separated object keys and accept a string or array of strings. Login requests `openid profile offline_access`. Refresh must return a validated ID token with current authorization claims or a UserInfo response with the matching subject. Missing claims deny admission or remove admin access. Sessions last at most 12 hours; authorization is refreshed at token expiry or after one hour, whichever is earlier. HTTPS is required except on loopback development URLs.
 
@@ -63,11 +63,11 @@ If a restricted environment denies writes to your default caches, use writable t
 scripts/               Repository tooling
 cmd/watchledger/       Go entrypoint and graceful shutdown
 internal/httpapi/      HTTP routing and process liveness
-web/src/               React UI bootstrap
+web/src/               React product screens and jsdom tests
 web/                   Frontend build, type, and lint configuration
-db/migrations/         Future PostgreSQL migrations
-db/queries/            Future sqlc source queries
-deploy/                Future Compose and Helm packaging
+db/migrations/         Embedded, versioned PostgreSQL migrations
+db/queries/            sqlc source queries
+deploy/                Compose and Helm packaging
 docs/                  Product contract, tracker, sources, development
 AGENTS.md              Shared agent instructions
 CLAUDE.md              Relative symlink to AGENTS.md
@@ -85,10 +85,10 @@ Configuration alone does not activate a bot. The Renovate GitHub App must have a
 
 ## Current limitations
 
-Persistence and OIDC foundations are implemented. The React UI now connects core catalog, tracking and list APIs. Several product workflows, live provider validation, packaging, and browser acceptance remain incomplete. Actual identity-provider compatibility still needs deployment configuration. See `implementation-notes.md` for source blockers.
+Persistence and OIDC foundations are implemented. The React UI now connects core catalog, tracking and list APIs. Several product workflows, live provider validation and browser acceptance remain incomplete. Actual identity-provider compatibility still needs deployment configuration. See `implementation-notes.md` for source blockers.
 
 ## Database and generated queries
 
 Install sqlc v1.31.1, then run `sqlc generate` after changing `db/queries` or migrations. Commit the generated Go queries. Do not edit applied migration files; add the next numbered migration. The application refuses changed checksums.
 
-Set `TEST_DATABASE_URL` to a disposable PostgreSQL database to run migration and database constraint tests. Never point tests at a production database. Tests use synthetic records and transaction rollback. `/readyz` checks database connectivity; `/healthz` remains process liveness only.
+Set `TEST_DATABASE_URL` to a disposable PostgreSQL database to run migration and database constraint tests. Never point tests at a production database. Tests use synthetic records with transaction rollback or scoped cleanup. Use a disposable database even when cleanup is expected. `/readyz` checks database connectivity; `/healthz` remains process liveness only.

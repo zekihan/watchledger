@@ -110,7 +110,8 @@ func (s *Service) Callback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "login expired", http.StatusBadRequest)
 		return
 	}
-	tok, e := s.oauth.Exchange(r.Context(), r.URL.Query().Get("code"), oauth2.VerifierOption(f.verifier))
+	exchangeCtx := context.WithValue(r.Context(), oauth2.HTTPClient, &http.Client{Timeout: 20 * time.Second})
+	tok, e := s.oauth.Exchange(exchangeCtx, r.URL.Query().Get("code"), oauth2.VerifierOption(f.verifier))
 	if e != nil {
 		http.Error(w, "login exchange failed", http.StatusUnauthorized)
 		return
@@ -128,6 +129,10 @@ func (s *Service) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 	admin, e := s.policy.Evaluate(claims)
 	if e != nil {
+		if old, err := r.Cookie("wl_session"); err == nil {
+			_ = s.q.DeleteSession(r.Context(), hash(old.Value))
+		}
+		s.cookie(w, "wl_session", "", -1)
 		http.Error(w, "access not admitted", http.StatusForbidden)
 		return
 	}
@@ -195,6 +200,7 @@ func (s *Service) refresh(ctx context.Context, tok *oauth2.Token, subject string
 		return nil, false, errors.New("login required")
 	}
 	tok.Expiry = time.Now().Add(-time.Minute)
+	ctx = context.WithValue(ctx, oauth2.HTTPClient, &http.Client{Timeout: 20 * time.Second})
 	fresh, e := s.oauth.TokenSource(ctx, tok).Token()
 	if e != nil {
 		return nil, false, e

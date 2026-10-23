@@ -1,6 +1,6 @@
 # Application specification
 
-Agreed on 2026-10-23. Status: approved design; implementation not started.
+Agreed on 2026-10-23. Status: approved design; implementation in progress.
 
 This is the first-release product contract. The [feature checklist](features.md) records delivery status. Checked items must represent implemented and verified behavior, not agreement with this document.
 

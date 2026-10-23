@@ -32,6 +32,9 @@ func Parse(get func(string) string) (Config, error) {
 		if e != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
 			return c, fmt.Errorf("invalid %s", name)
 		}
+		if name == "PUBLIC_URL" && u.Path != "" && u.Path != "/" {
+			return c, fmt.Errorf("PUBLIC_URL must be an origin without a path")
+		}
 		loopback := u.Scheme == "http" && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1")
 		if u.Scheme != "https" && !loopback {
 			return c, fmt.Errorf("%s requires HTTPS except loopback development", name)

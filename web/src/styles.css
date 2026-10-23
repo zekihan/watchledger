@@ -982,3 +982,72 @@ footer a {
 .choice-dialog label {
   padding: 12px 0;
 }
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 1px;
+  background: #2d3b46;
+  border: 1px solid #2d3b46;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.weekday {
+  background: #1c2c34;
+  text-align: center;
+  padding: 12px;
+  font-size: 11px;
+  color: #aec0b4;
+}
+.calendar-cell {
+  background: #111c24;
+  min-height: 120px;
+  padding: 10px;
+  min-width: 0;
+}
+.calendar-cell > time {
+  font-size: 11px;
+  color: #8fa5b4;
+}
+.calendar-cell a {
+  display: block;
+  padding: 7px;
+  border-radius: 5px;
+  background: #243c2c;
+  color: #c7e6b6;
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+}
+.calendar-cell strong {
+  font-size: 10px;
+  display: block;
+}
+.calendar-cell small {
+  font-size: 9px;
+}
+.calendar-cell.blank {
+  background: #0e171e;
+}
+@media (max-width: 680px) {
+  .calendar-cell {
+    padding: 4px;
+    min-height: 100px;
+  }
+  .calendar-cell a {
+    padding: 4px;
+  }
+  .calendar-cell strong {
+    font-size: 9px;
+  }
+  .weekday {
+    padding: 8px 2px;
+    font-size: 9px;
+  }
+}
+.episode-still {
+  width: 185px;
+  max-width: 100%;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  border-radius: 7px;
+  margin: 12px 0;
+}

@@ -66,16 +66,22 @@ type List struct {
 	Sort    string      `json:"sort"`
 	Members []string    `json:"members"`
 }
+type Tombstone struct {
+	CatalogID  string    `json:"catalog_id"`
+	EpisodeKey string    `json:"episode_key"`
+	DeletedAt  time.Time `json:"deleted_at"`
+}
 type Snapshot struct {
-	Version   int             `json:"version"`
-	CreatedAt time.Time       `json:"created_at"`
-	Settings  json.RawMessage `json:"settings"`
-	Catalog   []Catalog       `json:"catalog"`
-	Episodes  []Episode       `json:"episodes"`
-	Statuses  []Status        `json:"statuses"`
-	Library   []Library       `json:"library"`
-	History   []History       `json:"history"`
-	Lists     []List          `json:"lists"`
+	Tombstones []Tombstone     `json:"tombstones"`
+	Version    int             `json:"version"`
+	CreatedAt  time.Time       `json:"created_at"`
+	Settings   json.RawMessage `json:"settings"`
+	Catalog    []Catalog       `json:"catalog"`
+	Episodes   []Episode       `json:"episodes"`
+	Statuses   []Status        `json:"statuses"`
+	Library    []Library       `json:"library"`
+	History    []History       `json:"history"`
+	Lists      []List          `json:"lists"`
 }
 
 func (s Snapshot) Validate() error {
@@ -85,6 +91,44 @@ func (s Snapshot) Validate() error {
 	if len(s.Catalog) > 100000 || len(s.History) > 1000000 {
 		return errors.New("backup exceeds record limit")
 	}
+	if len(s.Settings) > 0 {
+		var settings map[string]json.RawMessage
+		if json.Unmarshal(s.Settings, &settings) != nil || settings == nil {
+			return errors.New("invalid settings object")
+		}
+		for k, v := range settings {
+			switch k {
+			case "language", "metadata_language", "country", "timezone", "anime_view", "anime_title":
+				var value string
+				if json.Unmarshal(v, &value) != nil || len(value) > 100 {
+					return errors.New("invalid setting")
+				}
+				if k == "timezone" {
+					if _, e := time.LoadLocation(value); e != nil {
+						return e
+					}
+				}
+				if k == "language" && value != "en" && value != "tr" {
+					return errors.New("unsupported interface language")
+				}
+				if k == "anime_view" && value != "native" && value != "show" {
+					return errors.New("invalid anime view")
+				}
+			case "spoilers":
+				var value bool
+				if json.Unmarshal(v, &value) != nil {
+					return errors.New("invalid spoiler preference")
+				}
+			case "services":
+				var value []int
+				if json.Unmarshal(v, &value) != nil {
+					return errors.New("invalid services")
+				}
+			default:
+				return errors.New("unsupported settings field")
+			}
+		}
+	}
 	catalog, episodes, statuses, library := map[string]bool{}, map[string]string{}, map[string]string{}, map[string]bool{}
 	for _, c := range s.Catalog {
 		if c.ID == "" || c.Source == "" || c.SourceID == "" || c.Title == "" || catalog[c.ID] {
@@ -93,8 +137,15 @@ func (s Snapshot) Validate() error {
 		if c.Kind != "movie" && c.Kind != "tv" && c.Kind != "anime" {
 			return errors.New("invalid catalog kind")
 		}
-		if !json.Valid(c.Metadata) {
+		var variants map[string]json.RawMessage
+		if json.Unmarshal(c.Metadata, &variants) != nil || variants == nil {
 			return errors.New("invalid catalog metadata")
+		}
+		for _, v := range variants {
+			var object map[string]json.RawMessage
+			if json.Unmarshal(v, &object) != nil || object == nil {
+				return errors.New("invalid metadata variant")
+			}
 		}
 		catalog[c.ID] = true
 	}
@@ -108,6 +159,10 @@ func (s Snapshot) Validate() error {
 		}
 		if err := d.Validate(); err != nil {
 			return err
+		}
+		var metadata map[string]json.RawMessage
+		if len(e.Metadata) > 0 && (json.Unmarshal(e.Metadata, &metadata) != nil || metadata == nil) {
+			return errors.New("invalid episode metadata")
 		}
 		episodes[e.ID] = e.CatalogID
 	}
@@ -151,6 +206,18 @@ func (s Snapshot) Validate() error {
 		}
 		if err := d.Validate(); err != nil {
 			return err
+		}
+	}
+	for _, t := range s.Tombstones {
+		if !library[t.CatalogID] || (t.EpisodeKey != "" && episodes[t.EpisodeKey] != t.CatalogID) {
+			return errors.New("invalid tombstone reference")
+		}
+		key := t.CatalogID
+		if t.EpisodeKey != "" {
+			key += "/" + t.EpisodeKey
+		}
+		if history[key] {
+			return errors.New("history conflicts with explicit unwatch")
 		}
 	}
 	graph := map[string][]string{}

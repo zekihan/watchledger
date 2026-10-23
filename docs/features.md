@@ -14,14 +14,16 @@ The final section is explicitly deferred and does not count toward first-release
 - [ ] Verify mapping coverage for ordinary shows, split cours, specials, and split/combined anime episodes.
 - [ ] Pin compatible implementation dependencies and mapping dataset versions.
 
+Checked behaviors below are supported by the named regression tests in [implementation evidence](implementation-notes.md). Browser, live-provider, and anime cross-view acceptance remain separate and unchecked.
+
 ## Identity and privacy
 
-- [ ] OIDC login with stable issuer/subject identity binding.
+- [x] OIDC login with stable issuer/subject identity binding.
 - [x] Configurable admission claim name and allowed value.
-- [ ] Automatic account creation only after admission succeeds.
+- [x] Automatic account creation only after admission succeeds.
 - [x] Separate configurable admin claim.
-- [ ] No automatic first-user admin promotion or manual account creation.
-- [ ] Current admission/admin claim evaluation at login and token refresh.
+- [x] No automatic first-user admin promotion or manual account creation.
+- [x] Current admission/admin claim evaluation at login and token refresh.
 - [ ] Current claims from validated refreshed ID token or subject-validated UserInfo.
 - [x] Access denial when admission claims are absent.
 - [x] Admin-right removal when admin claims are absent.
@@ -40,7 +42,7 @@ The final section is explicitly deferred and does not count toward first-release
 - [ ] Persistent main navigation and header search.
 - [ ] Home dashboard.
 - [ ] Library poster-grid view.
-- [ ] Library table view.
+- [x] Library table view.
 - [ ] Discovery and global search screens.
 - [ ] Movie/show/season/episode detail screens.
 - [ ] Person detail screens.
@@ -112,31 +114,31 @@ The final section is explicitly deferred and does not count toward first-release
 - [ ] Fixed Plan to watch, Watching, Completed, On hold, and Dropped base statuses.
 - [ ] Per-user custom status creation and naming.
 - [ ] Custom status mapping to one base status.
-- [ ] Lock base mapping once a custom status has been used.
-- [ ] Rename custom statuses without breaking references.
-- [ ] Require replacement status before deleting a used status.
+- [x] Lock base mapping once a custom status has been used.
+- [x] Rename custom statuses without breaking references.
+- [x] Require replacement status before deleting a used status.
 - [ ] Dashboard and filter behavior based on mapped base status.
-- [ ] Preserve custom statuses when automatic transitions retain their base.
+- [x] Preserve custom statuses when automatic transitions retain their base.
 - [ ] Use the default destination status when automatic transitions change base.
-- [ ] Personal whole-number ratings from 1 to 10 for movies and whole shows.
+- [x] Personal whole-number ratings from 1 to 10 for movies and whole shows.
 - [ ] Anime-native entry ratings and statuses.
 - [ ] Personal library searching, sorting, and filtering.
 
 ## Viewing history and progress
 
 - [x] Mark individual episodes watched/unwatched.
-- [ ] Mark entire seasons watched/unwatched.
-- [ ] Mark entire shows watched/unwatched.
+- [x] Mark entire seasons watched/unwatched.
+- [x] Mark entire shows watched/unwatched.
 - [ ] Mark movies watched/unwatched.
 - [ ] Today's date, chosen date, and unknown date for bulk watch actions.
 - [x] Preserve existing known watched dates during bulk actions.
 - [x] Mark only the selected episode by default.
-- [ ] Detect earlier unwatched aired regular episodes.
-- [ ] Prompt for this episode only or earlier episodes too, across prior seasons and excluding specials.
-- [ ] Exclude unaired episodes from missed-episode counts.
-- [ ] Keep caught-up ongoing shows Watching.
+- [x] Detect earlier unwatched aired regular episodes.
+- [x] Prompt for this episode only or earlier episodes too, across prior seasons and excluding specials.
+- [x] Exclude unaired episodes from missed-episode counts.
+- [x] Keep caught-up ongoing shows Watching.
 - [ ] Complete ended shows after all regular episodes are watched, with manual overrides.
-- [ ] Offer Watching after unwatching a completed show's episode, preserving status unless accepted.
+- [x] Offer Watching after unwatching a completed show's episode, preserving status unless accepted.
 - [ ] Preserve watch events through metadata ID, ordering, and count changes.
 - [ ] Flag uncertain episode reconciliation instead of silently moving or deleting history.
 
@@ -171,8 +173,8 @@ The final section is explicitly deferred and does not count toward first-release
 - [ ] Smart-list membership conditions.
 - [ ] Stable list identifiers for dependencies.
 - [x] Cycle prevention across smart-list dependencies.
-- [ ] Show dependent lists and block deletion until references are resolved.
-- [ ] Safe list renaming.
+- [x] Show dependent lists and block deletion until references are resolved.
+- [x] Safe list renaming.
 - [ ] Saved smart-list sorting by title, release date, rating, or date added.
 
 ## Anime structures and mappings
@@ -230,7 +232,7 @@ The final section is explicitly deferred and does not count toward first-release
 - [ ] Restore conflict handling consistent with migration.
 - [ ] Exclude authorization roles, server secrets, and sessions from library restore authority.
 - [ ] Document infrastructure database backup and restoration.
-- [ ] Validate a database recovery workflow with synthetic data.
+- [x] Validate a database recovery workflow with synthetic data.
 
 ## Statistics
 
@@ -278,11 +280,11 @@ The final section is explicitly deferred and does not count toward first-release
 
 - [ ] Backend tests for claims, user isolation, and admin operations.
 - [ ] Tests for tracking, date precision, bulk actions, and status transitions.
-- [ ] Tests for custom-status locking and safe deletion.
+- [x] Tests for custom-status locking and safe deletion.
 - [x] Tests for nested smart rules, unknown values, dependencies, and cycle rejection.
 - [x] Tests for mapping consent, corrections, and history preservation.
 - [ ] Tests for import preview, idempotency, conflicts, and unresolved items.
-- [ ] Tests for export/restore and user isolation.
+- [x] Tests for export/restore and user isolation.
 - [ ] Browser checks for search, details, providers, and library workflows.
 - [ ] Browser checks for tracking and smart-list workflows.
 - [ ] English and Turkish layout review.

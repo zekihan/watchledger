@@ -13,6 +13,7 @@ func (a *API) mappingRoutes(m *http.ServeMux) {
 	m.HandleFunc("POST /api/mappings/{id}/confirm", a.confirmMapping)
 	m.HandleFunc("GET /api/admin/accounts", a.accounts)
 	m.HandleFunc("GET /api/notices", a.notices)
+	m.HandleFunc("GET /api/admin/jobs", a.jobStatus)
 }
 func (a *API) mappings(w http.ResponseWriter, r *http.Request) {
 	rows, e := a.DB.Query(r.Context(), `SELECT jsonb_build_object('id',m.id,'revision',m.revision,'provenance',m.provenance,'relationships',m.relationships,'requires_consent',m.requires_consent,'reviewed',m.reviewed,'confirmed',coalesce(c.revision=m.revision,false)) FROM mappings m LEFT JOIN mapping_consents c ON c.mapping_id=m.id AND c.user_id=$1 ORDER BY m.updated_at DESC`, auth.Current(r.Context()).ID)
@@ -154,6 +155,20 @@ func (a *API) notices(w http.ResponseWriter, r *http.Request) {
 	e := a.DB.QueryRow(r.Context(), "SELECT coalesce(jsonb_agg(to_jsonb(n)-'user_id'),'[]') FROM notices n WHERE user_id=$1", auth.Current(r.Context()).ID).Scan(&result)
 	if e != nil {
 		http.Error(w, "notices unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	writeJSON(w, json.RawMessage(result))
+}
+
+func (a *API) jobStatus(w http.ResponseWriter, r *http.Request) {
+	if !auth.Current(r.Context()).Admin {
+		http.Error(w, "admin required", http.StatusForbidden)
+		return
+	}
+	var result []byte
+	e := a.DB.QueryRow(r.Context(), "SELECT coalesce(jsonb_agg(to_jsonb(j)),'[]') FROM jobs j WHERE last_error IS NOT NULL").Scan(&result)
+	if e != nil {
+		http.Error(w, "jobs unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	writeJSON(w, json.RawMessage(result))

@@ -186,7 +186,7 @@ export function ListsPage({ t }: { t: T }) {
     <>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">CURATED BY YOU</p>
+          <p className="eyebrow">{t("curated")}</p>
           <h1>{t("lists")}</h1>
         </div>
         <button
@@ -405,6 +405,23 @@ export function SettingsPage({ user, t }: { user: User; t: T }) {
   const [name, setName] = useState(""),
     [base, setBase] = useState("watching");
   const statuses = useQuery({ queryKey: ["statuses"], queryFn: () => api<Status[]>("/statuses") });
+  const providers = useQuery({
+    queryKey: ["provider-options", settings.country],
+    queryFn: async () => {
+      const responses = await Promise.all([
+        api<{ results: { provider_id: number; provider_name: string }[] }>(
+          `/providers/movie?country=${settings.country ?? "TR"}`,
+        ),
+        api<{ results: { provider_id: number; provider_name: string }[] }>(
+          `/providers/tv?country=${settings.country ?? "TR"}`,
+        ),
+      ]);
+      return [
+        ...new Map(responses.flatMap((x) => x.results).map((p) => [p.provider_id, p])).values(),
+      ].sort((a, b) => a.provider_name.localeCompare(b.provider_name));
+    },
+    retry: false,
+  });
   const save = useMutation({
     mutationFn: () => api("/settings", "PUT", settings),
     onSuccess: () => client.invalidateQueries({ queryKey: ["me"] }),
@@ -415,6 +432,10 @@ export function SettingsPage({ user, t }: { user: User; t: T }) {
       await client.invalidateQueries({ queryKey: ["statuses"] });
       setName("");
     },
+  });
+  const rename = useMutation({
+    mutationFn: (s: Status) => api("/statuses", "POST", { ID: s.id, Name: s.name, Base: s.base }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["statuses"] }),
   });
   const remove = useMutation({
     mutationFn: (id: string) => api(`/statuses/${id}`, "DELETE", { replacement: base }),
@@ -493,20 +514,51 @@ export function SettingsPage({ user, t }: { user: User; t: T }) {
           </select>
         </label>
         <label className="wide">
-          {t("services")}
-          <input
-            value={settings.services?.join(",")}
-            onChange={(e) => {
-              setSettings({
-                ...settings,
-                services: e.target.value
-                  .split(",")
-                  .filter(Boolean)
-                  .map(Number)
-                  .filter(Number.isFinite),
-              });
-            }}
-          />
+          {t("subscriptions")}
+          {providers.data ? (
+            <select
+              multiple
+              size={8}
+              value={settings.services?.map(String) ?? []}
+              onChange={(e) => {
+                setSettings({
+                  ...settings,
+                  services: Array.from(e.target.selectedOptions).map((o) => Number(o.value)),
+                });
+              }}
+            >
+              {providers.data.map((p) => (
+                <option key={p.provider_id} value={p.provider_id}>
+                  {p.provider_name}
+                </option>
+              ))}
+              {settings.services
+                ?.filter((id) => !providers.data.some((p) => p.provider_id === id))
+                .map((id) => (
+                  <option key={id} value={id}>
+                    #{id} ({t("unknownValue")})
+                  </option>
+                ))}
+            </select>
+          ) : (
+            <>
+              <input
+                value={settings.services?.join(",")}
+                placeholder={t("services")}
+                onChange={(e) => {
+                  setSettings({
+                    ...settings,
+                    services: e.target.value
+                      .split(",")
+                      .filter(Boolean)
+                      .map(Number)
+                      .filter(Number.isFinite),
+                  });
+                }}
+              />
+              {providers.error && <small role="status">{providers.error.message}</small>}
+            </>
+          )}
         </label>
         <label className="check-label">
           <input
@@ -531,7 +583,7 @@ export function SettingsPage({ user, t }: { user: User; t: T }) {
           {save.isSuccess && <span role="status"> {t("updated")}</span>}
         </div>
       </section>
-      {[save.error, custom.error, remove.error].filter(Boolean).map((e, i) => (
+      {[save.error, custom.error, remove.error, rename.error].filter(Boolean).map((e, i) => (
         <p className="error" role="alert" key={i}>
           {e?.message}
         </p>
@@ -572,6 +624,14 @@ export function SettingsPage({ user, t }: { user: User; t: T }) {
         {statuses.data?.map((s) => (
           <div className="activity-row" key={s.id}>
             <strong>{s.name}</strong>
+            <button
+              onClick={() => {
+                const name = window.prompt(t("name"), s.name);
+                if (name?.trim()) rename.mutate({ ...s, name: name.trim() });
+              }}
+            >
+              {t("rename")}
+            </button>
             <small>
               {s.base} {s.used ? "🔒" : ""}
             </small>
@@ -589,7 +649,7 @@ export function SettingsPage({ user, t }: { user: User; t: T }) {
         <h2>
           {t("export")} / {t("restore")}
         </h2>
-        <p className="notice">{t("notReady")}</p>
+        <PortabilityPanel t={t} />
       </section>
       <button
         onClick={() => {
@@ -605,5 +665,101 @@ export function SettingsPage({ user, t }: { user: User; t: T }) {
         {t("logout")}
       </button>
     </>
+  );
+}
+
+function PortabilityPanel({ t }: { t: T }) {
+  const client = useQueryClient();
+  const [backed, setBacked] = useState(false);
+  const [localError, setLocalError] = useState("");
+  const preview = useMutation({
+    mutationFn: (backup: unknown) =>
+      api<{ id: string; additions: number; conflicts: string[]; history_candidates: number }>(
+        "/restore/preview",
+        "POST",
+        backup,
+      ),
+  });
+  const apply = useMutation({
+    mutationFn: (id: string) => api(`/restore/${id}/apply`, "POST", {}),
+    onSuccess: async () => {
+      await client.invalidateQueries();
+    },
+  });
+  async function read(file: File | undefined) {
+    if (!file) return;
+    if (file.size > 32 * 1024 * 1024) {
+      setLocalError("32 MiB maximum");
+      return;
+    }
+    try {
+      const value: unknown = JSON.parse(await file.text());
+      setLocalError("");
+      preview.mutate(value);
+    } catch {
+      setLocalError(t("error"));
+    }
+  }
+  return (
+    <div className="panel">
+      <p>{t("backupFirst")}</p>
+      <a className="button" href="/api/export" download="watchledger-backup.json">
+        ↓ {t("export")}
+      </a>
+      <label className="check-label">
+        <input
+          type="checkbox"
+          checked={backed}
+          onChange={(e) => {
+            setBacked(e.target.checked);
+          }}
+        />
+        {t("backupSaved")}
+      </label>
+      <label>
+        {t("restore")}
+        <input
+          type="file"
+          accept="application/json,.json"
+          onChange={(e) => {
+            void read(e.target.files?.[0]);
+          }}
+        />
+      </label>
+      {preview.isPending && <p>{t("loading")}</p>}
+      {[localError, preview.error?.message, apply.error?.message].filter(Boolean).map((e, i) => (
+        <p role="alert" className="error" key={i}>
+          {e}
+        </p>
+      ))}
+      {preview.data && (
+        <div className="preview">
+          <h3>{t("previewReady")}</h3>
+          <p>
+            {t("additions")}: {preview.data.additions}
+          </p>
+          <p>
+            {t("conflicts")}: {preview.data.conflicts.length}
+          </p>
+          <ul>
+            {preview.data.conflicts.map((id) => (
+              <li key={id}>{id}</li>
+            ))}
+          </ul>
+          <button
+            className="primary"
+            disabled={!backed || apply.isPending}
+            onClick={() => {
+              if (preview.data) apply.mutate(preview.data.id);
+            }}
+          >
+            {t("apply")}
+          </button>
+        </div>
+      )}
+      {apply.isSuccess && <p role="status">{t("restoreDone")}</p>}
+      <h3>{t("import")}</h3>
+      <p className="notice">{t("notReady")}</p>
+    </div>
   );
 }
