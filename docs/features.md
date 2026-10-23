@@ -159,9 +159,9 @@ Checked behaviors below are supported by the named regression tests in [implemen
 
 ## Manual and smart lists
 
-- [ ] Private named manual lists.
+- [x] Private named manual lists.
 - [ ] Manual-list drag ordering.
-- [ ] Smart lists over personal-library titles only.
+- [x] Smart lists over personal-library titles only.
 - [ ] Visual nested AND/OR rule groups.
 - [ ] NOT exclusions.
 - [ ] Live matching count and title preview before saving.
@@ -171,11 +171,11 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [x] Negative filters do not silently match unknown values.
 - [ ] Manual-list membership conditions.
 - [ ] Smart-list membership conditions.
-- [ ] Stable list identifiers for dependencies.
+- [x] Stable list identifiers for dependencies.
 - [x] Cycle prevention across smart-list dependencies.
 - [x] Show dependent lists and block deletion until references are resolved.
 - [x] Safe list renaming.
-- [ ] Saved smart-list sorting by title, release date, rating, or date added.
+- [x] Saved smart-list sorting by title, release date, rating, or date added.
 
 ## Anime structures and mappings
 

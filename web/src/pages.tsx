@@ -6,17 +6,20 @@ import type { LibraryItem, List, Rule, Settings, Status, User } from "./api";
 import type { T } from "./App";
 import type { Key } from "./i18n";
 const bases = ["planned", "watching", "completed", "hold", "dropped"] as const;
+type RuleChoice = { value: string; label: string };
 const initialRule: Rule = { op: "and", children: [{ op: "eq", field: "base", value: "watching" }] };
 function RuleEditor({
   rule,
   onChange,
   t,
   depth = 0,
+  choices,
 }: {
   rule: Rule;
   onChange: (r: Rule) => void;
   t: T;
   depth?: number;
+  choices: Record<string, RuleChoice[]>;
 }) {
   if (rule.op === "and" || rule.op === "or" || rule.op === "not")
     return (
@@ -47,6 +50,7 @@ function RuleEditor({
             <RuleEditor
               rule={c}
               depth={depth + 1}
+              choices={choices}
               t={t}
               onChange={(r) => {
                 onChange({
@@ -101,7 +105,7 @@ function RuleEditor({
         aria-label={t("field")}
         value={rule.field}
         onChange={(e) => {
-          onChange({ ...rule, field: e.target.value });
+          onChange({ op: "eq", field: e.target.value, value: "" });
         }}
       >
         {[
@@ -124,28 +128,67 @@ function RuleEditor({
         aria-label={t("condition")}
         value={rule.op}
         onChange={(e) => {
-          onChange({ ...rule, op: e.target.value });
+          onChange({
+            ...rule,
+            op: e.target.value,
+            value: e.target.value === "unknown" ? undefined : rule.value,
+          });
         }}
       >
-        {["eq", "gte", "lte", "unknown"].map((op) => (
+        {(rule.field === "list"
+          ? ["eq"]
+          : rule.field === "year" || rule.field === "rating"
+            ? ["eq", "gte", "lte", "unknown"]
+            : ["eq", "unknown"]
+        ).map((op) => (
           <option key={op} value={op}>
             {t(op === "unknown" ? "unknownValue" : (op as Key))}
           </option>
         ))}
       </select>
-      {rule.op !== "unknown" && (
-        <input
-          aria-label={t("value")}
-          value={rule.value ?? ""}
-          onChange={(e) => {
-            onChange({ ...rule, value: e.target.value });
-          }}
-        />
-      )}
+      {rule.op !== "unknown" &&
+        (choices[rule.field ?? ""] ? (
+          <select
+            aria-label={t("value")}
+            value={rule.value ?? ""}
+            onChange={(event) => {
+              onChange({ ...rule, value: event.target.value });
+            }}
+          >
+            <option value="">{t("select")}</option>
+            {rule.value &&
+              !choices[rule.field ?? ""]?.some((option) => option.value === rule.value) && (
+                <option value={rule.value} disabled>
+                  {t("unavailableChoice")}: {rule.value}
+                </option>
+              )}
+            {choices[rule.field ?? ""]?.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            aria-label={t("value")}
+            type={
+              rule.field === "year" || rule.field === "rating" || rule.field === "service"
+                ? "number"
+                : "text"
+            }
+            step="1"
+            min={rule.field === "rating" ? 1 : undefined}
+            max={rule.field === "rating" ? 10 : undefined}
+            value={rule.value ?? ""}
+            onChange={(event) => {
+              onChange({ ...rule, value: event.target.value });
+            }}
+          />
+        ))}
     </div>
   );
 }
-export function ListsPage({ t }: { t: T }) {
+export function ListsPage({ t, user }: { t: T; user: User }) {
   const client = useQueryClient();
   const q = useQuery({ queryKey: ["lists"], queryFn: () => api<List[]>("/lists") });
   const library = useQuery({
@@ -154,13 +197,73 @@ export function ListsPage({ t }: { t: T }) {
   });
   const [edit, setEdit] = useState<List | null>(null),
     [drag, setDrag] = useState<string | null>(null);
+  const [viewID, setViewID] = useState<string | null>(null);
+  const statuses = useQuery({ queryKey: ["statuses"], queryFn: () => api<Status[]>("/statuses") });
+  const providers = useQuery({
+    queryKey: ["provider-options", user.Settings.country ?? "TR"],
+    enabled: edit?.kind === "smart" && hasRuleField(edit.rule, "service"),
+    queryFn: async () => {
+      const country = user.Settings.country ?? "TR";
+      const responses = await Promise.all([
+        api<{ results: { provider_id: number; provider_name: string }[] }>(
+          `/providers/movie?country=${country}`,
+        ),
+        api<{ results: { provider_id: number; provider_name: string }[] }>(
+          `/providers/tv?country=${country}`,
+        ),
+      ]);
+      return [
+        ...new Map(
+          responses
+            .flatMap((response) => response.results)
+            .map((provider) => [provider.provider_id, provider]),
+        ).values(),
+      ].sort((a, b) => a.provider_name.localeCompare(b.provider_name));
+    },
+    retry: false,
+  });
+  const genres = [
+    ...new Map(
+      (library.data ?? [])
+        .flatMap((item) =>
+          Object.values(item.metadata).flatMap((metadata) => metadata.genres ?? []),
+        )
+        .map((genre) => [genre.id, genre]),
+    ).values(),
+  ].sort((a, b) => a.name.localeCompare(b.name));
+  const choices: Record<string, RuleChoice[]> = {
+    kind: ["movie", "tv", "anime"].map((kind) => ({ value: kind, label: t(kind as Key) })),
+    base: bases.map((base) => ({ value: base, label: t(base) })),
+    status: [
+      ...bases.map((base) => ({ value: base, label: t(base) })),
+      ...(statuses.data ?? []).map((status) => ({ value: status.id, label: status.name })),
+    ],
+    list: (q.data ?? [])
+      .filter((list) => list.id !== edit?.id)
+      .map((list) => ({ value: list.id, label: list.name })),
+    genre: genres.map((genre) => ({ value: String(genre.id), label: genre.name })),
+    availability: [{ value: user.Settings.country ?? "TR", label: user.Settings.country ?? "TR" }],
+  };
+  if (providers.data)
+    choices.service = providers.data.map((provider) => ({
+      value: String(provider.provider_id),
+      label: provider.provider_name,
+    }));
+  const viewed = q.data?.find((list) => list.id === viewID);
+
   const preview = useQuery({
-    queryKey: ["preview", edit?.rule, edit?.sort],
-    queryFn: () =>
-      api<{ count: number; results: { id: string; title: string }[] }>("/lists/preview", "POST", {
-        rule: edit?.rule,
-        sort: edit?.sort,
-      }),
+    queryKey: ["preview", edit?.id, edit?.rule, edit?.sort],
+    queryFn: ({ signal }) =>
+      api<{ count: number; results: { id: string; title: string }[] }>(
+        "/lists/preview",
+        "POST",
+        {
+          id: edit?.id,
+          rule: edit?.rule,
+          sort: edit?.sort,
+        },
+        signal,
+      ),
     enabled: edit?.kind === "smart",
     retry: false,
   });
@@ -176,6 +279,7 @@ export function ListsPage({ t }: { t: T }) {
       }),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ["lists"] });
+      await client.invalidateQueries({ queryKey: ["list-results"] });
       setEdit(null);
     },
   });
@@ -192,181 +296,222 @@ export function ListsPage({ t }: { t: T }) {
         </div>
         <button
           className="primary"
+          disabled={save.isPending}
           onClick={() => {
+            setViewID(null);
             setEdit({ id: "", name: "", kind: "manual", rule: null, sort: "title", members: [] });
           }}
         >
           ＋ {t("newList")}
         </button>
       </div>
-      {[q.error, save.error, remove.error].filter(Boolean).map((e, i) => (
-        <p role="alert" className="error" key={i}>
-          {e?.message}
-        </p>
-      ))}
+      {[q.error, library.error, statuses.error, providers.error, save.error, remove.error]
+        .filter(Boolean)
+        .map((e, i) => (
+          <p role="alert" className="error" key={i}>
+            {e?.message}
+          </p>
+        ))}
       {q.isPending && <p>{t("loading")}</p>}
       {edit ? (
         <section className="panel">
-          <label>
-            {t("name")}
-            <input
-              value={edit.name}
-              onChange={(e) => {
-                setEdit({ ...edit, name: e.target.value });
-              }}
-            />
-          </label>
-          <div className="toolbar">
-            <select
-              aria-label={t("kind")}
-              value={edit.kind}
-              onChange={(e) => {
-                setEdit({
-                  ...edit,
-                  kind: e.target.value,
-                  rule: e.target.value === "smart" ? initialRule : null,
-                });
-              }}
-            >
-              <option value="manual">{t("manual")}</option>
-              <option value="smart">{t("smart")}</option>
-            </select>
-            <select
-              aria-label={t("sort")}
-              value={edit.sort}
-              onChange={(e) => {
-                setEdit({ ...edit, sort: e.target.value });
-              }}
-            >
-              {["title", "release", "rating", "added"].map((s) => (
-                <option key={s} value={s}>
-                  {t(s as Key)}
-                </option>
-              ))}
-            </select>
-          </div>
-          {edit.kind === "smart" && edit.rule ? (
-            <>
-              <RuleEditor
-                rule={edit.rule}
-                t={t}
-                onChange={(rule) => {
-                  setEdit({ ...edit, rule });
+          <fieldset disabled={save.isPending} style={{ border: 0, padding: 0, minWidth: 0 }}>
+            <legend>{t("editList")}</legend>
+            <label>
+              {t("name")}
+              <input
+                value={edit.name}
+                onChange={(e) => {
+                  setEdit({ ...edit, name: e.target.value });
                 }}
               />
-              <div className="preview">
-                <h3>
-                  {t("preview")}: {preview.data?.count ?? "…"}
-                </h3>
-                {preview.error && <p role="alert">{preview.error.message}</p>}
-                {preview.data?.results.slice(0, 20).map((x) => (
-                  <a
-                    className="chip"
-                    key={x.id}
-                    href={`#detail/${x.id.split(":").slice(1).join("/")}`}
-                  >
-                    {x.title}
-                  </a>
+            </label>
+            <div className="toolbar">
+              <select
+                aria-label={t("kind")}
+                value={edit.kind}
+                onChange={(e) => {
+                  setEdit({
+                    ...edit,
+                    kind: e.target.value,
+                    rule: e.target.value === "smart" ? initialRule : null,
+                  });
+                }}
+              >
+                <option value="manual">{t("manual")}</option>
+                <option value="smart">{t("smart")}</option>
+              </select>
+              <select
+                aria-label={t("sort")}
+                value={edit.sort}
+                onChange={(e) => {
+                  setEdit({ ...edit, sort: e.target.value });
+                }}
+              >
+                {["title", "release", "rating", "added"].map((s) => (
+                  <option key={s} value={s}>
+                    {t(s as Key)}
+                  </option>
                 ))}
-              </div>
-            </>
-          ) : (
-            <>
-              <p>{t("memberHint")}</p>
-              <div className="member-picker">
-                {library.data
-                  ?.filter((x) => !edit.members.includes(x.id))
-                  .map((x) => (
-                    <button
+              </select>
+            </div>
+            {edit.kind === "smart" && edit.rule ? (
+              <>
+                <RuleEditor
+                  rule={edit.rule}
+                  choices={choices}
+                  t={t}
+                  onChange={(rule) => {
+                    setEdit({ ...edit, rule });
+                  }}
+                />
+                <div className="preview">
+                  <h3>
+                    {t("preview")}: {preview.data?.count ?? "…"}
+                  </h3>
+                  {preview.error && <p role="alert">{preview.error.message}</p>}
+                  {preview.data?.results.slice(0, 20).map((x) => (
+                    <a
+                      className="chip"
                       key={x.id}
-                      onClick={() => {
-                        setEdit({ ...edit, members: [...edit.members, x.id] });
-                      }}
+                      href={`#detail/${x.id.split(":").slice(1).join("/")}`}
                     >
-                      ＋ {x.title}
-                    </button>
+                      {x.title}
+                    </a>
                   ))}
-              </div>
-              <ol className="ordered-list">
-                {edit.members.map((id, i) => (
-                  <li
-                    key={id}
-                    draggable
-                    onDragStart={() => {
-                      setDrag(id);
-                    }}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      if (drag) {
-                        const members = edit.members.filter((x) => x !== drag);
-                        members.splice(i, 0, drag);
-                        setEdit({ ...edit, members });
-                      }
-                    }}
-                  >
-                    <span>⠿ {library.data?.find((x) => x.id === id)?.title ?? id}</span>
-                    <button
-                      disabled={i === 0}
-                      aria-label="Move up"
-                      onClick={() => {
-                        const members = [...edit.members];
-                        members.splice(i, 1);
-                        members.splice(i - 1, 0, id);
-                        setEdit({ ...edit, members });
+                </div>
+              </>
+            ) : (
+              <>
+                <p>{t("memberHint")}</p>
+                <div className="member-picker">
+                  {library.data
+                    ?.filter((x) => !edit.members.includes(x.id))
+                    .map((x) => (
+                      <button
+                        key={x.id}
+                        onClick={() => {
+                          setEdit({ ...edit, members: [...edit.members, x.id] });
+                        }}
+                      >
+                        ＋ {x.title}
+                      </button>
+                    ))}
+                </div>
+                <ol className="ordered-list">
+                  {edit.members.map((id, i) => (
+                    <li
+                      key={id}
+                      draggable
+                      onDragStart={() => {
+                        setDrag(id);
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (drag) {
+                          const members = edit.members.filter((x) => x !== drag);
+                          members.splice(i, 0, drag);
+                          setEdit({ ...edit, members });
+                        }
                       }}
                     >
-                      ↑
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEdit({ ...edit, members: edit.members.filter((x) => x !== id) });
-                      }}
-                    >
-                      {t("remove")}
-                    </button>
-                  </li>
-                ))}
-              </ol>
-            </>
-          )}
-          <div className="toolbar">
-            <button
-              className="primary"
-              disabled={!edit.name || save.isPending || (!!preview.error && edit.kind === "smart")}
-              onClick={() => {
-                save.mutate(edit);
-              }}
-            >
-              {t("save")}
-            </button>
-            <button
-              onClick={() => {
-                setEdit(null);
-              }}
-            >
-              {t("cancel")}
-            </button>
-          </div>
+                      <span>⠿ {library.data?.find((x) => x.id === id)?.title ?? id}</span>
+                      <button
+                        disabled={i === 0}
+                        aria-label={`${t("moveUp")}: ${library.data?.find((item) => item.id === id)?.title ?? id}`}
+                        onClick={() => {
+                          const members = [...edit.members];
+                          members.splice(i, 1);
+                          members.splice(i - 1, 0, id);
+                          setEdit({ ...edit, members });
+                        }}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        disabled={i === edit.members.length - 1}
+                        aria-label={`${t("moveDown")}: ${library.data?.find((item) => item.id === id)?.title ?? id}`}
+                        onClick={() => {
+                          const members = [...edit.members];
+                          members.splice(i, 1);
+                          members.splice(i + 1, 0, id);
+                          setEdit({ ...edit, members });
+                        }}
+                      >
+                        ↓
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEdit({ ...edit, members: edit.members.filter((x) => x !== id) });
+                        }}
+                      >
+                        {t("remove")}
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )}
+            <div className="toolbar">
+              <button
+                className="primary"
+                disabled={
+                  !edit.name ||
+                  save.isPending ||
+                  (edit.kind === "smart" &&
+                    (!preview.data || preview.isFetching || !!preview.error))
+                }
+                onClick={() => {
+                  save.mutate(edit);
+                }}
+              >
+                {t("save")}
+              </button>
+              <button
+                onClick={() => {
+                  setEdit(null);
+                }}
+              >
+                {t("cancel")}
+              </button>
+            </div>
+          </fieldset>
         </section>
+      ) : viewed ? (
+        <ListContents
+          list={viewed}
+          t={t}
+          onClose={() => {
+            setViewID(null);
+          }}
+          onEdit={() => {
+            setEdit(viewed);
+          }}
+        />
       ) : (
         <div className="list-grid">
           {q.data?.map((l) => (
             <article className="list-card" key={l.id}>
               <span>{l.kind === "smart" ? "✧" : "☷"}</span>
               <h2>{l.name}</h2>
-              <small>
-                {t(l.kind === "smart" ? "smart" : "manual")} · {l.id}
-              </small>
+              <small>{t(l.kind === "smart" ? "smart" : "manual")}</small>
               <div className="toolbar">
                 <button
                   onClick={() => {
                     setEdit(l);
                   }}
                 >
-                  {t("details")}
+                  {t("editList")}
+                </button>
+                <button
+                  onClick={() => {
+                    setViewID(l.id);
+                  }}
+                >
+                  {t("viewList")}
                 </button>
                 <button
                   disabled={!!l.dependents?.length}
@@ -380,7 +525,10 @@ export function ListsPage({ t }: { t: T }) {
               </div>
               {!!l.dependents?.length && (
                 <small>
-                  {t("deleteBlocked")} {l.dependents.join(", ")}
+                  {t("deleteBlocked")}{" "}
+                  {l.dependents
+                    .map((id) => q.data?.find((list) => list.id === id)?.name ?? id)
+                    .join(", ")}
                 </small>
               )}
             </article>
@@ -388,6 +536,73 @@ export function ListsPage({ t }: { t: T }) {
         </div>
       )}
     </>
+  );
+}
+function hasRuleField(rule: Rule | null | undefined, field: string): boolean {
+  return Boolean(
+    rule && (rule.field === field || rule.children?.some((child) => hasRuleField(child, field))),
+  );
+}
+function ListContents({
+  list,
+  t,
+  onClose,
+  onEdit,
+}: {
+  list: List;
+  t: T;
+  onClose: () => void;
+  onEdit: () => void;
+}) {
+  const results = useQuery({
+    queryKey: ["list-results", list.id],
+    queryFn: ({ signal }) =>
+      api<{ count: number; results: { id: string; title: string }[] }>(
+        `/lists/${list.id}/results`,
+        "GET",
+        undefined,
+        signal,
+      ),
+  });
+  return (
+    <section className="panel">
+      <h2>{list.name}</h2>
+      <div className="toolbar">
+        <button onClick={onClose}>{t("back")}</button>
+        <button onClick={onEdit}>{t("editList")}</button>
+      </div>
+      {results.isPending && <p>{t("loading")}</p>}
+      {results.error && (
+        <div role="alert">
+          {results.error.message}
+          <button
+            onClick={() => {
+              void results.refetch();
+            }}
+          >
+            {t("retry")}
+          </button>
+        </div>
+      )}
+      {results.data && (
+        <>
+          <p>
+            {results.data.count} {t("title")}
+          </p>
+          {results.data.count === 0 ? (
+            <p>{t("empty")}</p>
+          ) : (
+            <ol className="ordered-list">
+              {results.data.results.map((item) => (
+                <li key={item.id}>
+                  <a href={`#detail/${item.id.split(":").slice(1).join("/")}`}>{item.title}</a>
+                </li>
+              ))}
+            </ol>
+          )}
+        </>
+      )}
+    </section>
   );
 }
 export function SettingsPage({ user, t }: { user: User; t: T }) {

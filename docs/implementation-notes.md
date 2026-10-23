@@ -79,3 +79,11 @@ After loading metadata, explicit review confirmation can add a previously unreso
 Tracking choices now distinguish cancellation from an explicit negative/default choice. Cancel and Escape abort the pending tracking operation rather than applying “only this episode” or retaining status while still unwatching. Leaving the title page cancels a waiting choice, and a preview response arriving after navigation cannot open a dialog or submit history. Explicitly saving the default choice still affects only the selected episode.
 
 Frontend regressions cover Cancel, Escape, navigation while a prompt is open, delayed previews after navigation, and global shortcuts inside the modal. Shortcuts also ignore editable controls; focused movie tracking buttons support the same W action as episode buttons. These behavioral tests do not replace the remaining native browser/focus and mobile acceptance checks.
+
+## Saved list browsing and rule controls
+
+Saved manual and smart lists have a contents view separate from editing. Manual results preserve member order; smart results use the saved rule/sort, private-library scope, and the same unknown-value semantics as preview. Account-scoped result endpoints reject other users' list IDs. Edited previews substitute the proposed rule into the dependency graph so indirect cycles are rejected before save.
+
+The rule builder provides named choices for content kinds, base/custom statuses, existing lists, cached genres, and configured provider options. Numeric operators are limited to numeric fields; empty or pending previews cannot be saved. Manual ordering supports localized up/down buttons alongside dragging, and editing is disabled during save. Result evaluation batches cached availability in the library query and selects metadata deterministically in the user's preferred language instead of choosing a random translation.
+
+Synthetic PostgreSQL tests cover manual order/localization, saved smart results, unknown versus known-empty availability, deterministic metadata filters, edited dependency cycles, and unauthorized/cross-account reads. Frontend tests cover contents browsing, stable IDs behind named selectors, and keyboard-friendly member reordering. Browser layout/accessibility acceptance is still separate.

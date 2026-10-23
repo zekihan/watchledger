@@ -1,4 +1,10 @@
 export const en = {
+  viewList: "View list",
+  editList: "Edit list",
+  moveUp: "Move up",
+  moveDown: "Move down",
+  unavailableChoice: "Unavailable choice",
+
   sourceWatchDate: "Recorded source watch date",
   loadImportMetadata: "Load source catalog metadata",
   targetSeason: "Provider season to load",
@@ -276,6 +282,11 @@ export const tr: Record<Key, string> = {
     "Yalnızca kaynak kaydındaki açık TMDB kimliğini yükler. Bilgi yüklemek geçmişi aktarmaz. Sağlayıcı sezonlarını ayrıca seçin; kaynak numaralarının eşleştiği varsayılmaz.",
   catalogLoadedNoHistory: "Katalog bilgileri yüklendi. Geçmiş uygulanmadı.",
   sourceWatchDate: "Kaynakta kayıtlı izleme tarihi",
+  viewList: "Listeyi görüntüle",
+  editList: "Listeyi düzenle",
+  moveUp: "Yukarı taşı",
+  moveDown: "Aşağı taşı",
+  unavailableChoice: "Kullanılamayan seçim",
   home: "Ana sayfa",
   rename: "Yeniden adlandır",
   history: "İzleme geçmişi",

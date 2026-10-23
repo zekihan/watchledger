@@ -20,6 +20,7 @@ type savedList struct {
 
 func (a *API) listRoutes(m *http.ServeMux) {
 	m.HandleFunc("GET /api/lists", a.lists)
+	m.HandleFunc("GET /api/lists/{id}/results", a.listResults)
 	m.HandleFunc("POST /api/lists", a.saveList)
 	m.HandleFunc("DELETE /api/lists/{id}", a.deleteList)
 	m.HandleFunc("POST /api/lists/preview", a.previewList)
@@ -162,6 +163,7 @@ func (a *API) deleteList(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) previewList(w http.ResponseWriter, r *http.Request) {
 	var in struct {
+		ID   string     `json:"id"`
 		Rule smart.Rule `json:"rule"`
 		Sort string     `json:"sort"`
 	}
@@ -172,8 +174,17 @@ func (a *API) previewList(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, e.Error(), http.StatusBadRequest)
 		return
 	}
+	switch in.Sort {
+	case "", "title", "release", "rating", "added":
+	default:
+		http.Error(w, "invalid sorting", http.StatusBadRequest)
+		return
+	}
+	a.renderListResults(w, r, in.Rule, in.Sort, in.ID)
+}
+func (a *API) renderListResults(w http.ResponseWriter, r *http.Request, rule smart.Rule, order, editedID string) {
 	uid := auth.Current(r.Context()).ID
-	rows, e := a.DB.Query(r.Context(), `SELECT l.catalog_id,c.title,c.kind,l.base,coalesce(l.status_id::text,l.base),l.rating,c.metadata,l.added_at::text,coalesce(u.settings->>'country','TR') FROM library l JOIN catalog c ON c.id=l.catalog_id JOIN users u ON u.id=l.user_id WHERE l.user_id=$1`, uid)
+	rows, e := a.DB.Query(r.Context(), `SELECT l.catalog_id,coalesce(nullif(c.metadata->coalesce(u.settings->>'metadata_language','en')->>'title',''),nullif(c.metadata->coalesce(u.settings->>'metadata_language','en')->>'name',''),c.title),c.kind,l.base,coalesce(l.status_id::text,l.base),l.rating,jsonb_build_object('selected',coalesce(c.metadata->coalesce(u.settings->>'metadata_language','en'),c.metadata->'',(SELECT value FROM jsonb_each(c.metadata) ORDER BY key LIMIT 1))),l.added_at::text,coalesce(u.settings->>'country','TR'),a.offers FROM library l JOIN catalog c ON c.id=l.catalog_id JOIN users u ON u.id=l.user_id LEFT JOIN availability a ON a.catalog_id=l.catalog_id AND a.country=coalesce(u.settings->>'country','TR') WHERE l.user_id=$1`, uid)
 	if e != nil {
 		http.Error(w, "library unavailable", http.StatusServiceUnavailable)
 		return
@@ -181,16 +192,18 @@ func (a *API) previewList(w http.ResponseWriter, r *http.Request) {
 	items := []smart.Item{}
 	titles, release, added := map[string]string{}, map[string]string{}, map[string]string{}
 	ratings := map[string]int{}
+	availability := map[string][]byte{}
 	country := "TR"
 	for rows.Next() {
 		var id, title, kind, base, status, add string
 		var rating *int
-		var raw []byte
-		if e = rows.Scan(&id, &title, &kind, &base, &status, &rating, &raw, &add, &country); e != nil {
+		var raw, offers []byte
+		if e = rows.Scan(&id, &title, &kind, &base, &status, &rating, &raw, &add, &country, &offers); e != nil {
 			rows.Close()
 			http.Error(w, "library unavailable", http.StatusServiceUnavailable)
 			return
 		}
+		availability[id] = offers
 		values := map[string][]string{"kind": {kind}, "base": {base}, "status": {status}}
 		if rating != nil {
 			values["rating"] = []string{strconv.Itoa(*rating)}
@@ -262,11 +275,19 @@ func (a *API) previewList(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "lists unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	for _, ref := range smart.References(in.Rule) {
+	for _, ref := range smart.References(rule) {
 		if _, ok := graph[ref]; !ok {
 			http.Error(w, "referenced list not found", http.StatusBadRequest)
 			return
 		}
+	}
+	if editedID != "" {
+		if _, ok := graph[editedID]; !ok {
+			http.Error(w, "edited list not found", http.StatusNotFound)
+			return
+		}
+		graph[editedID] = smart.References(rule)
+		rules[editedID] = rule
 	}
 	if e = smart.Acyclic(graph); e != nil {
 		http.Error(w, e.Error(), http.StatusConflict)
@@ -295,8 +316,8 @@ func (a *API) previewList(w http.ResponseWriter, r *http.Request) {
 	}
 	out := []map[string]string{}
 	for _, item := range items {
-		var offers []byte
-		if e = a.DB.QueryRow(r.Context(), "SELECT offers FROM availability WHERE catalog_id=$1 AND country=$2", item.ID, country).Scan(&offers); e == nil && string(offers) != "null" {
+		offers := availability[item.ID]
+		if len(offers) > 0 && string(offers) != "null" {
 			var data map[string][]struct {
 				ID int `json:"provider_id"`
 			}
@@ -345,7 +366,7 @@ func (a *API) previewList(w http.ResponseWriter, r *http.Request) {
 			}
 			return v, e
 		}
-		v, err := smart.Eval(in.Rule, item, member)
+		v, err := smart.Eval(rule, item, member)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -356,7 +377,7 @@ func (a *API) previewList(w http.ResponseWriter, r *http.Request) {
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		a, b := out[i]["id"], out[j]["id"]
-		switch in.Sort {
+		switch order {
 		case "rating":
 			if ratings[a] != ratings[b] {
 				return ratings[a] > ratings[b]
@@ -370,7 +391,49 @@ func (a *API) previewList(w http.ResponseWriter, r *http.Request) {
 				return added[a] > added[b]
 			}
 		}
+		if titles[a] == titles[b] {
+			return a < b
+		}
 		return titles[a] < titles[b]
 	})
+	writeJSON(w, map[string]interface{}{"count": len(out), "results": out})
+}
+
+func (a *API) listResults(w http.ResponseWriter, r *http.Request) {
+	uid := auth.Current(r.Context()).ID
+	var kind, order string
+	var raw []byte
+	if err := a.DB.QueryRow(r.Context(), "SELECT kind,rule,sort FROM lists WHERE user_id=$1 AND id=$2", uid, r.PathValue("id")).Scan(&kind, &raw, &order); err != nil {
+		http.Error(w, "list not found", http.StatusNotFound)
+		return
+	}
+	if kind == "smart" {
+		var rule smart.Rule
+		if json.Unmarshal(raw, &rule) != nil || smart.Validate(rule) != nil {
+			http.Error(w, "invalid saved rule", http.StatusConflict)
+			return
+		}
+		a.renderListResults(w, r, rule, order, "")
+		return
+	}
+	rows, err := a.DB.Query(r.Context(), `SELECT m.catalog_id,coalesce(nullif(c.metadata->coalesce(u.settings->>'metadata_language','en')->>'title',''),nullif(c.metadata->coalesce(u.settings->>'metadata_language','en')->>'name',''),c.title) FROM list_members m JOIN library l ON l.user_id=m.user_id AND l.catalog_id=m.catalog_id JOIN catalog c ON c.id=m.catalog_id JOIN users u ON u.id=m.user_id WHERE m.user_id=$1 AND m.list_id=$2 ORDER BY m.position,m.catalog_id`, uid, r.PathValue("id"))
+	if err != nil {
+		http.Error(w, "list contents unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	defer rows.Close()
+	out := []map[string]string{}
+	for rows.Next() {
+		var id, title string
+		if err = rows.Scan(&id, &title); err != nil {
+			http.Error(w, "list contents unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		out = append(out, map[string]string{"id": id, "title": title})
+	}
+	if rows.Err() != nil {
+		http.Error(w, "list contents unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	writeJSON(w, map[string]interface{}{"count": len(out), "results": out})
 }

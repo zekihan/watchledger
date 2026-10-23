@@ -259,7 +259,7 @@ export function App() {
               t={t}
             />
           ) : root === "lists" ? (
-            <ListsPage t={t} />
+            <ListsPage t={t} user={user} />
           ) : root === "statistics" ? (
             <AnalyticsPage t={t} />
           ) : root === "calendar" ? (
