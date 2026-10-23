@@ -96,7 +96,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Release year and year-range filters.
 - [ ] Cast and crew filters for movie discovery.
 - [ ] TV cast/crew discovery through progressively loaded person credits.
-- [ ] Honest result counts after local filtering and watched exclusions.
+- [x] Honest page-local result counts after filtering and watched exclusions, including unavailable-library handling.
 - [ ] Runtime filters.
 - [ ] Original production language filter.
 - [ ] Community score threshold.

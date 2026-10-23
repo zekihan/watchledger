@@ -1,4 +1,12 @@
 export const en = {
+  filterIDsHint:
+    "For multiple genre, provider or movie-person IDs, use commas to require all or | to match any. Do not mix separators.",
+  pageMatches: "Matches on this loaded page",
+  noPageMatches:
+    "No titles on this page match the current filters. Other pages may contain matches.",
+  noSubscriptions: "Select your streaming subscriptions in Settings first.",
+  castIDs: "Cast person IDs",
+  crewIDs: "Crew person IDs",
   markRead: "Mark as read",
   noticeUpdated: "There is an update to review.",
   allEpisodes: "All episodes in this season",
@@ -356,6 +364,14 @@ export const en = {
 };
 export type Key = keyof typeof en;
 export const tr: Record<Key, string> = {
+  filterIDsHint:
+    "Birden çok tür, sağlayıcı veya film kişisi kimliğinde tümünü istemek için virgül, herhangi birini eşleştirmek için | kullanın. Ayraçları karıştırmayın.",
+  pageMatches: "Yüklenen bu sayfadaki eşleşmeler",
+  noPageMatches:
+    "Bu sayfada geçerli filtrelere uyan yapım yok. Diğer sayfalarda eşleşmeler olabilir.",
+  noSubscriptions: "Önce Ayarlar’da yayın aboneliklerinizi seçin.",
+  castIDs: "Oyuncu kişi kimlikleri",
+  crewIDs: "Ekip kişi kimlikleri",
   markRead: "Okundu olarak işaretle",
   noticeUpdated: "İncelenecek bir güncelleme var.",
   allEpisodes: "Bu sezondaki tüm bölümler",

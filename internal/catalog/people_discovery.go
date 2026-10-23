@@ -6,12 +6,27 @@ import (
 	"errors"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 // PeopleTV uses a paged person-credit candidate set; result counts describe only
 // the inspected page, not exhaustive global TV discovery after local filters.
 func (c *Cache) PeopleTV(ctx context.Context, person string, in url.Values) (json.RawMessage, error) {
 	if _, e := Identity("person", person); e != nil {
+		return nil, e
+	}
+	genres, e := parseDiscoverySet(in.Get("with_genres"), positiveID)
+	if e != nil {
+		return nil, e
+	}
+	providers, e := parseDiscoverySet(in.Get("with_watch_providers"), positiveID)
+	if e != nil {
+		return nil, e
+	}
+	monetization, e := parseDiscoverySet(in.Get("with_watch_monetization_types"), func(value string) bool {
+		return value == "flatrate" || value == "rent" || value == "buy" || value == "free" || value == "ads"
+	})
+	if e != nil {
 		return nil, e
 	}
 	credit := in.Get("credit")
@@ -43,7 +58,10 @@ func (c *Cache) PeopleTV(ctx context.Context, person string, in url.Values) (jso
 	if page < 1 {
 		page = 1
 	}
-	start := min((page-1)*20, len(candidates))
+	start := len(candidates)
+	if page <= max(1, (len(candidates)+19)/20) {
+		start = min((page-1)*20, len(candidates))
+	}
 	end := min(start+20, len(candidates))
 	results := []json.RawMessage{}
 	failures := 0
@@ -84,14 +102,12 @@ func (c *Cache) PeopleTV(ctx context.Context, person string, in url.Values) (jso
 		if m.Votes < minVotes || m.Score < minScore {
 			continue
 		}
-		if v := in.Get("with_genres"); v != "" {
-			found := false
-			for _, g := range m.Genres {
-				found = found || strconv.Itoa(g.ID) == v
-			}
-			if !found {
-				continue
-			}
+		availableGenres := map[string]bool{}
+		for _, g := range m.Genres {
+			availableGenres[strconv.Itoa(g.ID)] = true
+		}
+		if !genres.matches(availableGenres) {
+			continue
 		}
 		low, _ := strconv.Atoi(in.Get("with_runtime.gte"))
 		high, _ := strconv.Atoi(in.Get("with_runtime.lte"))
@@ -100,33 +116,115 @@ func (c *Cache) PeopleTV(ctx context.Context, person string, in url.Values) (jso
 				continue
 			}
 			runtime := m.Runtime[0]
-			if runtime < low || (high > 0 && runtime > high) {
+			if runtime <= 0 || runtime < low || (high > 0 && runtime > high) {
 				continue
 			}
 		}
-		if provider := in.Get("with_watch_providers"); provider != "" {
+		if len(providers.values) > 0 || len(monetization.values) > 0 {
 			offers, err := c.Availability(ctx, "tv", strconv.Itoa(id), in.Get("watch_region"), false)
 			if err != nil {
 				failures++
 				continue
 			}
-			var av struct {
-				Flatrate []struct {
-					ID int `json:"provider_id"`
-				} `json:"flatrate"`
+			var av map[string][]struct {
+				ID int `json:"provider_id"`
 			}
-			if json.Unmarshal(offers.Offers, &av) != nil {
+			// Ignore the availability link string; decode only offer arrays.
+			var fields map[string]json.RawMessage
+			if json.Unmarshal(offers.Offers, &fields) != nil {
+				failures++
 				continue
 			}
-			found := false
-			for _, p := range av.Flatrate {
-				found = found || strconv.Itoa(p.ID) == provider
+			av = make(map[string][]struct {
+				ID int `json:"provider_id"`
+			})
+			for _, category := range []string{"flatrate", "rent", "buy", "free", "ads"} {
+				if raw := fields[category]; len(raw) > 0 {
+					var items []struct {
+						ID int `json:"provider_id"`
+					}
+					if json.Unmarshal(raw, &items) != nil {
+						continue
+					}
+					av[category] = items
+				}
 			}
-			if !found {
+			availableProviders := map[string]bool{}
+			categories := map[string]bool{}
+			for category, items := range av {
+				if len(items) > 0 {
+					categories[category] = true
+				}
+				if len(monetization.values) > 0 && !monetization.contains(category) {
+					continue
+				}
+				for _, item := range items {
+					availableProviders[strconv.Itoa(item.ID)] = true
+				}
+			}
+			if !monetization.matches(categories) || !providers.matches(availableProviders) {
 				continue
 			}
 		}
 		results = append(results, d.Metadata)
 	}
 	return json.Marshal(map[string]interface{}{"results": results, "page": page, "total_pages": max(1, (len(candidates)+19)/20), "candidate_count": len(candidates), "inspected_candidates": end - start, "enrichment_failures": failures, "exhaustive": false})
+}
+
+// Mirror documented simple AND (comma) / OR (pipe) filters. Mixed expressions
+// are rejected rather than inventing undocumented precedence.
+type discoverySet struct {
+	values []string
+	any    bool
+}
+
+func positiveID(value string) bool {
+	id, err := strconv.Atoi(value)
+	return err == nil && id > 0 && strconv.Itoa(id) == value
+}
+func parseDiscoverySet(raw string, valid func(string) bool) (discoverySet, error) {
+	out := discoverySet{}
+	if raw == "" {
+		return out, nil
+	}
+	if len(raw) > 1000 || strings.Contains(raw, ",") && strings.Contains(raw, "|") {
+		return out, errors.New("invalid discovery filter")
+	}
+	out.any = strings.Contains(raw, "|")
+	separator := ","
+	if out.any {
+		separator = "|"
+	}
+	out.values = strings.Split(raw, separator)
+	if len(out.values) > 100 {
+		return out, errors.New("too many discovery filter values")
+	}
+	for _, value := range out.values {
+		if !valid(value) {
+			return out, errors.New("invalid discovery filter value")
+		}
+	}
+	return out, nil
+}
+func (s discoverySet) contains(value string) bool {
+	for _, item := range s.values {
+		if value == item {
+			return true
+		}
+	}
+	return false
+}
+func (s discoverySet) matches(available map[string]bool) bool {
+	if len(s.values) == 0 {
+		return true
+	}
+	for _, item := range s.values {
+		if s.any && available[item] {
+			return true
+		}
+		if !s.any && !available[item] {
+			return false
+		}
+	}
+	return !s.any
 }

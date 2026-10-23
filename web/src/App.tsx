@@ -534,6 +534,16 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
       }>(path),
     retry: false,
   });
+  const visibleResults = (q.data?.results ?? []).filter(
+    (item) =>
+      !exclude ||
+      !library.data?.some(
+        (entry) =>
+          entry.id ===
+            `${(item.media_type ?? kind) === "anime" ? "anidb" : "tmdb"}:${item.media_type ?? kind}:${String(item.id)}` &&
+          entry.base === "completed",
+      ),
+  );
   return (
     <>
       <p className="eyebrow">{t("findFavorite")}</p>
@@ -544,6 +554,8 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
           value={kind}
           onChange={(e) => {
             setKind(e.target.value);
+            setAdvanced({});
+            setGenre("");
             setPage(1);
           }}
         >
@@ -615,6 +627,7 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
       {!search && (
         <details className="panel">
           <summary>{t("filters")}</summary>
+          <p>{t("filterIDsHint")}</p>
           <div className="settings-grid">
             {(
               [
@@ -639,6 +652,24 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
                 />
               </label>
             ))}
+            {kind === "movie" &&
+              (
+                [
+                  ["with_cast", "castIDs"],
+                  ["with_crew", "crewIDs"],
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key}>
+                  {t(label)}
+                  <input
+                    value={advanced[key] ?? ""}
+                    onChange={(event) => {
+                      setAdvanced({ ...advanced, [key]: event.target.value });
+                      setPage(1);
+                    }}
+                  />
+                </label>
+              ))}
             {(kind === "tv" || kind === "anime") && (
               <label>
                 {t("cast")} / {t("crew")}
@@ -655,6 +686,7 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
               </label>
             )}
             <button
+              disabled={!user.Settings.services?.length}
               onClick={() => {
                 setAdvanced({
                   ...advanced,
@@ -667,6 +699,7 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
             >
               {t("myServices")}
             </button>
+            {!user.Settings.services?.length && <small>{t("noSubscriptions")}</small>}
           </div>
         </details>
       )}
@@ -692,31 +725,28 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
           {q.data.enrichment_failures ? `${t("error")}: ${String(q.data.enrichment_failures)}` : ""}
         </p>
       )}
-      {q.isPending ? (
+      {q.isPending || (exclude && library.isPending) ? (
         <p>{t("loading")}</p>
-      ) : q.error ? (
+      ) : q.error || (exclude && library.error) ? (
         <ErrorBox
-          error={q.error}
+          error={(q.error ?? library.error) as Error}
           retry={() => {
             void q.refetch();
+            if (exclude) void library.refetch();
           }}
           t={t}
         />
-      ) : q.data?.results.length ? (
-        <Cards
-          results={q.data.results.filter(
-            (item) =>
-              !exclude ||
-              !library.data?.some(
-                (l) =>
-                  l.id ===
-                    `${(item.media_type ?? kind) === "anime" ? "anidb" : "tmdb"}:${item.media_type ?? kind}:${String(item.id)}` &&
-                  l.base === "completed",
-              ),
+      ) : q.data ? (
+        <>
+          <p role="status">
+            {t("pageMatches")}: {visibleResults.length}
+          </p>
+          {visibleResults.length ? (
+            <Cards results={visibleResults} kind={kind} t={t} />
+          ) : (
+            <p className="empty">{t("noPageMatches")}</p>
           )}
-          kind={kind}
-          t={t}
-        />
+        </>
       ) : (
         <Empty t={t} />
       )}
