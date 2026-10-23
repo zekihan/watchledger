@@ -1065,3 +1065,25 @@ footer a {
 .skip-link:focus {
   top: 1rem;
 }
+
+.episode-still {
+  display: block;
+  max-width: 100%;
+  width: 36rem;
+  border-radius: 0.65rem;
+  margin-top: 1rem;
+}
+.season-summary {
+  display: flex;
+  gap: 1.25rem;
+  margin: 1rem 0;
+}
+.season-summary > .poster,
+.season-summary > img {
+  max-width: 7rem;
+  flex-shrink: 0;
+}
+.episode h3 a {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}

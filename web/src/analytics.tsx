@@ -1,3 +1,4 @@
+import { episodeLink } from "./episode-links";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./api";
@@ -177,7 +178,7 @@ export function CalendarPage({ t, user }: { t: T; user: User }) {
                 {q.data
                   ?.filter((e) => date(e) === day)
                   .map((e) => (
-                    <a key={e.id} href={`#detail/${e.catalog_id.split(":").slice(1).join("/")}`}>
+                    <a key={e.id} href={episodeLink(e.catalog_id, e.season, e.id)}>
                       <strong>{e.title}</strong>
                       <small>
                         S{e.season} E{e.number}
@@ -194,7 +195,7 @@ export function CalendarPage({ t, user }: { t: T; user: User }) {
       ) : (
         <div className="calendar-list">
           {q.data?.map((e) => (
-            <a key={e.id} href={`#detail/${e.catalog_id.split(":").slice(1).join("/")}`}>
+            <a key={e.id} href={episodeLink(e.catalog_id, e.season, e.id)}>
               <time>
                 {e.air_time
                   ? new Date(e.air_time).toLocaleString(lang, { timeZone: zone })

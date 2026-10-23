@@ -86,6 +86,9 @@ export interface LibraryItem {
   added_at: string;
 }
 export interface Episode {
+  runtime?: number;
+  native_number?: string;
+  kind?: string;
   id: number;
   name: string;
   overview?: string;

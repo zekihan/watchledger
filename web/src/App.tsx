@@ -1,3 +1,5 @@
+import { EpisodeSummary } from "./episode-details";
+import { episodeLink } from "./episode-links";
 import { useInstall } from "./use-install";
 import { CreditsPage } from "./credits";
 import { ChoiceDialog } from "./tracking-ui";
@@ -326,6 +328,7 @@ function LibraryPage({ t }: { t: T }) {
     [table, setTable] = useState(false);
   const [order, setOrder] = useState("title"),
     [contentType, setContentType] = useState("all");
+
   if (q.isPending) return <p>{t("loading")}</p>;
   if (q.error)
     return (
@@ -772,16 +775,25 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
     enabled: !!entry,
   });
 
-  const [season, setSeason] = useState(1),
-    [dateMode, setDateMode] = useState("today"),
+  const requestedSeason =
+    parts[3] === "season" && /^\d+$/.test(parts[4] ?? "") ? Number(parts[4]) : 1;
+  const selectedEpisode =
+    parts[5] === "episode" && /^[1-9]\d*$/.test(parts[6] ?? "") ? parts[6] : undefined;
+  const season = Number.isSafeInteger(requestedSeason) ? requestedSeason : 1;
+  const [dateMode, setDateMode] = useState("today"),
     [day, setDay] = useState(() => localDay(user.Settings.timezone)),
     [reveal, setReveal] = useState<string[]>([]);
   const eps = useQuery({
     queryKey: ["season", id, season, language],
     queryFn: () =>
-      api<{ episodes: Episode[]; stale?: boolean }>(
-        `/catalog/tv/${id}/seasons/${String(season)}?language=${language}`,
-      ),
+      api<{
+        episodes: Episode[];
+        stale?: boolean;
+        name?: string;
+        overview?: string;
+        poster_path?: string;
+        air_date?: string;
+      }>(`/catalog/tv/${id}/seasons/${String(season)}?language=${language}`),
     enabled: kind === "tv",
     retry: false,
   });
@@ -914,6 +926,10 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
     mutationFn: () => api(`/catalog/${kind}/${id}/refresh?language=${language}`, "POST", {}),
     onSuccess: () => client.invalidateQueries({ queryKey: ["detail", kind, id] }),
   });
+  useEffect(() => {
+    if (selectedEpisode && q.data && (kind === "anime" || eps.data))
+      document.getElementById("episode-details")?.focus();
+  }, [selectedEpisode, q.data, eps.data, kind]);
   if (q.isPending) return <p>{t("loading")}</p>;
   if (q.error)
     return (
@@ -927,6 +943,11 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
     );
   if (!q.data) return null;
   const m = q.data.metadata;
+  const seasonEpisodes =
+    kind === "anime" ? m.episodes?.filter((ep) => ep.season_number === season) : eps.data?.episodes;
+  const visibleEpisodes = selectedEpisode
+    ? seasonEpisodes?.filter((ep) => String(ep.id) === selectedEpisode)
+    : seasonEpisodes;
   return (
     <>
       {prompt && (
@@ -1172,14 +1193,14 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
         </div>
       )}
       {(kind === "tv" || kind === "anime") && (
-        <section>
+        <section id="episode-details" tabIndex={-1}>
           <div className="section-heading">
-            <h2>{t("episodes")}</h2>
+            <h2>{t(selectedEpisode ? "episodeDetails" : "seasonDetails")}</h2>
             <select
               aria-label={t("seasons")}
               value={season}
               onChange={(e) => {
-                setSeason(Number(e.target.value));
+                location.hash = `detail/${kind}/${id}/season/${e.target.value}`;
               }}
             >
               {m.seasons?.map((s) => (
@@ -1209,13 +1230,38 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
               </button>
             )}
           </div>
+          {selectedEpisode && (
+            <a className="button" href={`#detail/${kind}/${id}/season/${String(season)}`}>
+              {t("allEpisodes")}
+            </a>
+          )}
+          {kind === "tv" && !selectedEpisode && eps.data && (
+            <div className="season-summary">
+              {eps.data.poster_path && (
+                <Poster title={eps.data.name ?? t("seasonScope")} path={eps.data.poster_path} />
+              )}
+              <div>
+                <h3>{eps.data.name ?? `${t("seasonScope")} ${String(season)}`}</h3>
+                <time dateTime={eps.data.air_date}>{eps.data.air_date ?? t("unknown")}</time>
+                <p>{eps.data.overview ?? t("noSynopsis")}</p>
+              </div>
+            </div>
+          )}
+          {kind === "tv" && eps.isPending && <p>{t("loading")}</p>}
+          {eps.data?.stale && <p role="status">{t("stale")}</p>}
+          {selectedEpisode && visibleEpisodes?.length === 0 && (
+            <p role="status">{t("missingEpisode")}</p>
+          )}
           {eps.error ? (
-            <ErrorBox error={eps.error} t={t} />
+            <ErrorBox
+              error={eps.error}
+              t={t}
+              retry={() => {
+                void eps.refetch();
+              }}
+            />
           ) : (
-            (kind === "anime"
-              ? m.episodes?.filter((ep) => ep.season_number === season)
-              : eps.data?.episodes
-            )?.map((ep) => {
+            visibleEpisodes?.map((ep) => {
               const eid = `${kind === "anime" ? "anidb" : "tmdb"}:episode:${String(ep.id)}`,
                 seen = !!(
                   effective.data?.[eid]?.direct ||
@@ -1226,24 +1272,28 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
               return (
                 <article className="episode" key={ep.id}>
                   <span className="episode-number">
-                    {String(ep.episode_number).padStart(2, "0")}
+                    {ep.native_number ?? String(ep.episode_number).padStart(2, "0")}
                   </span>
                   <div>
-                    <h3>{ep.name}</h3>
-                    {effective.data?.[eid]?.derived && <small>{t("derivedWatch")}</small>}
-                    <small>{ep.air_date ?? t("unknown")}</small>
-                    {show ? (
-                      <p>{ep.overview}</p>
+                    {selectedEpisode ? (
+                      <h3>{ep.name}</h3>
                     ) : (
-                      <button
-                        className="text-button"
-                        onClick={() => {
-                          setReveal([...reveal, eid]);
-                        }}
-                      >
-                        {t("reveal")}
-                      </button>
+                      <h3>
+                        <a href={episodeLink(key, season, eid)}>{ep.name}</a>
+                      </h3>
                     )}
+                    {effective.data?.[eid]?.derived && <small>{t("derivedWatch")}</small>}
+                    <EpisodeSummary
+                      key={eid}
+                      episode={ep}
+                      identity={eid}
+                      show={!!show}
+                      detail={!!selectedEpisode}
+                      t={t}
+                      reveal={() => {
+                        setReveal([...reveal, eid]);
+                      }}
+                    />
                   </div>
                   {entry && (
                     <button
@@ -1419,7 +1469,7 @@ function DashboardPage({ page, user, t }: { page: string | undefined; user: User
         <h1>{t("calendar")}</h1>
         <div className="calendar-list">
           {d.upcoming.map((e) => (
-            <a href={`#detail/${e.catalog_id.split(":").slice(1).join("/")}`} key={e.id}>
+            <a href={episodeLink(e.catalog_id, e.season, e.id)} key={e.id}>
               <time>
                 {e.air_time
                   ? new Date(e.air_time).toLocaleString(user.Settings.language, {
@@ -1476,7 +1526,7 @@ function DashboardPage({ page, user, t }: { page: string | undefined; user: User
               href={
                 e.view_anchor
                   ? `#views/${encodeURIComponent(e.view_anchor)}`
-                  : `#detail/${e.catalog_id.split(":").slice(1).join("/")}`
+                  : episodeLink(e.catalog_id, e.season, e.episode_id)
               }
             >
               <span className="play">▷</span>
@@ -1537,11 +1587,7 @@ function DashboardPage({ page, user, t }: { page: string | undefined; user: User
         <section>
           <h2>{t("upcoming")}</h2>
           {d.upcoming.slice(0, 8).map((e) => (
-            <a
-              className="activity-row"
-              key={e.id}
-              href={`#detail/${e.catalog_id.split(":").slice(1).join("/")}`}
-            >
+            <a className="activity-row" key={e.id} href={episodeLink(e.catalog_id, e.season, e.id)}>
               <strong>{e.title}</strong>
               <small>
                 {e.air_date ?? (e.air_time ? new Date(e.air_time).toLocaleString() : "")}

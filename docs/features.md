@@ -39,12 +39,16 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Responsive desktop layouts.
 - [ ] Responsive phone layouts and touch-friendly quick actions.
 - [ ] Installable web-app manifest and icons.
+  - [x] Dimension-verified raster manifest/touch icons and explicit browser-provided install flow.
+  - [ ] Target-device installation and authentication-return checks.
 - [ ] Persistent main navigation and header search.
 - [ ] Home dashboard.
 - [ ] Library poster-grid view.
 - [x] Library table view.
 - [ ] Discovery and global search screens.
 - [ ] Movie/show/season/episode detail screens.
+  - [x] Source-ID episode deep links, season detail presentation, spoiler-safe episode stills and missing-identity handling.
+  - [ ] Real-browser presentation acceptance.
 - [ ] Person detail screens.
 - [ ] Manual-list and smart-list screens.
 - [ ] Calendar screens.

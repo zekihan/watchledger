@@ -1,4 +1,10 @@
 export const en = {
+  allEpisodes: "All episodes in this season",
+  missingEpisode:
+    "This source episode is not in the loaded season. Its recorded history has not been moved or deleted. Return to the series to review it.",
+  seasonDetails: "Season details",
+  episodeDetails: "Episode details",
+  sourceIdentity: "Source identity",
   skipContent: "Skip to content",
   navigation: "Main navigation",
   installTitle: "Install Watchledger",
@@ -348,6 +354,12 @@ export const en = {
 };
 export type Key = keyof typeof en;
 export const tr: Record<Key, string> = {
+  allEpisodes: "Bu sezondaki tüm bölümler",
+  missingEpisode:
+    "Bu kaynak bölümü yüklenen sezonda yok. Kayıtlı geçmişi taşınmadı veya silinmedi. İncelemek için diziye dönün.",
+  seasonDetails: "Sezon ayrıntıları",
+  episodeDetails: "Bölüm ayrıntıları",
+  sourceIdentity: "Kaynak kimliği",
   skipContent: "İçeriğe geç",
   navigation: "Ana gezinme",
   installTitle: "Watchledger’ı yükle",
