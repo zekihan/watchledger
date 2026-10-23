@@ -1,6 +1,6 @@
 # Feature checklist
 
-**Status: persistence and OIDC foundations in progress. Product workflows are not yet complete. See [validation notes](implementation-notes.md).**
+**Status: core APIs and UI are partially implemented. First-release acceptance is not complete. See [validation notes](implementation-notes.md).**
 
 This is the implementation tracker for the [agreed specification](specification.md). A checked box means the behavior is implemented and verified. Keep partial work unchecked; link supporting commits, pull requests, or validation notes when checking an item. Add subitems when a feature needs finer tracking.
 
@@ -124,13 +124,13 @@ The final section is explicitly deferred and does not count toward first-release
 
 ## Viewing history and progress
 
-- [ ] Mark individual episodes watched/unwatched.
+- [x] Mark individual episodes watched/unwatched.
 - [ ] Mark entire seasons watched/unwatched.
 - [ ] Mark entire shows watched/unwatched.
 - [ ] Mark movies watched/unwatched.
 - [ ] Today's date, chosen date, and unknown date for bulk watch actions.
-- [ ] Preserve existing known watched dates during bulk actions.
-- [ ] Mark only the selected episode by default.
+- [x] Preserve existing known watched dates during bulk actions.
+- [x] Mark only the selected episode by default.
 - [ ] Detect earlier unwatched aired regular episodes.
 - [ ] Prompt for this episode only or earlier episodes too, across prior seasons and excluding specials.
 - [ ] Exclude unaired episodes from missed-episode counts.
@@ -166,11 +166,11 @@ The final section is explicitly deferred and does not count toward first-release
 - [ ] Content type, exact/base status, genre, year, and personal-rating conditions.
 - [ ] Country availability and streaming-service conditions.
 - [ ] Explicit unknown/unset conditions.
-- [ ] Negative filters do not silently match unknown values.
+- [x] Negative filters do not silently match unknown values.
 - [ ] Manual-list membership conditions.
 - [ ] Smart-list membership conditions.
 - [ ] Stable list identifiers for dependencies.
-- [ ] Cycle prevention across smart-list dependencies.
+- [x] Cycle prevention across smart-list dependencies.
 - [ ] Show dependent lists and block deletion until references are resolved.
 - [ ] Safe list renaming.
 - [ ] Saved smart-list sorting by title, release date, rating, or date added.
@@ -193,11 +193,11 @@ The final section is explicitly deferred and does not count toward first-release
 - [ ] Explicit versus inferred mapping distinction.
 - [ ] Per-user confirmation before split/combined cross-view progress linking.
 - [ ] Explain connected episodes during mapping confirmation.
-- [ ] Prevent unconfirmed mapping propagation.
+- [x] Prevent unconfirmed mapping propagation.
 - [ ] Preserve recorded events when mappings change.
 - [ ] Recompute derived progress after corrections.
 - [ ] Notify affected users about mapping corrections.
-- [ ] Renew confirmation for materially changed split/combined relationships.
+- [x] Renew confirmation for materially changed split/combined relationships.
 - [ ] Avoid double-counting history across alternate views.
 
 ## SIMKL migration
@@ -279,8 +279,8 @@ The final section is explicitly deferred and does not count toward first-release
 - [ ] Backend tests for claims, user isolation, and admin operations.
 - [ ] Tests for tracking, date precision, bulk actions, and status transitions.
 - [ ] Tests for custom-status locking and safe deletion.
-- [ ] Tests for nested smart rules, unknown values, dependencies, and cycle rejection.
-- [ ] Tests for mapping consent, corrections, and history preservation.
+- [x] Tests for nested smart rules, unknown values, dependencies, and cycle rejection.
+- [x] Tests for mapping consent, corrections, and history preservation.
 - [ ] Tests for import preview, idempotency, conflicts, and unresolved items.
 - [ ] Tests for export/restore and user isolation.
 - [ ] Browser checks for search, details, providers, and library workflows.

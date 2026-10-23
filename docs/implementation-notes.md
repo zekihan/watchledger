@@ -16,3 +16,11 @@ References: [animap release](https://github.com/cplieger/animap/releases/tag/v20
 ## Persistence and identity foundation
 
 `make lint test build test-race` passes with disposable PostgreSQL 17.11. Migration tests exercise initial application, repeat application, and rejection of a cross-account status foreign key. Current-claim tests cover missing admission, separate admin grants, admin removal at refresh, and mismatched UserInfo subjects. Session ciphertext tampering is rejected. Full browser login and actual deployment-provider compatibility remain unverified; related checklist items remain unchecked.
+
+## Core workflows in progress
+
+Real TMDB adapters cover search, discovery, details, seasons and watch-provider offers; protocol and provider-outage tests use explicitly synthetic HTTP fixtures. Credentials for live TMDB acceptance have not been supplied. Authenticated PostgreSQL HTTP tests cover single/bulk tracking, retained dates, completion, explicit unwatch decisions, cross-account status rejection, smart-list unknown availability and missing references, export/restore repeat application, and non-admin mapping denial. Mapping relationship tests verify revision-bound consent and preservation of source history.
+
+The React UI uses these APIs, with English/Turkish strings, responsive styles and semantic controls. Browser acceptance is blocked: the cloud browser cannot reach the command environment's loopback server and rejects local-file navigation. Frontend jsdom tests are not browser or visual acceptance. No screenshots or desktop/mobile visual acceptance are claimed.
+
+Remaining work includes live providers/OIDC, complete discovery filters and TV person candidates, full calendar/statistics, anime source integration and alternate views, real SIMKL backup coverage/migration, background refresh, deployment smoke checks, and full browser/accessibility review. Partial workflows remain unchecked.

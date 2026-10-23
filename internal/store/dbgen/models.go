@@ -40,6 +40,11 @@ type Episode struct {
 	Retired   bool               `json:"retired"`
 }
 
+type ExportReceipt struct {
+	UserID     pgtype.UUID        `json:"user_id"`
+	ExportedAt pgtype.Timestamptz `json:"exported_at"`
+}
+
 type History struct {
 	ID          pgtype.UUID        `json:"id"`
 	UserID      pgtype.UUID        `json:"user_id"`
@@ -50,6 +55,13 @@ type History struct {
 	Provenance  []byte             `json:"provenance"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+type HistoryTombstone struct {
+	UserID     pgtype.UUID        `json:"user_id"`
+	CatalogID  string             `json:"catalog_id"`
+	EpisodeKey string             `json:"episode_key"`
+	DeletedAt  pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type Import struct {

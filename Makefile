@@ -50,6 +50,7 @@ typecheck:
 test:
 	go test ./cmd/... ./internal/...
 	npm run typecheck
+	npm run test:web
 
 test-race:
 	go test -race ./cmd/... ./internal/...

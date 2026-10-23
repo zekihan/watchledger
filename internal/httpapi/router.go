@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zekihan/watchledger/internal/auth"
+	"github.com/zekihan/watchledger/internal/catalog"
 	"net/http"
 )
 
@@ -22,7 +23,7 @@ func NewHandler(webDirectory string) http.Handler {
 }
 
 // NewApplication serves only authenticated product APIs. Liveness stays independent.
-func NewApplication(webDir string, pool *pgxpool.Pool, identity *auth.Service) http.Handler {
+func NewApplication(webDir string, pool *pgxpool.Pool, identity *auth.Service, tmdbToken string) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, map[string]string{"status": "ok"}) })
 	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
@@ -35,6 +36,8 @@ func NewApplication(webDir string, pool *pgxpool.Pool, identity *auth.Service) h
 	mux.HandleFunc("GET /auth/login", identity.Login)
 	mux.HandleFunc("GET /auth/callback", identity.Callback)
 	api := http.NewServeMux()
+	application := &API{DB: pool, Catalog: &catalog.Cache{DB: pool, Provider: catalog.New(tmdbToken)}}
+	application.routes(api)
 	api.HandleFunc("POST /api/logout", identity.Logout)
 	api.HandleFunc("GET /api/me", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, auth.Current(r.Context())) })
 	mux.Handle("/api/", identity.Middleware(api))

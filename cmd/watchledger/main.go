@@ -44,7 +44,7 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	handler := httpapi.NewApplication(c.WebDir, pool, identity)
+	handler := httpapi.NewApplication(c.WebDir, pool, identity, c.TMDBToken)
 
 	server := &http.Server{
 		Addr:              c.Address,

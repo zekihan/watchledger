@@ -50,7 +50,7 @@ make test-race
 
 The Go commands target `cmd` and `internal` explicitly so dependencies under `node_modules` are not treated as Go application packages. Markdown linting uses Git-aware file discovery and skips symlink duplicates.
 
-`make lint` runs Go linting, type-aware frontend ESLint, Markdown linting, and formatting checks. `make test` runs Go tests and TypeScript checks; there are no behavioral test suites in this skeleton. Add real tests alongside product behavior. `make format` applies Go and Prettier formatting.
+`make lint` runs Go linting, type-aware frontend ESLint, Markdown linting, and formatting checks. `make test` runs Go tests, TypeScript checks, and frontend behavioral tests; frontend behavioral tests now run through Vitest/jsdom. Add real tests alongside product behavior. `make format` applies Go and Prettier formatting.
 
 The root `katex` override keeps markdownlint's transitive math renderer on a patched release. Review the override when upgrading markdownlint and remove it when the upstream dependency already enforces a patched version.
 
@@ -85,7 +85,7 @@ Configuration alone does not activate a bot. The Renovate GitHub App must have a
 
 ## Current limitations
 
-Persistence and OIDC foundations are implemented. The React page remains a placeholder, and product workflows, providers, packaging, and localized UI remain incomplete. Actual identity-provider compatibility still needs deployment configuration. See `implementation-notes.md` for source blockers.
+Persistence and OIDC foundations are implemented. The React UI now connects core catalog, tracking and list APIs. Several product workflows, live provider validation, packaging, and browser acceptance remain incomplete. Actual identity-provider compatibility still needs deployment configuration. See `implementation-notes.md` for source blockers.
 
 ## Database and generated queries
 
