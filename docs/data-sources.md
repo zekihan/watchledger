@@ -19,7 +19,9 @@ Keep community scores distinct from personal ratings. Do not infer available aud
 
 Planned use: native anime identity, metadata, and episode organization alongside TMDB's alternate structure.
 
-The official API and policy pages returned access errors during the design investigation. Exact current HTTP API client, rate, and cache requirements were not verified. Do not hardcode remembered limits as though they were checked facts.
+The operator supplied saved official documentation on 2026-10-23 after direct access returned 403. HTTP API revision 24120 requires a registered lower-case HTTP client identifier and registered version, UTF8/gzip handling, no more than one request every two seconds, and heavy caching without repeated dataset requests within a day. HTTP 200 may contain an XML error. The API overview (revision 17954) permits a title-only search index updated at most once per day; this is not permission to mirror the full metadata database.
+
+The supplied policy states CC-BY-NC-SA 4.0 for AniDB content, prohibits commercial/revenue-generating use and scraping/bulk database extraction, and distinguishes artwork rights. Keep data attribution/license notices separate from the application MIT license. Client registration and live integration acceptance remain operator prerequisites. No account or credential was created during development.
 
 Verification targets:
 
@@ -27,7 +29,7 @@ Verification targets:
 - [HTTP API definition](https://wiki.anidb.net/HTTP_API_Definition).
 - [Site policy](https://anidb.net/policy).
 
-Integration is gated on verifying these requirements. If the source is unsuitable, review the Kitsu fallback and its differences before changing native-entry behavior.
+Implementation can now follow the verified requirements; live access remains disabled until a registered client is configured. If the source is unsuitable for a deployment, review the Kitsu fallback and its differences before changing native-entry behavior.
 
 ## animap
 

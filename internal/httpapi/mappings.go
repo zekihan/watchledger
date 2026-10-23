@@ -9,6 +9,7 @@ import (
 
 func (a *API) mappingRoutes(m *http.ServeMux) {
 	m.HandleFunc("GET /api/mappings", a.mappings)
+	m.HandleFunc("GET /api/library/{id}/alternate", a.alternateView)
 	m.HandleFunc("POST /api/admin/mappings", a.saveMapping)
 	m.HandleFunc("POST /api/mappings/{id}/confirm", a.confirmMapping)
 	m.HandleFunc("GET /api/admin/accounts", a.accounts)

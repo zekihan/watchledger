@@ -101,3 +101,9 @@ Synthetic parser, HTTP/PostgreSQL, portability and frontend tests exercise pagin
 Statistics select the user's preferred metadata language deterministically. Watched episode runtime uses episode metadata only; missing or zero runtimes remain unknown rather than substituting a whole-title duration. Dashboard monthly activity now uses the same account timezone as detailed statistics, preserving date-only values and excluding unknown watched dates. Retired episodes no longer appear in upcoming dashboard results.
 
 Synthetic PostgreSQL regression tests cover month-boundary timestamps in Europe/Istanbul, unchanged date-only records, unknown dates/runtime, translated genre names, account isolation, and retired upcoming episodes. Native browser and live metadata acceptance remain separate.
+
+## Linked-view projection
+
+Cached episode mappings now have a private alternate-view endpoint and interface. Projection is computed in both directions from recorded source events only, never recursively from projected flags. Split/combined relationships require revision-bound consent. Unreviewed, overlapping, retired-source or invalid mappings stay blocked; missing coverage remains visible as incomplete. Source statuses/ratings remain separate and no aggregate rating or watched date is invented.
+
+Synthetic domain and HTTP/PostgreSQL tests cover split/combined directionality, partial coverage, consent, account isolation, retired source identity, and preservation of recorded events. The initial view is read-only; native catalog ingestion and cross-view editing remain separate implementation work, not implied by this projection checkpoint.

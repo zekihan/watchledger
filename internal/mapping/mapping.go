@@ -38,6 +38,11 @@ func Canonical(edges []Edge) ([]Edge, string, bool, error) {
 		to[e.To]++
 		split = split || from[e.From] > 1 || to[e.To] > 1
 	}
+	for id := range from {
+		if to[id] > 0 {
+			return nil, "", false, errors.New("episode cannot occur on both sides of a mapping")
+		}
+	}
 	b, e := json.Marshal(out)
 	if e != nil {
 		return nil, "", false, e

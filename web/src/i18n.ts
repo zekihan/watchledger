@@ -1,4 +1,14 @@
 export const en = {
+  alternateViews: "Linked episode views",
+  alternateHistoryNotice:
+    "Derived progress is calculated from recorded source events, not copied history. It has no invented watched date or combined rating.",
+  alternateIncomplete:
+    "Alternate view is incomplete or needs mapping review. Original source history remains available.",
+  recordedWatch: "Recorded watched",
+  derivedWatch: "Watched through confirmed mapping",
+  mappingNeedsReview: "Mapping review or confirmation required",
+  connectedEpisodes: "Connected source episodes",
+
   keepDeletedList: "Your deleted app list will not be recreated.",
   customListImport: "SIMKL custom-list response import",
   customListImportHint:
@@ -264,6 +274,16 @@ export const en = {
 };
 export type Key = keyof typeof en;
 export const tr: Record<Key, string> = {
+  alternateViews: "Bağlantılı bölüm görünümleri",
+  alternateHistoryNotice:
+    "Türetilmiş ilerleme, kopyalanmış geçmişten değil kayıtlı kaynak olaylarından hesaplanır. İzleme tarihi veya birleşik puan uydurulmaz.",
+  alternateIncomplete:
+    "Alternatif görünüm eksik veya eşleme incelemesi gerektiriyor. Özgün kaynak geçmişi kullanılabilir.",
+  recordedWatch: "İzlendi kaydı var",
+  derivedWatch: "Onaylı eşleme üzerinden izlendi",
+  mappingNeedsReview: "Eşleme incelemesi veya onayı gerekiyor",
+  connectedEpisodes: "Bağlantılı kaynak bölümleri",
+
   simklLimits:
     "Kısmi aktarım: önbellekteki film/dizi kimlikleri eklenebilir. Bölüm eşlemeleri açık inceleme gerektirir; önbellekte olmayan kimlikler ve anime kayıtları bekletilir. Özel listeler arşivde korunur ancak henüz aktarılmaz. Bölüm numaralarından eşleme tahmin edilmez.",
   simklFile: "SIMKL JSON yedeği",

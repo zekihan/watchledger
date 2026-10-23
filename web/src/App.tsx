@@ -6,6 +6,7 @@ import { en, tr } from "./i18n";
 import type { Key } from "./i18n";
 import { ListsPage, SettingsPage } from "./pages";
 import { AnalyticsPage, CalendarPage } from "./analytics";
+import { AlternateView } from "./alternate";
 import { MappingPage, Notices } from "./admin";
 export type T = (key: Key) => string;
 const bases = ["planned", "watching", "completed", "hold", "dropped"] as const;
@@ -249,6 +250,8 @@ export function App() {
           <Notices t={t} />
           {root === "detail" ? (
             <DetailPage key={page} parts={page.split("/")} user={user} t={t} />
+          ) : root === "views" ? (
+            <AlternateView key={page} id={decodeURIComponent(page.slice(6))} t={t} />
           ) : root === "library" ? (
             <LibraryPage t={t} />
           ) : root === "search" || root === "discover" ? (
@@ -400,7 +403,15 @@ function LibraryPage({ t }: { t: T }) {
               {entries.map((x) => (
                 <tr key={x.id}>
                   <td>
-                    <a href={`#detail/${x.id.split(":").slice(1).join("/")}`}>{x.title}</a>
+                    <a
+                      href={
+                        x.kind === "anime"
+                          ? `#views/${encodeURIComponent(x.id)}`
+                          : `#detail/${x.id.split(":").slice(1).join("/")}`
+                      }
+                    >
+                      {x.title}
+                    </a>
                   </td>
                   <td>{x.status_name ?? t(bases.find((b) => b === x.base) ?? "planned")}</td>
                   <td>{x.rating ?? "—"}</td>
@@ -417,7 +428,11 @@ function LibraryPage({ t }: { t: T }) {
               <a
                 className="poster-card"
                 key={x.id}
-                href={`#detail/${x.id.split(":").slice(1).join("/")}`}
+                href={
+                  x.kind === "anime"
+                    ? `#views/${encodeURIComponent(x.id)}`
+                    : `#detail/${x.id.split(":").slice(1).join("/")}`
+                }
               >
                 <div className="poster">
                   <Poster title={x.title} path={m?.poster_path} />
@@ -1169,6 +1184,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
           )}
         </section>
       )}
+      {entry && <AlternateView id={key} t={t} />}
       {entry && (
         <details className="panel">
           <summary>
