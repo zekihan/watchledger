@@ -100,3 +100,33 @@ test("confirmed identities remain fixed and backup prerequisite blocks applying"
     true,
   );
 });
+
+test("review displays incoming versus existing values and explicit unwatch decisions", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            ...data,
+            source: { ...data.source, base: "completed", rating: 7 },
+            current: { base: "watching", rating: 9, status_name: "My active queue" },
+            episodes: [{ ...data.episodes[0], explicit_unwatch: true }, data.episodes[1]],
+          }),
+          { status: 200 },
+        ),
+      ),
+    ),
+  );
+  mount();
+  expect(await screen.findByText(en.incomingSource)).toBeTruthy();
+  expect(screen.getByText(/My active queue/)).toBeTruthy();
+  const targets = screen.getAllByRole<HTMLSelectElement>("combobox");
+  const first = targets[0];
+  if (!first) throw new Error("missing episode selector");
+  await userEvent.selectOptions(first, "t1");
+  expect(screen.getByText(en.explicitUnwatch)).toBeTruthy();
+  expect(screen.getByRole("link", { name: en.openSourceTitle }).getAttribute("href")).toBe(
+    "#detail/tv/1",
+  );
+});

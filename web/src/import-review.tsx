@@ -9,14 +9,30 @@ interface SourceEpisode {
   number: number;
   date: { day?: string; timestamp?: string };
 }
-interface Candidate {
+type BaseStatus = "planned" | "watching" | "completed" | "hold" | "dropped";
+interface WatchDecision {
+  watched?: boolean;
+  watched_date?: string | null;
+  watched_time?: string | null;
+  explicit_unwatch?: boolean;
+}
+interface Candidate extends WatchDecision {
   id: string;
   season: number;
   number: number;
   retired: boolean;
 }
 interface ReviewData {
-  source: { title: string; episodes: SourceEpisode[]; issues: string[] };
+  source: {
+    title: string;
+    episodes: SourceEpisode[];
+    issues: string[];
+    base?: BaseStatus;
+    rating?: number | null;
+  };
+  current?:
+    | (WatchDecision & { base: BaseStatus; rating: number | null; status_name?: string | null })
+    | null;
   target: string;
   episodes: Candidate[];
   links: { source_key: string; episode_id: string }[];
@@ -95,6 +111,30 @@ function ReviewEditor({
       <p>
         {t("mappingTarget")}: {data.target || t("unresolved")}
       </p>
+
+      {/^tmdb:(movie|tv):[0-9]+$/.test(data.target) && (
+        <a href={`#detail/${data.target.split(":").slice(1).join("/")}`}>{t("openSourceTitle")}</a>
+      )}
+      <div className="settings-grid">
+        <div>
+          <strong>{t("incomingSource")}</strong>
+          <p>
+            {t("status")}: {data.source.base ? t(data.source.base) : "—"} · {t("rating")}:{" "}
+            {data.source.rating ?? t("noRating")}
+          </p>
+        </div>
+        <div>
+          <strong>{t("existingApp")}</strong>
+          <p>
+            {data.current
+              ? `${t("status")}: ${data.current.status_name ?? t(data.current.base)} · ${t("rating")}: ${String(data.current.rating ?? t("noRating"))}`
+              : t("notInLibrary")}
+          </p>
+          {data.current && data.source.episodes.length === 0 && (
+            <WatchDecisionLabel value={data.current} t={t} />
+          )}
+        </div>
+      </div>
       <p className="notice">{t("importMappingSafety")}</p>
       {data.source.issues.length > 0 && <p role="alert">{data.source.issues.join(", ")}</p>}
       {!backed && <p>{t("backupFirst")}</p>}
@@ -143,6 +183,10 @@ function ReviewEditor({
                             </option>
                           ))}
                       </select>
+                      <WatchDecisionLabel
+                        value={data.episodes.find((episode) => episode.id === links[source.key])}
+                        t={t}
+                      />
                       {known[source.key] && <small>{t("confirmedIdentity")}</small>}
                     </td>
                   </tr>
@@ -209,4 +253,16 @@ function ReviewEditor({
       </div>
     </section>
   );
+}
+
+function WatchDecisionLabel({ value, t }: { value: WatchDecision | undefined; t: T }) {
+  if (!value) return null;
+  if (value.explicit_unwatch) return <small>{t("explicitUnwatch")}</small>;
+  if (value.watched)
+    return (
+      <small>
+        {t("existingWatch")}: {value.watched_date ?? value.watched_time ?? t("unknown")}
+      </small>
+    );
+  return <small>{t("noWatchRecord")}</small>;
 }

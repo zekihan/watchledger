@@ -30,7 +30,7 @@ func (a *API) reviewCandidates(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid review", http.StatusConflict)
 		return
 	}
-	rows, err := a.DB.Query(r.Context(), `SELECT jsonb_build_object('id',e.id,'season',e.season,'number',e.number,'retired',e.retired,'metadata',e.metadata) FROM episodes e JOIN library l ON l.catalog_id=e.catalog_id AND l.user_id=$1 WHERE e.catalog_id=$2 ORDER BY e.season,e.number,e.id`, uid, review.Source.Target())
+	rows, err := a.DB.Query(r.Context(), `SELECT jsonb_build_object('id',e.id,'season',e.season,'number',e.number,'retired',e.retired,'metadata',e.metadata,'watched',h.id IS NOT NULL,'watched_date',h.watched_date,'watched_time',h.watched_time,'explicit_unwatch',t.episode_key IS NOT NULL) FROM episodes e JOIN library l ON l.catalog_id=e.catalog_id AND l.user_id=$1 LEFT JOIN history h ON h.user_id=$1 AND h.episode_id=e.id LEFT JOIN history_tombstones t ON t.user_id=$1 AND t.catalog_id=e.catalog_id AND t.episode_key=e.id WHERE e.catalog_id=$2 ORDER BY e.season,e.number,e.id`, uid, review.Source.Target())
 	if err != nil {
 		http.Error(w, "candidates unavailable", http.StatusServiceUnavailable)
 		return
@@ -73,7 +73,13 @@ func (a *API) reviewCandidates(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "links unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	writeJSON(w, map[string]interface{}{"source": review.Source, "target": review.Source.Target(), "episodes": candidates, "links": links})
+	var current json.RawMessage
+	err = a.DB.QueryRow(r.Context(), `SELECT coalesce((SELECT jsonb_build_object('base',l.base,'rating',l.rating,'status_name',s.name,'watched',h.id IS NOT NULL,'watched_date',h.watched_date,'watched_time',h.watched_time,'explicit_unwatch',t.episode_key IS NOT NULL) FROM library l LEFT JOIN statuses s ON s.user_id=l.user_id AND s.id=l.status_id LEFT JOIN history h ON h.user_id=l.user_id AND h.catalog_id=l.catalog_id AND h.episode_id IS NULL LEFT JOIN history_tombstones t ON t.user_id=l.user_id AND t.catalog_id=l.catalog_id AND t.episode_key='' WHERE l.user_id=$1 AND l.catalog_id=$2),'null'::jsonb)`, uid, review.Source.Target()).Scan(&current)
+	if err != nil {
+		http.Error(w, "current app state unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	writeJSON(w, map[string]interface{}{"source": review.Source, "target": review.Source.Target(), "episodes": candidates, "links": links, "current": current})
 }
 
 func (a *API) resolveImportReview(w http.ResponseWriter, r *http.Request) {

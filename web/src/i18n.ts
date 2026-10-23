@@ -1,4 +1,12 @@
 export const en = {
+  openSourceTitle: "Open source title / load catalog details",
+  incomingSource: "Incoming source values",
+  existingApp: "Existing app values (kept)",
+  notInLibrary: "Not yet in your library",
+  explicitUnwatch: "Your explicit unwatch decision will be kept",
+  existingWatch: "Existing watch record kept",
+  noWatchRecord: "No existing watch record",
+
   resolveImport: "Review and resolve",
   mappingTarget: "Confirmed source title",
   importMappingSafety:
@@ -246,6 +254,13 @@ export const tr: Record<Key, string> = {
   importResolved: "İnceleme çözümlendi. Mevcut uygulama kararları korundu.",
   reviewInstructions:
     "Çözümlenmemiş kaynak kayıtlarını inceleyin. Eksik katalog bilgilerini yükleyip aynı yedeği yeniden önizleyin. Kaynak doğrulama hataları ve desteklenmeyen özel listeler arşivde kalır.",
+  openSourceTitle: "Kaynak yapımı aç / katalog bilgilerini yükle",
+  incomingSource: "Gelen kaynak değerleri",
+  existingApp: "Mevcut uygulama değerleri (korunur)",
+  notInLibrary: "Henüz kütüphanenizde değil",
+  explicitUnwatch: "Açık izlenmedi kararınız korunacak",
+  existingWatch: "Mevcut izleme kaydı korunur",
+  noWatchRecord: "Mevcut izleme kaydı yok",
   home: "Ana sayfa",
   rename: "Yeniden adlandır",
   history: "İzleme geçmişi",

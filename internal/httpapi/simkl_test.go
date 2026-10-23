@@ -190,6 +190,32 @@ func TestSIMKLPrivatePreviewAndApply(t *testing.T) {
 	if e = p.QueryRow(ctx, "SELECT count(*) FROM import_reviews WHERE user_id=$1 AND import_id=$2 AND NOT resolved", uid, retry.ID).Scan(&count); e != nil || count != 0 {
 		t.Fatal("resolved identity left unresolved", count, e)
 	}
+
+	// Conflict details reveal only this account's values, not another account's history.
+	if _, e = p.Exec(ctx, "INSERT INTO library(user_id,catalog_id,rating) VALUES($1,$2,2)", other, movieID); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = p.Exec(ctx, "INSERT INTO history(user_id,catalog_id,watched_date) VALUES($1,$2,'2001-01-01')", other, movieID); e != nil {
+		t.Fatal(e)
+	}
+	var movieReview string
+	if e = p.QueryRow(ctx, "SELECT id FROM import_reviews WHERE user_id=$1 AND import_id=$2 AND item->'source'->>'kind'='movies'", uid, preview.ID).Scan(&movieReview); e != nil {
+		t.Fatal(e)
+	}
+	w = request("GET", "/api/import-reviews/"+movieReview+"/candidates", "", true)
+	if w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	var detail struct {
+		Current struct {
+			Rating    int  `json:"rating"`
+			Watched   bool `json:"watched"`
+			Unwatched bool `json:"explicit_unwatch"`
+		} `json:"current"`
+	}
+	if e = json.Unmarshal(w.Body.Bytes(), &detail); e != nil || detail.Current.Rating != 9 || detail.Current.Watched || !detail.Current.Unwatched {
+		t.Fatal("incorrect or cross-account conflict details", e, w.Body.String())
+	}
 	// Switch the same synthetic session to the other account, then attempt access.
 	if _, e = p.Exec(ctx, "UPDATE sessions SET user_id=$2 WHERE token_hash=$1", sum, other); e != nil {
 		t.Fatal(e)
