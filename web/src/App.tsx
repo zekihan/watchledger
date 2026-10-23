@@ -1141,7 +1141,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
       {q.data.warning && <p className="notice">{q.data.warning}</p>}
       {kind === "anime" && (
         <p className="notice">
-          AniDB · <a href={`https://anidb.net/anime/${id}`}>Source</a> ·{" "}
+          AniDB · <a href={`https://anidb.net/anime/${id}`}>{t("sourceDetails")}</a> ·{" "}
           <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC-BY-NC-SA 4.0</a> ·{" "}
           {t("anidbNotice")}
         </p>

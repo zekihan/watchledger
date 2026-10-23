@@ -235,3 +235,9 @@ The operator-supplied official HTTP API definition documents `request=hotanime` 
 The UI labels the feed's limited scope, uses AniDB identities and source title preferences, shows freshness/staleness and does not expose unsupported TMDB advanced filters as native functionality. Tests cover parser identity/trailing-content validation, duplicate rejection, daily cache, shared bans, no catalog writes and source-safe UI navigation. Tests use synthetic HTTP responses; no extra live request was made. Full global upcoming/advanced native discovery is not implied by this provider-selected feed.
 
 Physical recovery was repeated after migration 017: source and fresh restored database counts matched for migrations, catalog, episodes, history, feeds and notices. The two-account synthetic fixture retained its known date-only and unknown-date history under the correct account. No dump or private source data was committed.
+
+### Explicit status replacement and settings failure states
+
+Custom-status removal now asks for a separate explicit destination instead of reusing the unrelated new-status form selection. The destination can be a fixed base or another custom status owned by the same user. The transaction locks source/destination, preserves history and ratings, moves library references and locks a newly used destination's base mapping. Self/foreign/missing destinations fail without deletion. The named dialog defaults to cancellation and requires a selection; errors remain in the dialog.
+
+Logout failures are now visible and retryable rather than silently resetting an unrelated settings mutation. Calendar errors expose a retry action, and the remaining native source-link label uses the English/Turkish translation boundary. Backend and frontend regressions cover the replacement and failure paths.

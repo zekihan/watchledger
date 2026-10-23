@@ -629,8 +629,8 @@ func (a *API) deleteStatus(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &in) {
 		return
 	}
-	if !tracking.ValidBase(in.Replacement) {
-		http.Error(w, "replacement base required", http.StatusBadRequest)
+	if in.Replacement == "" {
+		http.Error(w, "replacement status required", http.StatusBadRequest)
 		return
 	}
 	uid := auth.Current(r.Context()).ID
@@ -644,9 +644,31 @@ func (a *API) deleteStatus(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "database unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	if _, e = tx.Exec(r.Context(), "UPDATE library SET base=$3,status_id=NULL,updated_at=now() WHERE user_id=$1 AND status_id=$2", uid, r.PathValue("id"), in.Replacement); e != nil {
+	var oldID string
+	if e = tx.QueryRow(r.Context(), "SELECT id FROM statuses WHERE user_id=$1 AND id=$2 FOR UPDATE", uid, r.PathValue("id")).Scan(&oldID); e != nil {
+		http.Error(w, "status not found", http.StatusNotFound)
+		return
+	}
+	base := in.Replacement
+	var replacementID interface{}
+	if !tracking.ValidBase(base) {
+		var targetID string
+		if e = tx.QueryRow(r.Context(), "SELECT id,base FROM statuses WHERE user_id=$1 AND id=$2 AND id<>$3 FOR UPDATE", uid, in.Replacement, oldID).Scan(&targetID, &base); e != nil {
+			http.Error(w, "replacement status unavailable", http.StatusBadRequest)
+			return
+		}
+		replacementID = targetID
+	}
+	moved, e := tx.Exec(r.Context(), "UPDATE library SET base=$3,status_id=$4,updated_at=now() WHERE user_id=$1 AND status_id=$2", uid, oldID, base, replacementID)
+	if e != nil {
 		http.Error(w, "replacement failed", http.StatusConflict)
 		return
+	}
+	if replacementID != nil && moved.RowsAffected() > 0 {
+		if _, e = tx.Exec(r.Context(), "UPDATE statuses SET used=true WHERE user_id=$1 AND id=$2", uid, replacementID); e != nil {
+			http.Error(w, "replacement failed", http.StatusConflict)
+			return
+		}
 	}
 	if _, e = tx.Exec(r.Context(), "DELETE FROM statuses WHERE user_id=$1 AND id=$2", uid, r.PathValue("id")); e != nil {
 		http.Error(w, "deletion failed", http.StatusConflict)

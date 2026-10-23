@@ -336,3 +336,29 @@ test("skip navigation preserves the route and arrow keys do not steal focus from
       ?.getAttribute("href"),
   ).toBe("#library");
 });
+
+test("failed logout stays visible rather than silently reporting success", async () => {
+  location.hash = "settings";
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string) =>
+      Promise.resolve(
+        path === "/api/logout"
+          ? new Response("Logout unavailable", { status: 503 })
+          : new Response(
+              JSON.stringify(
+                path === "/api/me"
+                  ? { ID: "fixture", Name: "Fixture", Admin: false, Settings: { language: "en" } }
+                  : path.startsWith("/api/providers/")
+                    ? { results: [] }
+                    : [],
+              ),
+            ),
+      ),
+    ),
+  );
+  mount();
+  await userEvent.click(await screen.findByRole("button", { name: "Sign out" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("Logout unavailable");
+  expect(screen.getByRole("heading", { name: "Settings" })).toBeTruthy();
+});

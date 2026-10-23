@@ -189,6 +189,29 @@ func TestPrivateTrackingAndStatusLocks(t *testing.T) {
 	if w := request("PUT", "/api/library/"+id, `{"base":"watching","rating":0}`, true); w.Code != 400 {
 		t.Fatal("invalid personal rating accepted", w.Code)
 	}
+	var replacementID, foreignID string
+	if e = p.QueryRow(ctx, "INSERT INTO statuses(user_id,name,base) VALUES($1,'Replacement custom','hold') RETURNING id", uid).Scan(&replacementID); e != nil {
+		t.Fatal(e)
+	}
+	if e = p.QueryRow(ctx, "INSERT INTO statuses(user_id,name,base) VALUES($1,'Foreign custom','hold') RETURNING id", other).Scan(&foreignID); e != nil {
+		t.Fatal(e)
+	}
+	for _, invalid := range []string{"", custom.ID, foreignID} {
+		if w := request("DELETE", "/api/statuses/"+custom.ID, fmt.Sprintf(`{"replacement":%q}`, invalid), true); w.Code != 400 {
+			t.Fatal("invalid replacement accepted", w.Code, w.Body.String())
+		}
+	}
+	if w := request("DELETE", "/api/statuses/"+custom.ID, fmt.Sprintf(`{"replacement":%q}`, replacementID), true); w.Code != 204 {
+		t.Fatal("custom replacement", w.Code, w.Body.String())
+	}
+	var keptRating int
+	if e = p.QueryRow(ctx, "SELECT status_id::text,base,rating FROM library WHERE user_id=$1 AND catalog_id=$2", uid, id).Scan(&retained, &base, &keptRating); e != nil || retained != replacementID || base != "hold" || keptRating != 8 {
+		t.Fatal(retained, base, keptRating, e)
+	}
+	if w := request("POST", "/api/statuses", fmt.Sprintf(`{"ID":%q,"Name":"Replacement custom","Base":"completed"}`, replacementID), true); w.Code != 409 {
+		t.Fatal("replacement did not become used", w.Code)
+	}
+	custom.ID = replacementID
 	if w := request("DELETE", "/api/statuses/"+custom.ID, `{"replacement":"planned"}`, true); w.Code != 204 {
 		t.Fatal(w.Code, w.Body.String())
 	}

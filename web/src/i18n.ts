@@ -1,4 +1,7 @@
 export const en = {
+  replaceStatusTitle: "Replace and remove custom status",
+  replaceStatusHint:
+    "Choose the destination for titles using this status. History and ratings will not change.",
   nativeHotScope:
     "AniDB Hot Anime: a bounded source selection, refreshed at most once per day, not a complete anime catalog. Advanced TMDB filters and global upcoming discovery do not apply to this feed.",
   nativeCreator: "Creator / voice actor",
@@ -374,6 +377,9 @@ export const en = {
 };
 export type Key = keyof typeof en;
 export const tr: Record<Key, string> = {
+  replaceStatusTitle: "Özel durumu değiştir ve kaldır",
+  replaceStatusHint:
+    "Bu durumu kullanan yapımlar için yeni durumu seçin. Geçmiş ve puanlar değişmez.",
   nativeHotScope:
     "AniDB Hot Anime: günde en fazla bir kez yenilenen sınırlı kaynak seçkisidir; tüm anime kataloğu değildir. Gelişmiş TMDB filtreleri ve genel yaklaşan yapımlar bu akışa uygulanmaz.",
   nativeCreator: "Yaratıcı / seslendiren",

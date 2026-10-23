@@ -1,3 +1,4 @@
+import { StatusReplacement } from "./status-replacement";
 import { InstallPanel } from "./install";
 import type { useInstall } from "./use-install";
 import { CustomListImport } from "./custom-list-import";
@@ -618,6 +619,7 @@ export function SettingsPage({
   installation: ReturnType<typeof useInstall>;
 }) {
   const client = useQueryClient();
+  const [deleting, setDeleting] = useState<Status | null>(null);
   const [settings, setSettings] = useState<Settings>({
     language: "en",
     metadata_language: "en",
@@ -670,15 +672,41 @@ export function SettingsPage({
     onSuccess: () => client.invalidateQueries({ queryKey: ["statuses"] }),
   });
   const remove = useMutation({
-    mutationFn: (id: string) => api(`/statuses/${id}`, "DELETE", { replacement: base }),
+    mutationFn: ({ id, replacement }: { id: string; replacement: string }) =>
+      api(`/statuses/${id}`, "DELETE", { replacement }),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ["statuses"] });
       await client.invalidateQueries({ queryKey: ["library"] });
+      setDeleting(null);
+    },
+  });
+  const logout = useMutation({
+    mutationFn: () => api("/logout", "POST", {}),
+    onSuccess: () => {
+      client.clear();
+      location.reload();
     },
   });
   return (
     <>
       <h1>{t("settings")}</h1>
+      {deleting && (
+        <StatusReplacement
+          key={deleting.id}
+          status={deleting}
+          statuses={statuses.data ?? []}
+          pending={remove.isPending}
+          error={remove.error}
+          t={t}
+          cancel={() => {
+            setDeleting(null);
+            remove.reset();
+          }}
+          submit={(replacement) => {
+            remove.mutate({ id: deleting.id, replacement });
+          }}
+        />
+      )}
       <section className="panel settings-grid">
         <label>
           {t("language")}
@@ -815,7 +843,7 @@ export function SettingsPage({
           {save.isSuccess && <span role="status"> {t("updated")}</span>}
         </div>
       </section>
-      {[save.error, custom.error, remove.error, rename.error].filter(Boolean).map((e, i) => (
+      {[save.error, custom.error, rename.error, logout.error].filter(Boolean).map((e, i) => (
         <p className="error" role="alert" key={i}>
           {e?.message}
         </p>
@@ -865,11 +893,12 @@ export function SettingsPage({
               {t("rename")}
             </button>
             <small>
-              {s.base} {s.used ? "🔒" : ""}
+              {t(s.base as Key)} {s.used ? "🔒" : ""}
             </small>
             <button
               onClick={() => {
-                if (window.confirm(`${t("replacement")}: ${base}?`)) remove.mutate(s.id);
+                remove.reset();
+                setDeleting(s);
               }}
             >
               {t("remove")}
@@ -885,14 +914,9 @@ export function SettingsPage({
       </section>
       <InstallPanel t={t} state={installation} />
       <button
+        disabled={logout.isPending}
         onClick={() => {
-          void api("/logout", "POST", {})
-            .then(() => {
-              location.reload();
-            })
-            .catch(() => {
-              save.reset();
-            });
+          logout.mutate();
         }}
       >
         {t("logout")}

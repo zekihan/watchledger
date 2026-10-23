@@ -156,7 +156,14 @@ export function CalendarPage({ t, user }: { t: T; user: User }) {
       </div>
       {q.error && (
         <p className="error" role="alert">
-          {q.error.message}
+          {q.error.message}{" "}
+          <button
+            onClick={() => {
+              void q.refetch();
+            }}
+          >
+            {t("retry")}
+          </button>
         </p>
       )}
       {q.isPending && <p>{t("loading")}</p>}
