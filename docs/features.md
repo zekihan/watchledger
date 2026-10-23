@@ -240,6 +240,8 @@ Current support is partial: explicit TMDB movie/show IDs can be loaded on demand
 
 ## Statistics
 
+Backend regression coverage verifies private counts, runtime unknowns, metadata-language selection and timezone/date precision. End-to-end visual acceptance remains open.
+
 - [ ] Watched movie counts.
 - [ ] Watched episode counts.
 - [ ] Estimated watched runtime.

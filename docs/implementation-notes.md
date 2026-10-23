@@ -95,3 +95,9 @@ A separate upload supports the documented SIMKL custom-list contents response, i
 Successful imports create manual snapshots in source response order, retaining source identity and the unmodified private archive. Reimport preserves current app edits, removed members, and deleted lists. Portable exports/restores retain source identity and deletion markers, preventing duplicate lists or resurrected deletions. Automatic source rules are archived, not translated into guessed smart rules.
 
 Synthetic parser, HTTP/PostgreSQL, portability and frontend tests exercise pagination, source errors, backup gating, private identity resolution, reimport, ordering, app edits/deletions, and export/restore. PostgreSQL must use UTF8 so Unicode name limits behave consistently; startup rejects incompatible encodings. This remains file-based partial migration, not live API or real-browser acceptance.
+
+## Statistics precision and metadata selection
+
+Statistics select the user's preferred metadata language deterministically. Watched episode runtime uses episode metadata only; missing or zero runtimes remain unknown rather than substituting a whole-title duration. Dashboard monthly activity now uses the same account timezone as detailed statistics, preserving date-only values and excluding unknown watched dates. Retired episodes no longer appear in upcoming dashboard results.
+
+Synthetic PostgreSQL regression tests cover month-boundary timestamps in Europe/Istanbul, unchanged date-only records, unknown dates/runtime, translated genre names, account isolation, and retired upcoming episodes. Native browser and live metadata acceptance remain separate.
