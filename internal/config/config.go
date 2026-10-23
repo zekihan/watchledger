@@ -15,12 +15,29 @@ type Config struct {
 	AniDBClient                                                                            string
 	AniDBVersion                                                                           int
 	TMDBToken, SessionKey                                                                  string
+	OIDCExtraScopes                                                                        []string
+	OIDCClaimsSource                                                                       string
 }
 
 func Load() (Config, error) { return Parse(os.Getenv) }
 func Parse(get func(string) string) (Config, error) {
 	c := Config{Address: get("WATCHLEDGER_ADDR"), WebDir: get("WATCHLEDGER_WEB_DIR"), DatabaseURL: get("DATABASE_URL"), PublicURL: get("PUBLIC_URL"), Issuer: get("OIDC_ISSUER"), ClientID: get("OIDC_CLIENT_ID"), ClientSecret: get("OIDC_CLIENT_SECRET"), AdmissionClaim: get("OIDC_ADMISSION_CLAIM"), AdmissionValue: get("OIDC_ADMISSION_VALUE"), AdminClaim: get("OIDC_ADMIN_CLAIM"), AdminValue: get("OIDC_ADMIN_VALUE"), TMDBToken: get("TMDB_TOKEN"), SessionKey: get("SESSION_KEY")}
 	c.AniDBClient = get("ANIDB_CLIENT")
+	c.OIDCExtraScopes = strings.Fields(get("OIDC_EXTRA_SCOPES"))
+	c.OIDCClaimsSource = get("OIDC_CLAIMS_SOURCE")
+	if c.OIDCClaimsSource == "" {
+		c.OIDCClaimsSource = "auto"
+	}
+	if c.OIDCClaimsSource != "auto" && c.OIDCClaimsSource != "userinfo" {
+		return c, fmt.Errorf("OIDC_CLAIMS_SOURCE must be auto or userinfo")
+	}
+	for _, scope := range c.OIDCExtraScopes {
+		for _, char := range scope {
+			if char < 0x21 || char > 0x7e || char == '"' || char == '\\' {
+				return c, fmt.Errorf("OIDC_EXTRA_SCOPES contains an invalid scope")
+			}
+		}
+	}
 	version := get("ANIDB_CLIENT_VERSION")
 	if c.AniDBClient != "" || version != "" {
 		var err error

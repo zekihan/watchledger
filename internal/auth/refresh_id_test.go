@@ -30,8 +30,15 @@ func TestRefreshValidatesNewIDTokenWithoutAuthorizationFallback(t *testing.T) {
 	for _, test := range []struct {
 		name, subject, audience                           string
 		roles                                             []string
+		userInfoRoles                                     []string
+		userInfoSubject                                   string
+		explicitUserInfo                                  bool
 		expired, wrongIssuer, invalid, wantErr, wantAdmin bool
 	}{
+		{name: "explicit UserInfo current admin", subject: "stable", audience: "test", roles: []string{}, explicitUserInfo: true, userInfoRoles: []string{"member", "admin"}, userInfoSubject: "stable", wantAdmin: true},
+		{name: "explicit UserInfo removes admin", subject: "stable", audience: "test", roles: []string{"member", "admin"}, explicitUserInfo: true, userInfoRoles: []string{"member"}, userInfoSubject: "stable"},
+		{name: "explicit UserInfo removes admission", subject: "stable", audience: "test", roles: []string{"member", "admin"}, explicitUserInfo: true, userInfoRoles: []string{}, userInfoSubject: "stable", wantErr: true},
+		{name: "explicit UserInfo rejects changed subject", subject: "stable", audience: "test", roles: []string{"member"}, explicitUserInfo: true, userInfoRoles: []string{"member", "admin"}, userInfoSubject: "other", wantErr: true},
 		{name: "current admin", subject: "stable", audience: "test", roles: []string{"member", "admin"}, wantAdmin: true},
 		{name: "admin removed", subject: "stable", audience: "test", roles: []string{"member"}},
 		{name: "admission removed", subject: "stable", audience: "test", roles: []string{"admin"}, wantErr: true},
@@ -55,7 +62,11 @@ func TestRefreshValidatesNewIDTokenWithoutAuthorizationFallback(t *testing.T) {
 					_ = json.NewEncoder(w).Encode(map[string]interface{}{"access_token": "synthetic-current", "refresh_token": "synthetic-refresh", "token_type": "Bearer", "expires_in": 300, "id_token": encoded})
 				case "/userinfo":
 					userInfoCalls.Add(1)
-					_ = json.NewEncoder(w).Encode(map[string]interface{}{"sub": "stable", "roles": []string{"member", "admin"}})
+					claims := map[string]interface{}{"sub": "stable", "roles": []string{"member", "admin"}}
+					if test.explicitUserInfo {
+						claims["sub"], claims["roles"] = test.userInfoSubject, test.userInfoRoles
+					}
+					_ = json.NewEncoder(w).Encode(claims)
 				default:
 					http.NotFound(w, r)
 				}
@@ -77,7 +88,11 @@ func TestRefreshValidatesNewIDTokenWithoutAuthorizationFallback(t *testing.T) {
 			if test.invalid {
 				encoded = "synthetic.invalid.token"
 			}
-			service, err := New(context.Background(), nil, config.Config{Issuer: issuer, ClientID: "test", PublicURL: "http://127.0.0.1:8080", SessionKey: base64.StdEncoding.EncodeToString(make([]byte, 32)), AdmissionClaim: "roles", AdmissionValue: "member", AdminClaim: "roles", AdminValue: "admin"})
+			source := "auto"
+			if test.explicitUserInfo {
+				source = "userinfo"
+			}
+			service, err := New(context.Background(), nil, config.Config{OIDCClaimsSource: source, Issuer: issuer, ClientID: "test", PublicURL: "http://127.0.0.1:8080", SessionKey: base64.StdEncoding.EncodeToString(make([]byte, 32)), AdmissionClaim: "roles", AdmissionValue: "member", AdminClaim: "roles", AdminValue: "admin"})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -85,7 +100,11 @@ func TestRefreshValidatesNewIDTokenWithoutAuthorizationFallback(t *testing.T) {
 			if (err != nil) != test.wantErr || admin != test.wantAdmin {
 				t.Fatalf("admin=%v err=%v", admin, err)
 			}
-			if userInfoCalls.Load() != 0 {
+			wantCalls := int32(0)
+			if test.explicitUserInfo {
+				wantCalls = 1
+			}
+			if userInfoCalls.Load() != wantCalls {
 				t.Fatal("invalid or incomplete new ID token silently fell back to different claims")
 			}
 		})
