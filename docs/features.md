@@ -13,7 +13,7 @@ The final section is explicitly deferred and does not count toward first-release
 - [x] Verify current AniDB API access, registration, rate, cache, and attribution requirements.
 - [x] Inspect a private SIMKL JSON backup and document actual import field coverage using [synthetic examples and validation limits](acceptance-next-steps.md#observed-simkl-backup-coverage).
 - [x] Verify the configured OIDC provider supplies current access/admin claims at refresh or UserInfo: real Authelia admin login and forced refresh passed on 2026-10-24; operator-deferred non-admin/revocation cases remain separate.
-- [ ] Verify mapping coverage for ordinary shows, split cours, specials, and split/combined anime episodes.
+- [x] Verify mapping coverage for ordinary shows, split cours, specials, and split/combined anime episodes. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] Pin compatible implementation dependencies and mapping dataset versions.
 
 Checked behaviors below are supported by the named regression tests in [implementation evidence](implementation-notes.md). Browser, live-provider, and anime cross-view acceptance remain separate and unchecked.
@@ -55,7 +55,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Person detail screens.
 - [ ] Manual-list and smart-list screens.
 - [ ] Calendar screens.
-- [ ] Statistics screen.
+- [x] Statistics screen. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [ ] User settings and import/export screens.
 - [ ] Import preview, conflicts, and review queue screens.
 - [ ] Admin mapping and account-oversight screens.
@@ -265,14 +265,14 @@ Current support is partial: explicit TMDB movie/show IDs can be loaded on demand
 
 ## Statistics
 
-Backend regression coverage verifies private counts, runtime unknowns, metadata-language selection and timezone/date precision. End-to-end visual acceptance remains open.
+Backend regressions verify private counts, runtime unknowns, metadata-language selection and timezone/date precision. Chrome additionally verified native-unit totals/runtime, partial/source-part counts, visible genre/monthly charts and unknown-date exclusion; this is representative synthetic-data acceptance.
 
-- [ ] Watched movie counts.
-- [ ] Watched episode counts.
-- [ ] Estimated watched runtime.
-- [ ] Monthly activity.
-- [ ] Genre breakdowns.
-- [ ] Exclude unknown watched dates from date-based charts.
+- [x] Watched movie counts. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Watched episode counts. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Estimated watched runtime. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Monthly activity. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Genre breakdowns. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Exclude unknown watched dates from date-based charts. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
 
 ## Metadata and background operation
 
@@ -293,9 +293,9 @@ Backend regression coverage verifies private counts, runtime unknowns, metadata-
 - [x] Manual refresh. Verified in the [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] Visible metadata freshness. Verified in the [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] Retryable background jobs and visible failures. Verified in the [2026-10-24 acceptance](acceptance-2026-10-24.md).
-- [ ] Cached library metadata and tracking during provider outages.
-- [ ] Retryable errors for uncached search/details.
-- [ ] Graceful missing external artwork behavior.
+- [x] Cached library metadata and tracking during provider outages. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Retryable errors for uncached search/details. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Graceful missing external artwork behavior. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
 
 ## Architecture and packaging
 
@@ -331,7 +331,7 @@ Backend regression coverage verifies private counts, runtime unknowns, metadata-
 - [ ] Keyboard and focus accessibility review.
 - [x] Synthetic Compose deployment smoke check; actual provider configuration remains in TODO.md.
 - [x] Helm deployment smoke check. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).
-- [ ] Provider-outage behavior check.
+- [x] Provider-outage behavior check. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] Synthetic/redacted committed fixtures only.
 
 ## Deferred beyond the first release
