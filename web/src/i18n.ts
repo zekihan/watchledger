@@ -1,4 +1,14 @@
 export const en = {
+  simklLimits:
+    "Partial migration: cached movie/show identities can be added. Episode mappings, uncached identities, and native anime remain for review. Custom lists are retained in the archive but are not imported yet. No episode-number matching is guessed.",
+  simklFile: "SIMKL JSON backup",
+  importSize: "Maximum backup size: 32 MiB",
+  unresolved: "Items requiring review",
+  sourceItems: "Source items",
+  sourceArchives: "Private source archives",
+  simklApplied: "Resolved records applied. Check the review queue for remaining items.",
+  reviewReadOnly:
+    "Source records are preserved here. Resolving episode mappings and conflicts in this queue is not implemented yet.",
   home: "Home",
   rename: "Rename",
   history: "Viewing history",
@@ -205,6 +215,16 @@ export const en = {
 };
 export type Key = keyof typeof en;
 export const tr: Record<Key, string> = {
+  simklLimits:
+    "Kısmi aktarım: önbellekteki film/dizi kimlikleri eklenebilir. Bölüm eşlemeleri, önbellekte olmayan kimlikler ve anime kayıtları incelemeye bırakılır. Özel listeler arşivde korunur ancak henüz aktarılmaz. Bölüm numaralarından eşleme tahmin edilmez.",
+  simklFile: "SIMKL JSON yedeği",
+  importSize: "En büyük yedek boyutu: 32 MiB",
+  unresolved: "İnceleme gereken kayıtlar",
+  sourceItems: "Kaynak kayıtları",
+  sourceArchives: "Özel kaynak arşivleri",
+  simklApplied: "Çözümlenmiş kayıtlar uygulandı. Kalan kayıtlar için inceleme kuyruğuna bakın.",
+  reviewReadOnly:
+    "Kaynak kayıtları burada korunur. Bu kuyrukta bölüm eşlemeleri ve çakışmaları çözümleme henüz uygulanmadı.",
   home: "Ana sayfa",
   rename: "Yeniden adlandır",
   history: "İzleme geçmişi",

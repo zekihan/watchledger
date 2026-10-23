@@ -55,7 +55,7 @@ Some API export options can synthesize missing episode rows for completed shows 
 - [Kitsu API documentation](https://kitsu.docs.apiary.io/) documents public anime/episode GET endpoints. It is a potential fallback, not a promise of AniDB/SIMKL-equivalent entry boundaries or blanket data licensing.
 - [AniList API terms](https://docs.anilist.co/guide/terms-of-use) include restrictions on competing non-complementary tracker services. It is not the selected source; free access is not permission to ignore those restrictions.
 - No provider establishes complete, permanently correct bidirectional anime mappings.
-- No user credentials, exports, API keys, or live private viewing histories were inspected as part of this source review.
+- The initial design review used public documentation only. During implementation, an operator-provided private JSON backup was inspected locally to verify its schema. It is not included in the repository; committed fixtures remain synthetic.
 
 ## OIDC reference
 

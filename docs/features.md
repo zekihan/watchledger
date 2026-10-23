@@ -204,7 +204,9 @@ Checked behaviors below are supported by the named regression tests in [implemen
 
 ## SIMKL migration
 
-- [ ] JSON-backup ingestion and validation.
+Current support is partial: cached movie/show library records and movie watch history can be applied; all source episode mappings and uncached/native identities remain for review. The queue is persistent and private but its resolution UI is not complete. Custom lists are archived, not imported. See `implementation-notes.md`.
+
+- [x] JSON-backup ingestion and validation.
 - [ ] Read-only API import when verified JSON coverage is insufficient.
 - [ ] Import source identifiers without unsafe anime merges.
 - [ ] Import statuses and episode progress.
@@ -212,16 +214,16 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Represent inferred completion dates as unknown.
 - [ ] Import custom-list membership.
 - [ ] Translate source smart rules only when exact.
-- [ ] Preserve untranslated rules and unsupported fields in the source archive.
-- [ ] Preserve imported SIMKL snapshots.
+- [x] Preserve untranslated rules and unsupported fields in the source archive.
+- [x] Preserve imported SIMKL snapshots.
 - [ ] Preview additions, changes, conflicts, unresolved matches, and errors.
-- [ ] Require user application after preview.
+- [x] Require user application after preview.
 - [ ] Apply resolved items without blocking on ambiguous items.
-- [ ] Persistent unresolved-item review queue.
+- [x] Persistent unresolved-item review queue.
 - [ ] Existing app edits win on repeat imports.
 - [ ] Review conflicts and add missing history without deleting app records.
 - [ ] Idempotent repeat import without duplicated records.
-- [ ] Visible backup/export prerequisite before import, with no import-specific undo.
+- [x] Visible backup/export prerequisite before import, with no import-specific undo.
 - [ ] Manual reimport without ongoing SIMKL sync.
 
 ## Portability and recovery
@@ -283,7 +285,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [x] Tests for custom-status locking and safe deletion.
 - [x] Tests for nested smart rules, unknown values, dependencies, and cycle rejection.
 - [x] Tests for mapping consent, corrections, and history preservation.
-- [ ] Tests for import preview, idempotency, conflicts, and unresolved items.
+- [x] Tests for import preview, idempotency, conflicts, and unresolved items.
 - [x] Tests for export/restore and user isolation.
 - [ ] Browser checks for search, details, providers, and library workflows.
 - [ ] Browser checks for tracking and smart-list workflows.

@@ -1,3 +1,4 @@
+import { SimklPanel } from "./imports";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
@@ -758,8 +759,7 @@ function PortabilityPanel({ t }: { t: T }) {
         </div>
       )}
       {apply.isSuccess && <p role="status">{t("restoreDone")}</p>}
-      <h3>{t("import")}</h3>
-      <p className="notice">{t("notReady")}</p>
+      <SimklPanel t={t} backed={backed} />
     </div>
   );
 }

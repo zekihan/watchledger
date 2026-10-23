@@ -15,6 +15,10 @@ func (a *API) portableRoutes(m *http.ServeMux) {
 	m.HandleFunc("POST /api/restore/preview", a.restorePreview)
 	m.HandleFunc("POST /api/restore/{id}/apply", a.restoreApply)
 	m.HandleFunc("GET /api/imports", a.imports)
+	m.HandleFunc("POST /api/simkl/preview", a.simklPreview)
+	m.HandleFunc("POST /api/simkl/{id}/apply", a.simklApply)
+	m.HandleFunc("GET /api/import-reviews", a.importReviews)
+	m.HandleFunc("GET /api/imports/{id}/archive", a.importArchive)
 }
 func (a *API) export(w http.ResponseWriter, r *http.Request) {
 	uid := auth.Current(r.Context()).ID
