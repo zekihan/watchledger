@@ -188,7 +188,10 @@ test.each(["button", "escape", "navigation"])(
       fireEvent(dialog, new Event("cancel", { bubbles: true, cancelable: true }));
     else await userEvent.click(screen.getByRole("link", { name: "My library" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    if (mode !== "navigation") await waitFor(() => expect(selected.disabled).toBe(false));
+    if (mode !== "navigation") {
+      await waitFor(() => expect(selected.disabled).toBe(false));
+      await waitFor(() => expect(document.activeElement).toBe(selected));
+    }
     await act(async () => {
       await Promise.resolve();
     });
