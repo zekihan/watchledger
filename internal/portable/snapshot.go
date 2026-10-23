@@ -8,6 +8,7 @@ import (
 	"github.com/zekihan/watchledger/internal/smart"
 	"github.com/zekihan/watchledger/internal/tracking"
 	"regexp"
+	"strconv"
 	"time"
 )
 
@@ -60,12 +61,14 @@ type History struct {
 	UpdatedAt   time.Time       `json:"updated_at"`
 }
 type List struct {
-	ID      string      `json:"id"`
-	Name    string      `json:"name"`
-	Kind    string      `json:"kind"`
-	Rule    *smart.Rule `json:"rule"`
-	Sort    string      `json:"sort"`
-	Members []string    `json:"members"`
+	Source   *string     `json:"source,omitempty"`
+	SourceID *string     `json:"source_id,omitempty"`
+	ID       string      `json:"id"`
+	Name     string      `json:"name"`
+	Kind     string      `json:"kind"`
+	Rule     *smart.Rule `json:"rule"`
+	Sort     string      `json:"sort"`
+	Members  []string    `json:"members"`
 }
 type Tombstone struct {
 	CatalogID  string    `json:"catalog_id"`
@@ -80,18 +83,24 @@ type SIMKLLink struct {
 
 var sourceEpisodeKey = regexp.MustCompile(`^(shows|anime):[1-9][0-9]*:s[0-9]+:e[1-9][0-9]*$`)
 
+type ListSourceTombstone struct {
+	Source    string    `json:"source"`
+	SourceID  string    `json:"source_id"`
+	DeletedAt time.Time `json:"deleted_at"`
+}
 type Snapshot struct {
-	SIMKLLinks []SIMKLLink     `json:"simkl_links,omitempty"`
-	Tombstones []Tombstone     `json:"tombstones"`
-	Version    int             `json:"version"`
-	CreatedAt  time.Time       `json:"created_at"`
-	Settings   json.RawMessage `json:"settings"`
-	Catalog    []Catalog       `json:"catalog"`
-	Episodes   []Episode       `json:"episodes"`
-	Statuses   []Status        `json:"statuses"`
-	Library    []Library       `json:"library"`
-	History    []History       `json:"history"`
-	Lists      []List          `json:"lists"`
+	ListSourceTombstones []ListSourceTombstone `json:"list_source_tombstones,omitempty"`
+	SIMKLLinks           []SIMKLLink           `json:"simkl_links,omitempty"`
+	Tombstones           []Tombstone           `json:"tombstones"`
+	Version              int                   `json:"version"`
+	CreatedAt            time.Time             `json:"created_at"`
+	Settings             json.RawMessage       `json:"settings"`
+	Catalog              []Catalog             `json:"catalog"`
+	Episodes             []Episode             `json:"episodes"`
+	Statuses             []Status              `json:"statuses"`
+	Library              []Library             `json:"library"`
+	History              []History             `json:"history"`
+	Lists                []List                `json:"lists"`
 }
 
 func (s Snapshot) Validate() error {
@@ -239,7 +248,19 @@ func (s Snapshot) Validate() error {
 		}
 	}
 	graph := map[string][]string{}
+	seenSources := map[string]bool{}
 	for _, l := range s.Lists {
+		if (l.Source == nil) != (l.SourceID == nil) {
+			return errors.New("incomplete list source identity")
+		}
+		if l.Source != nil {
+			number, err := strconv.ParseInt(*l.SourceID, 10, 64)
+			if *l.Source != "simkl-custom-list" || err != nil || number < 1 || strconv.FormatInt(number, 10) != *l.SourceID || seenSources[*l.SourceID] {
+				return errors.New("invalid or duplicate list source identity")
+			}
+			seenSources[*l.SourceID] = true
+		}
+
 		if l.ID == "" || l.Name == "" {
 			return errors.New("invalid list")
 		}
@@ -263,6 +284,15 @@ func (s Snapshot) Validate() error {
 				return fmt.Errorf("list member %s is outside library", id)
 			}
 		}
+	}
+
+	deletedSources := map[string]bool{}
+	for _, deleted := range s.ListSourceTombstones {
+		number, err := strconv.ParseInt(deleted.SourceID, 10, 64)
+		if deleted.Source != "simkl-custom-list" || err != nil || number < 1 || strconv.FormatInt(number, 10) != deleted.SourceID || deleted.DeletedAt.IsZero() || deletedSources[deleted.SourceID] || seenSources[deleted.SourceID] {
+			return errors.New("invalid or contradictory list source deletion")
+		}
+		deletedSources[deleted.SourceID] = true
 	}
 	return smart.Acyclic(graph)
 }

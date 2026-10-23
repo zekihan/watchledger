@@ -63,3 +63,11 @@ Some API export options can synthesize missing episode rows for completed shows 
 - [UserInfo](https://openid.net/specs/openid-connect-core-1_0.html#UserInfo): usable for current claims when configured; validate the response subject against the authenticated identity.
 
 Provider support for refreshed custom claims must be checked against the actual deployment. The app must not extend old authorization simply because token refresh succeeded.
+
+## SIMKL custom-list response files
+
+Verified against the official [custom-lists guide](https://api.simkl.org/guides/custom-lists) and [standard media objects](https://api.simkl.org/conventions/standard-media-objects). The documented list-contents response is separate from the downloadable watchlist backup. The read-only beta API requires AUTH V2 and PRO/VIP access; HTTP 200 can contain a premium-only error rather than list data. Watchledger does not connect an account, request credentials, scrape lists, or call this API.
+
+The file importer accepts one complete contents response or all unmodified pages for one list. Multi-page files must agree on source identity, update marker, totals, media type and sort. Incomplete/error/index responses fail; response array order is preserved rather than interpreting position or echoed sort fields. Automatic lists become explicitly labelled manual snapshots; original rules and unsupported fields remain in the private archive.
+
+Members resolve only through explicit provider identities or this user's previously previewed SIMKL identities, and must already exist in the private library. Conflicting or collapsed identities block the whole list for review. Anime never resolves via shared TMDB IDs. Existing app list edits and deletions win on reimport and portable restore. This does not establish custom-list coverage inside ordinary SimklBackup.json or live API acceptance.

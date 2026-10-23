@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"unicode/utf8"
 )
 
 type savedList struct {
@@ -52,7 +53,7 @@ func (a *API) saveList(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &in) {
 		return
 	}
-	if in.Name == "" || len(in.Name) > 100 || (in.Kind != "manual" && in.Kind != "smart") {
+	if in.Name == "" || utf8.RuneCountInString(in.Name) > 100 || (in.Kind != "manual" && in.Kind != "smart") {
 		http.Error(w, "invalid list", http.StatusBadRequest)
 		return
 	}
@@ -155,8 +156,27 @@ func (a *API) saveList(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"id": in.ID})
 }
 func (a *API) deleteList(w http.ResponseWriter, r *http.Request) {
-	if _, e := a.DB.Exec(r.Context(), "DELETE FROM lists WHERE user_id=$1 AND id=$2", auth.Current(r.Context()).ID, r.PathValue("id")); e != nil {
+	uid := auth.Current(r.Context()).ID
+	tx, err := a.DB.Begin(r.Context())
+	if err != nil {
+		http.Error(w, "list unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	defer func() { _ = tx.Rollback(r.Context()) }()
+	if _, err = tx.Exec(r.Context(), "SELECT id FROM users WHERE id=$1 FOR UPDATE", uid); err != nil {
+		http.Error(w, "list unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if _, err = tx.Exec(r.Context(), `INSERT INTO list_source_tombstones(user_id,source,source_id) SELECT user_id,source,source_id FROM lists WHERE user_id=$1 AND id=$2 AND source IS NOT NULL ON CONFLICT(user_id,source,source_id) DO UPDATE SET deleted_at=now()`, uid, r.PathValue("id")); err != nil {
+		http.Error(w, "list unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if _, err = tx.Exec(r.Context(), "DELETE FROM lists WHERE user_id=$1 AND id=$2", uid, r.PathValue("id")); err != nil {
 		http.Error(w, "remove dependent list references before deletion", http.StatusConflict)
+		return
+	}
+	if err = tx.Commit(r.Context()); err != nil {
+		http.Error(w, "list deletion failed", http.StatusConflict)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

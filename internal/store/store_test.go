@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -43,5 +44,19 @@ func TestMigrationsAndIsolationConstraints(t *testing.T) {
 	}
 	if _, e = tx.Exec(ctx, "INSERT INTO library(user_id,catalog_id,status_id) VALUES($1,'fixture',$2)", b, status); e == nil {
 		t.Fatal("cross-account status accepted")
+	}
+}
+
+func TestRejectNonUTF8Database(t *testing.T) {
+	dsn := os.Getenv("TEST_NON_UTF8_DATABASE_URL")
+	if dsn == "" {
+		t.Skip("optional non-UTF8 fixture not configured")
+	}
+	p, e := Open(context.Background(), dsn)
+	if p != nil {
+		p.Close()
+	}
+	if e == nil || !strings.Contains(e.Error(), "database encoding must be UTF8") {
+		t.Fatal("non-UTF8 database accepted", e)
 	}
 }

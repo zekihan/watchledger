@@ -1,4 +1,20 @@
 export const en = {
+  keepDeletedList: "Your deleted app list will not be recreated.",
+  customListImport: "SIMKL custom-list response import",
+  customListImportHint:
+    "Upload a list-contents API JSON response, or select every page of one list together. This is separate from the standard watchlist backup. Never upload tokens. Original response fields are retained privately.",
+  customListAtomic:
+    "Members must resolve to titles already in your private library. Incomplete or ambiguous lists are archived for review without creating a partial list. Existing app lists are never overwritten.",
+  customListFiles: "Complete custom-list response pages",
+  manualSnapshot:
+    "Source automatic-list rules are retained in the archive; membership is imported as a manual snapshot.",
+  keepExistingList: "Your existing app list, including its edits, will be kept.",
+  importManualSnapshot: "Import manual snapshot",
+  archiveForReview: "Archive for review",
+  customListCreated: "Private manual list imported.",
+  customListRetained:
+    "Source retained without changing your existing lists. Check the review queue.",
+
   viewList: "View list",
   editList: "Edit list",
   moveUp: "Move up",
@@ -287,6 +303,21 @@ export const tr: Record<Key, string> = {
   moveUp: "Yukarı taşı",
   moveDown: "Aşağı taşı",
   unavailableChoice: "Kullanılamayan seçim",
+  customListImport: "SIMKL özel liste yanıtını içe aktar",
+  customListImportHint:
+    "Bir listenin içerik API JSON yanıtını yükleyin veya tüm sayfalarını birlikte seçin. Bu, standart izleme listesi yedeğinden ayrıdır. Token yüklemeyin. Özgün yanıt alanları özel arşivde korunur.",
+  customListAtomic:
+    "Üyeler özel kütüphanenizdeki yapımlarla çözümlenmelidir. Eksik veya belirsiz listeler kısmi liste oluşturulmadan incelemeye arşivlenir. Mevcut uygulama listelerinin üzerine yazılmaz.",
+  customListFiles: "Özel listenin tüm yanıt sayfaları",
+  manualSnapshot:
+    "Kaynak otomatik liste kuralları arşivde korunur; üyelikler manuel anlık görüntü olarak aktarılır.",
+  keepExistingList: "Mevcut uygulama listeniz ve düzenlemeleriniz korunacak.",
+  importManualSnapshot: "Manuel anlık görüntüyü aktar",
+  archiveForReview: "İnceleme için arşivle",
+  customListCreated: "Özel manuel liste aktarıldı.",
+  customListRetained:
+    "Kaynak, mevcut listeleriniz değiştirilmeden saklandı. İnceleme kuyruğuna bakın.",
+  keepDeletedList: "Sildiğiniz uygulama listesi yeniden oluşturulmayacak.",
   home: "Ana sayfa",
   rename: "Yeniden adlandır",
   history: "İzleme geçmişi",

@@ -204,7 +204,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
 
 ## SIMKL migration
 
-Current support is partial: explicit TMDB movie/show IDs can be loaded on demand, and supported records/history can be applied after confirmation; source episode mappings and uncached/native identities require review. The private queue now supports explicit one-to-one episode resolution and keeping existing app edits; split/combined identities and malformed source records remain unresolved. Custom lists are archived, not imported. See `implementation-notes.md`.
+Current support is partial: explicit TMDB movie/show IDs can be loaded on demand, and supported records/history can be applied after confirmation; source episode mappings and uncached/native identities require review. The private queue now supports explicit one-to-one episode resolution and keeping existing app edits; split/combined identities and malformed source records remain unresolved. A separate documented custom-list API-response file can be imported as a manual snapshot when all members resolve; ordinary backup custom-list coverage and live API access remain unverified. See `implementation-notes.md`.
 
 - [x] JSON-backup ingestion and validation.
 - [ ] Read-only API import when verified JSON coverage is insufficient.
@@ -213,6 +213,8 @@ Current support is partial: explicit TMDB movie/show IDs can be loaded on demand
 - [ ] Import recorded watched dates and personal ratings.
 - [ ] Represent inferred completion dates as unknown.
 - [ ] Import custom-list membership.
+  - [x] Import complete documented API-response files as ordered manual snapshots, with private identity resolution and app edit/deletion preservation.
+  - [ ] Verify ordinary backup custom-list coverage and live source acceptance.
 - [ ] Translate source smart rules only when exact.
 - [x] Preserve untranslated rules and unsupported fields in the source archive.
 - [x] Preserve imported SIMKL snapshots.

@@ -28,7 +28,7 @@ The feature branch is not a completed first release. Run these checks on a dispo
 - Edit a rating or explicitly unwatch in the app, then reimport. Existing app decisions must win. Download the source archive and verify unsupported fields remain present.
 - Open an uncached review, load its explicit source catalog ID, and choose the provider seasons to load. Loading metadata alone must not add private history. Native anime or missing source IDs must not be guessed.
 - Open an unresolved episode review and select each actual cached target episode. Equal numbers must not auto-select targets. Confirm the choices explicitly; duplicate/foreign targets and changes to a previously confirmed source identity must be rejected. Test an unwatch followed by reimport to ensure it stays unwatched.
-- Split/combined episode mappings, native anime integration, and custom-list migration are still incomplete. Do not use this partial importer as a complete migration of your real library.
+- Split/combined episode mappings, native anime integration, and full custom-list migration are still incomplete. Do not use this partial importer as a complete migration of your real library.
 - Export/restore into a disposable second account. Inspect conflicts, unknown dates, list references, and settings. Authorization and sessions must never be restored from portable data.
 
 ## Browser and packaging acceptance
@@ -38,3 +38,12 @@ The feature branch is not a completed first release. Run these checks on a dispo
 - Verify Compose startup with real test configuration. Container build success is not a startup test.
 - Render and validate Helm, then perform a disposable deployment only in an environment you explicitly choose. No homelab deployment is part of the development task.
 - Do not mark anime mapping/consent, source-policy verification, branding, or unresolved import-resolution requirements complete from these smoke checks alone.
+
+## Separate custom-list response files
+
+- Use a synthetic complete SIMKL list-contents response first, not a list index or premium-only error. Upload all pages together; incomplete or inconsistent snapshots must fail.
+- Ensure every member already exists in your private library with an explicit supported identity. An unresolved member must queue the whole list, not silently create a partial list.
+- Export, preview, and explicitly apply. Check response order, manual snapshot labelling for auto lists, and preservation of unsupported fields in the downloadable source archive.
+- Rename or reorder an imported list, remove a member, and reimport. App edits must remain. Delete an imported list and reimport; it must stay deleted.
+- Export/restore into a disposable second account and repeat reimport. Source identity must prevent duplicates; deletion markers must prevent resurrection. No status, rating or watch date should change from this list-only import.
+- This workflow does not fetch the SIMKL API or establish paid-access eligibility. Do not put credentials in uploaded files.

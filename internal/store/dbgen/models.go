@@ -121,6 +121,8 @@ type List struct {
 	Rule      []byte             `json:"rule"`
 	Sort      string             `json:"sort"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	Source    pgtype.Text        `json:"source"`
+	SourceID  pgtype.Text        `json:"source_id"`
 }
 
 type ListDependency struct {
@@ -134,6 +136,13 @@ type ListMember struct {
 	ListID    pgtype.UUID `json:"list_id"`
 	CatalogID string      `json:"catalog_id"`
 	Position  int32       `json:"position"`
+}
+
+type ListSourceTombstone struct {
+	UserID    pgtype.UUID        `json:"user_id"`
+	Source    string             `json:"source"`
+	SourceID  string             `json:"source_id"`
+	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type Mapping struct {

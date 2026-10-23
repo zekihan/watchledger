@@ -1,3 +1,4 @@
+import { CustomListImport } from "./custom-list-import";
 import { SimklPanel } from "./imports";
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -991,6 +992,7 @@ export function PortabilityPanel({ t }: { t: T }) {
       )}
       {apply.isSuccess && <p role="status">{t("restoreDone")}</p>}
       <SimklPanel t={t} backed={backed} />
+      <CustomListImport t={t} backed={backed} />
     </div>
   );
 }

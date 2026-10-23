@@ -6,7 +6,7 @@
 - Node matching `.node-version`, with npm.
 - golangci-lint matching the version in `.github/workflows/ci.yml`.
 
-Run `make install` once to install the locked frontend and lint dependencies. The backend requires PostgreSQL 17 or newer and an OIDC provider. Set the variables in `.env.example` in your shell; the server does not load `.env` automatically. It applies embedded, checksum-verified migrations transactionally on startup. Use a dedicated database.
+Run `make install` once to install the locked frontend and lint dependencies. The backend requires PostgreSQL 17 or newer with a UTF8-encoded database and an OIDC provider. Non-UTF8 databases are rejected at startup so Unicode validation and character limits remain consistent. Set the variables in `.env.example` in your shell; the server does not load `.env` automatically. It applies embedded, checksum-verified migrations transactionally on startup. Use a dedicated database.
 
 ## Run locally
 

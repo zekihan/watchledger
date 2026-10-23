@@ -15,6 +15,8 @@ func (a *API) portableRoutes(m *http.ServeMux) {
 	m.HandleFunc("POST /api/restore/preview", a.restorePreview)
 	m.HandleFunc("POST /api/restore/{id}/apply", a.restoreApply)
 	m.HandleFunc("GET /api/imports", a.imports)
+	m.HandleFunc("POST /api/simkl/custom-lists/preview", a.customListPreview)
+	m.HandleFunc("POST /api/simkl/custom-lists/{id}/apply", a.customListApply)
 	m.HandleFunc("POST /api/simkl/preview", a.simklPreview)
 	m.HandleFunc("POST /api/simkl/{id}/apply", a.simklApply)
 	m.HandleFunc("GET /api/import-reviews", a.importReviews)
@@ -41,6 +43,7 @@ func (a *API) export(w http.ResponseWriter, r *http.Request) {
  'episodes',coalesce((SELECT jsonb_agg(to_jsonb(e)) FROM episodes e JOIN library l ON l.catalog_id=e.catalog_id WHERE l.user_id=u.id),'[]'),
  'statuses',coalesce((SELECT jsonb_agg(to_jsonb(s)-'user_id') FROM statuses s WHERE s.user_id=u.id),'[]'),
  'library',coalesce((SELECT jsonb_agg(to_jsonb(l)-'user_id') FROM library l WHERE l.user_id=u.id),'[]'),
+ 'list_source_tombstones',coalesce((SELECT jsonb_agg(to_jsonb(t)-'user_id') FROM list_source_tombstones t WHERE t.user_id=u.id),'[]'),
  'simkl_links',coalesce((SELECT jsonb_agg(to_jsonb(k)-'user_id') FROM simkl_episode_links k WHERE k.user_id=u.id),'[]'),
  'tombstones',coalesce((SELECT jsonb_agg(to_jsonb(t)-'user_id') FROM history_tombstones t WHERE t.user_id=u.id),'[]'),
  'history',coalesce((SELECT jsonb_agg(to_jsonb(h)-'user_id') FROM history h WHERE h.user_id=u.id),'[]'),
@@ -256,6 +259,13 @@ func (a *API) restoreApply(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	for _, deleted := range s.ListSourceTombstones {
+		_, e = tx.Exec(r.Context(), `INSERT INTO list_source_tombstones(user_id,source,source_id,deleted_at) SELECT $1,$2,$3,$4 WHERE NOT EXISTS(SELECT 1 FROM lists WHERE user_id=$1 AND source=$2 AND source_id=$3) ON CONFLICT DO NOTHING`, uid, deleted.Source, deleted.SourceID, deleted.DeletedAt)
+		if fail(e) {
+			return
+		}
+	}
 	listIDs := map[string]string{}
 	newLists := map[string]bool{}
 	for _, l := range s.Lists {
@@ -268,10 +278,42 @@ func (a *API) restoreApply(w http.ResponseWriter, r *http.Request) {
 		if original {
 			id = l.ID
 		}
+
+		if l.Source != nil {
+			var deleted bool
+			e = tx.QueryRow(r.Context(), "SELECT EXISTS(SELECT 1 FROM list_source_tombstones WHERE user_id=$1 AND source=$2 AND source_id=$3)", uid, *l.Source, *l.SourceID).Scan(&deleted)
+			if fail(e) {
+				return
+			}
+			if deleted {
+				http.Error(w, "existing app list deletion conflicts with restore; no changes applied", http.StatusConflict)
+				return
+			}
+			var sourceID string
+			e = tx.QueryRow(r.Context(), "SELECT coalesce((SELECT id::text FROM lists WHERE user_id=$1 AND source=$2 AND source_id=$3),'')", uid, *l.Source, *l.SourceID).Scan(&sourceID)
+			if fail(e) {
+				return
+			}
+			if sourceID != "" {
+				id = sourceID
+			}
+		}
 		listIDs[l.ID] = id
-		tag, err := tx.Exec(r.Context(), "INSERT INTO lists(id,user_id,name,kind,sort) VALUES($1,$2,$3,$4,$5) ON CONFLICT(id) DO NOTHING", id, uid, l.Name, l.Kind, l.Sort)
+		tag, err := tx.Exec(r.Context(), "INSERT INTO lists(id,user_id,name,kind,sort,source,source_id) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(id) DO NOTHING", id, uid, l.Name, l.Kind, l.Sort, l.Source, l.SourceID)
 		if fail(err) {
 			return
+		}
+
+		if l.Source != nil {
+			var existingSource, existingSourceID string
+			e = tx.QueryRow(r.Context(), "SELECT coalesce(source,''),coalesce(source_id,'') FROM lists WHERE user_id=$1 AND id=$2", uid, id).Scan(&existingSource, &existingSourceID)
+			if fail(e) {
+				return
+			}
+			if existingSource != *l.Source || existingSourceID != *l.SourceID {
+				http.Error(w, "list source identity conflict", http.StatusConflict)
+				return
+			}
 		}
 		newLists[l.ID] = tag.RowsAffected() > 0
 	}

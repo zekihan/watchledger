@@ -19,6 +19,15 @@ func Open(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 		p.Close()
 		return nil, e
 	}
+	var encoding string
+	if e = p.QueryRow(ctx, "SHOW server_encoding").Scan(&encoding); e != nil {
+		p.Close()
+		return nil, e
+	}
+	if encoding != "UTF8" {
+		p.Close()
+		return nil, fmt.Errorf("database encoding must be UTF8, got %s", encoding)
+	}
 	return p, nil
 }
 func Migrate(ctx context.Context, p *pgxpool.Pool) error {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/zekihan/watchledger/internal/smart"
 	"testing"
+	"time"
 )
 
 func snapshot() Snapshot {
@@ -58,5 +59,54 @@ func TestValidateSIMKLIdentityLinks(t *testing.T) {
 	s.SIMKLLinks[0].SourceKey = "arbitrary"
 	if s.Validate() == nil {
 		t.Fatal("invalid source identity accepted")
+	}
+}
+
+func TestValidateCustomListSourceIdentity(t *testing.T) {
+	s := snapshot()
+	s.Lists = []List{{ID: "a", Name: "Synthetic", Kind: "manual", Source: ptr("simkl-custom-list"), SourceID: ptr("42")}}
+	if e := s.Validate(); e != nil {
+		t.Fatal(e)
+	}
+	s.Lists = append(s.Lists, List{ID: "b", Name: "Other", Kind: "manual", Source: ptr("simkl-custom-list"), SourceID: ptr("42")})
+	if s.Validate() == nil {
+		t.Fatal("duplicate imported list identity accepted")
+	}
+	s.Lists = s.Lists[:1]
+	s.Lists[0].SourceID = nil
+	if s.Validate() == nil {
+		t.Fatal("partial provenance accepted")
+	}
+}
+
+func TestValidateCustomListDeletionMarkers(t *testing.T) {
+	s := snapshot()
+	marker := ListSourceTombstone{Source: "simkl-custom-list", SourceID: "42", DeletedAt: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)}
+	s.ListSourceTombstones = []ListSourceTombstone{marker}
+	if err := s.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for name, change := range map[string]func(*ListSourceTombstone){
+		"unknown source":  func(m *ListSourceTombstone) { m.Source = "other" },
+		"noncanonical ID": func(m *ListSourceTombstone) { m.SourceID = "042" },
+		"missing date":    func(m *ListSourceTombstone) { m.DeletedAt = time.Time{} },
+	} {
+		t.Run(name, func(t *testing.T) {
+			bad := marker
+			change(&bad)
+			s.ListSourceTombstones = []ListSourceTombstone{bad}
+			if s.Validate() == nil {
+				t.Fatal("invalid deletion marker accepted")
+			}
+		})
+	}
+	s.ListSourceTombstones = []ListSourceTombstone{marker, marker}
+	if s.Validate() == nil {
+		t.Fatal("duplicate deletion marker accepted")
+	}
+	s.ListSourceTombstones = []ListSourceTombstone{marker}
+	s.Lists = []List{{ID: "a", Name: "Synthetic", Kind: "manual", Source: ptr("simkl-custom-list"), SourceID: ptr("42")}}
+	if s.Validate() == nil {
+		t.Fatal("live list and deletion accepted together")
 	}
 }

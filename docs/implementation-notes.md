@@ -87,3 +87,11 @@ Saved manual and smart lists have a contents view separate from editing. Manual 
 The rule builder provides named choices for content kinds, base/custom statuses, existing lists, cached genres, and configured provider options. Numeric operators are limited to numeric fields; empty or pending previews cannot be saved. Manual ordering supports localized up/down buttons alongside dragging, and editing is disabled during save. Result evaluation batches cached availability in the library query and selects metadata deterministically in the user's preferred language instead of choosing a random translation.
 
 Synthetic PostgreSQL tests cover manual order/localization, saved smart results, unknown versus known-empty availability, deterministic metadata filters, edited dependency cycles, and unauthorized/cross-account reads. Frontend tests cover contents browsing, stable IDs behind named selectors, and keyboard-friendly member reordering. Browser layout/accessibility acceptance is still separate.
+
+## Custom-list file import checkpoint
+
+A separate upload supports the documented SIMKL custom-list contents response, including complete multi-page bundles. It does not invent a custom-list section in the observed watchlist backup and makes no live SIMKL requests. Preview reports identity conflicts and missing private-library members. Applying requires a recent export; unresolved membership archives the whole list for review without creating a misleading partial list or changing viewing history.
+
+Successful imports create manual snapshots in source response order, retaining source identity and the unmodified private archive. Reimport preserves current app edits, removed members, and deleted lists. Portable exports/restores retain source identity and deletion markers, preventing duplicate lists or resurrected deletions. Automatic source rules are archived, not translated into guessed smart rules.
+
+Synthetic parser, HTTP/PostgreSQL, portability and frontend tests exercise pagination, source errors, backup gating, private identity resolution, reimport, ordering, app edits/deletions, and export/restore. PostgreSQL must use UTF8 so Unicode name limits behave consistently; startup rejects incompatible encodings. This remains file-based partial migration, not live API or real-browser acceptance.

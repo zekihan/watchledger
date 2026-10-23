@@ -21,7 +21,7 @@ interface Review {
   id: string;
   import_id: string;
   reason: string;
-  item: { source?: { title: string }; reasons?: string[] };
+  item: { source?: { title?: string; name?: string }; reasons?: string[] };
 }
 export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
   const client = useQueryClient();
@@ -160,7 +160,7 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
       <ul>
         {reviews.data?.map((row) => (
           <li key={row.id}>
-            {row.item.source?.title ?? row.reason}
+            {row.item.source?.title ?? row.item.source?.name ?? row.reason}
             {row.reason === "simkl_source_review" && (
               <button
                 onClick={() => {
