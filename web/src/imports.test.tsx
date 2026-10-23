@@ -1,0 +1,144 @@
+import { afterEach, expect, test, vi } from "vitest";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { SimklPanel } from "./imports";
+import { PortabilityPanel } from "./pages";
+import { en } from "./i18n";
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+function mount(backed: boolean) {
+  return render(
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+        })
+      }
+    >
+      <SimklPanel t={(key) => en[key]} backed={backed} />
+    </QueryClientProvider>,
+  );
+}
+function file(name: string, contents: string) {
+  const f = new File([contents], name, { type: "application/json" });
+  Object.defineProperty(f, "text", { value: () => Promise.resolve(contents) });
+  return f;
+}
+const preview = {
+  id: "synthetic",
+  additions: 1,
+  conflicts: 0,
+  unresolved: 2,
+  warnings: ["custom_lists_absent_from_backup"],
+  items: [],
+};
+test("SIMKL requires preview and explicit backed-up application", async () => {
+  const fetch = vi.fn((input: string) =>
+    Promise.resolve(
+      new Response(
+        JSON.stringify(
+          input.endsWith("/preview")
+            ? preview
+            : input.endsWith("/apply")
+              ? { status: "applied", reviews: 2 }
+              : [],
+        ),
+        { status: 200 },
+      ),
+    ),
+  );
+  vi.stubGlobal("fetch", fetch);
+  mount(true);
+  expect(screen.queryByRole("button", { name: en.apply })).toBeNull();
+  await userEvent.upload(screen.getByLabelText(en.simklFile), file("source.json", '{"movies":[]}'));
+  const apply = await screen.findByRole("button", { name: en.apply });
+  expect(fetch.mock.calls.some(([path]) => path.endsWith("/apply"))).toBe(false);
+  await userEvent.click(apply);
+  expect(await screen.findByText(en.simklApplied)).toBeTruthy();
+  expect(fetch.mock.calls.filter(([path]) => path.endsWith("/apply"))).toHaveLength(1);
+  expect(screen.queryByRole("button", { name: en.apply })).toBeNull();
+});
+test("missing backup and invalid replacement cannot apply stale preview", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((input: string) =>
+      Promise.resolve(
+        new Response(JSON.stringify(input.endsWith("/preview") ? preview : []), { status: 200 }),
+      ),
+    ),
+  );
+  mount(false);
+  await userEvent.upload(screen.getByLabelText(en.simklFile), file("source.json", '{"movies":[]}'));
+  expect((await screen.findByRole<HTMLButtonElement>("button", { name: en.apply })).disabled).toBe(
+    true,
+  );
+  await userEvent.upload(screen.getByLabelText(en.simklFile), file("invalid.json", "not json"));
+  await waitFor(() => expect(screen.queryByRole("button", { name: en.apply })).toBeNull());
+  expect(await screen.findByRole("alert")).toBeTruthy();
+});
+test("older preview response cannot replace newer uploaded backup", async () => {
+  let resolveOld: ((value: Response) => void) | undefined;
+  let calls = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((input: string) => {
+      if (input.endsWith("/preview")) {
+        calls++;
+        if (calls === 1)
+          return new Promise<Response>((resolve) => {
+            resolveOld = resolve;
+          });
+        return Promise.resolve(
+          new Response(JSON.stringify({ ...preview, id: "new", additions: 9 }), { status: 200 }),
+        );
+      }
+      return Promise.resolve(new Response("[]", { status: 200 }));
+    }),
+  );
+  mount(true);
+  await userEvent.upload(screen.getByLabelText(en.simklFile), file("old.json", '{"movies":[]}'));
+  await userEvent.upload(screen.getByLabelText(en.simklFile), file("new.json", '{"shows":[]}'));
+  expect(await screen.findByText(/9 ·/)).toBeTruthy();
+  resolveOld?.(new Response(JSON.stringify(preview), { status: 200 }));
+  await waitFor(() => expect(screen.getByText(/9 ·/)).toBeTruthy());
+});
+
+test("restore discards an earlier valid preview when a replacement file is invalid", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((input: string) =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify(
+            input === "/api/restore/preview"
+              ? { id: "restore", additions: 1, conflicts: [], history_candidates: 1 }
+              : [],
+          ),
+          { status: 200 },
+        ),
+      ),
+    ),
+  );
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+        })
+      }
+    >
+      <PortabilityPanel t={(key) => en[key]} />
+    </QueryClientProvider>,
+  );
+  await userEvent.click(screen.getByRole("checkbox", { name: en.backupSaved }));
+  await userEvent.upload(screen.getByLabelText(en.restore), file("valid.json", '{"version":1}'));
+  expect((await screen.findByRole<HTMLButtonElement>("button", { name: en.apply })).disabled).toBe(
+    false,
+  );
+  await userEvent.upload(screen.getByLabelText(en.restore), file("bad.json", "not json"));
+  await waitFor(() => expect(screen.queryByRole("button", { name: en.apply })).toBeNull());
+  expect(await screen.findByRole("alert")).toBeTruthy();
+});

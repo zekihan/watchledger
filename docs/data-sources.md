@@ -19,7 +19,9 @@ Keep community scores distinct from personal ratings. Do not infer available aud
 
 Planned use: native anime identity, metadata, and episode organization alongside TMDB's alternate structure.
 
-The official API and policy pages returned access errors during the design investigation. Exact current HTTP API client, rate, and cache requirements were not verified. Do not hardcode remembered limits as though they were checked facts.
+The operator supplied saved official documentation on 2026-10-23 after direct access returned 403. HTTP API revision 24120 requires a registered lower-case HTTP client identifier and registered version, UTF8/gzip handling, no more than one request every two seconds, and heavy caching without repeated dataset requests within a day. HTTP 200 may contain an XML error. The API overview (revision 17954) permits a title-only search index updated at most once per day; this is not permission to mirror the full metadata database.
+
+The supplied policy states CC-BY-NC-SA 4.0 for AniDB content, prohibits commercial/revenue-generating use and scraping/bulk database extraction, and distinguishes artwork rights. Keep data attribution/license notices separate from the application MIT license. Client registration and live integration acceptance remain operator prerequisites. No account or credential was created during development.
 
 Verification targets:
 
@@ -27,7 +29,7 @@ Verification targets:
 - [HTTP API definition](https://wiki.anidb.net/HTTP_API_Definition).
 - [Site policy](https://anidb.net/policy).
 
-Integration is gated on verifying these requirements. If the source is unsuitable, review the Kitsu fallback and its differences before changing native-entry behavior.
+Implementation can now follow the verified requirements; live access remains disabled until a registered client is configured. If the source is unsuitable for a deployment, review the Kitsu fallback and its differences before changing native-entry behavior.
 
 ## animap
 
@@ -55,7 +57,7 @@ Some API export options can synthesize missing episode rows for completed shows 
 - [Kitsu API documentation](https://kitsu.docs.apiary.io/) documents public anime/episode GET endpoints. It is a potential fallback, not a promise of AniDB/SIMKL-equivalent entry boundaries or blanket data licensing.
 - [AniList API terms](https://docs.anilist.co/guide/terms-of-use) include restrictions on competing non-complementary tracker services. It is not the selected source; free access is not permission to ignore those restrictions.
 - No provider establishes complete, permanently correct bidirectional anime mappings.
-- No user credentials, exports, API keys, or live private viewing histories were inspected as part of this source review.
+- The initial design review used public documentation only. During implementation, an operator-provided private JSON backup was inspected locally to verify its schema. It is not included in the repository; committed fixtures remain synthetic.
 
 ## OIDC reference
 
@@ -63,3 +65,25 @@ Some API export options can synthesize missing episode rows for completed shows 
 - [UserInfo](https://openid.net/specs/openid-connect-core-1_0.html#UserInfo): usable for current claims when configured; validate the response subject against the authenticated identity.
 
 Provider support for refreshed custom claims must be checked against the actual deployment. The app must not extend old authorization simply because token refresh succeeded.
+
+## SIMKL custom-list response files
+
+Verified against the official [custom-lists guide](https://api.simkl.org/guides/custom-lists) and [standard media objects](https://api.simkl.org/conventions/standard-media-objects). The documented list-contents response is separate from the downloadable watchlist backup. The read-only beta API requires AUTH V2 and PRO/VIP access; HTTP 200 can contain a premium-only error rather than list data. The file-import path does not connect an account, request credentials, scrape lists, or call the API. The optional read-only fetch path is documented below.
+
+The file importer accepts one complete contents response or all unmodified pages for one list. Multi-page files must agree on source identity, update marker, totals, media type and sort. Incomplete/error/index responses fail; response array order is preserved rather than interpreting position or echoed sort fields. Automatic lists become explicitly labelled manual snapshots; original rules and unsupported fields remain in the private archive.
+
+Members resolve only through explicit provider identities or this user's previously previewed SIMKL identities, and must already exist in the private library. Conflicting or collapsed identities block the whole list for review. Anime never resolves via shared TMDB IDs. Existing app list edits and deletions win on reimport and portable restore. This does not establish custom-list coverage inside ordinary SimklBackup.json or live API acceptance.
+
+## Versioned mapping ingestion and external-ID resolution
+
+The mapping reader is pinned to mapread v0.2.0. The v2026.10.21 animap release was checksum-verified and decoded during implementation (SHA-256 57d291192bd647657d093617d3164f07db87392f46d9bff3e5bb1d0b7fc4ca47). Current version-2 source metadata must contain the mapping revision; incompatible earlier version-2 shapes are rejected by the upstream reader. No dataset is bundled in this repository.
+
+[TMDB Find By ID](https://developer.themoviedb.org/reference/find-by-id) explicitly supports TheTVDB episode identifiers. The bridge uses those identities, then checks the returned TMDB episode against cached provider season metadata. It never equates TVDB and TMDB season/episode positions. Missing IDs, inferred defaults and ambiguous provider responses remain explicit review items rather than guessed links. Movie identities use a separate proposal kind: the official animap schema defines multiple TMDB movie IDs as aliases of one work, not different parts. Movie proposals require exact cached native episode and movie identities plus explicit alias confirmation.
+
+Dataset uploads retain immutable source bytes, checksum, release version, source revision, generation timestamp and original attribution. Imported data remains separately licensed under ODbL/DbCL and the stated upstream notices; it is not relicensed as MIT. Admin review produces a revision-bound proposal; uploading a dataset alone neither changes approved mappings nor propagates private watched flags.
+
+## Optional read-only SIMKL API list fetch
+
+The current custom-list guide requires an AUTH V2 client ID and a PRO/VIP user access token. The app can retrieve one explicitly selected list with GET requests to `https://api.simkl.com/lists/{id}`, sequentially paginate, and then reuse the existing private preview/apply workflow. It does not request new OAuth grants, refresh/store tokens, discover or mirror the catalog, write to SIMKL, or perform ongoing synchronization. Operators/users must supply an already obtained AUTH V2 token in the application, never in chat or committed configuration.
+
+The token is sent only in the upstream Authorization header and is not placed in URLs, persisted imports, exports, or diagnostic errors. Redirects are refused. API errors, including HTTP-200 premium-only responses, changing/incomplete snapshots, excessive pagination and oversized bodies fail before preview. Auto-list fetch results are cached privately for 24 hours; other explicit fetches for five minutes, without extending freshness on cache reads. Source item links retain numeric SIMKL IDs and available slugs. The official rules and custom-list guide are linked in the interface. Live access eligibility and an actual V2 grant remain operator acceptance checks.

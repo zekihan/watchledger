@@ -2,7 +2,7 @@
 
 ## Current phase
 
-This repository has buildable application scaffolding, but product features are not implemented. Read the [specification](docs/specification.md) and [feature checklist](docs/features.md) before proposing changes.
+The feature branch contains implemented product workflows and automated regression suites; first-release source, browser and deployment acceptance remains open. Read the [specification](docs/specification.md) and [feature checklist](docs/features.md) before proposing changes.
 
 ## Implementing features
 
@@ -24,7 +24,7 @@ make lint test build
 git diff --check
 ```
 
-Use `make format` for formatting and `make test-race` for concurrency changes. Frontend tests currently mean TypeScript checks, and no behavioral suites exist yet. Add meaningful tests with the first product behavior. See the [development guide](docs/development.md) for commands and the directory structure.
+Use `make format` for formatting and `make test-race` for concurrency changes. Frontend checks include TypeScript and Vitest/jsdom behavioral suites. Add regressions for changed behavior. These do not replace real-browser or visual acceptance. See the [development guide](docs/development.md) for commands and the directory structure.
 
 ## Commits and publishing
 

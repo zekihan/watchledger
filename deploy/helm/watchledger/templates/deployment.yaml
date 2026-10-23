@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name | quote }}
+  labels:
+    app.kubernetes.io/name: watchledger
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: watchledger
+      app.kubernetes.io/instance: {{ .Release.Name | quote }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: watchledger
+        app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: app
+          image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: {{ required "existingSecret is required" .Values.existingSecret | quote }}
+          env:
+            - name: WATCHLEDGER_ADDR
+              value: "0.0.0.0:8080"
+            - name: WATCHLEDGER_WEB_DIR
+              value: /app/web
+            - name: PUBLIC_URL
+              value: {{ required "publicURL is required" .Values.publicURL | quote }}
+            - name: OIDC_ISSUER
+              value: {{ required "oidc.issuer is required" .Values.oidc.issuer | quote }}
+            - name: OIDC_CLIENT_ID
+              value: {{ .Values.oidc.clientID | quote }}
+            - name: OIDC_ADMISSION_CLAIM
+              value: {{ .Values.oidc.admissionClaim | quote }}
+            - name: OIDC_ADMISSION_VALUE
+              value: {{ .Values.oidc.admissionValue | quote }}
+            - name: OIDC_ADMIN_CLAIM
+              value: {{ .Values.oidc.adminClaim | quote }}
+            - name: OIDC_ADMIN_VALUE
+              value: {{ .Values.oidc.adminValue | quote }}
+            {{- if .Values.anidb.client }}
+            - name: ANIDB_CLIENT
+              value: {{ .Values.anidb.client | quote }}
+            - name: ANIDB_CLIENT_VERSION
+              value: {{ .Values.anidb.version | quote }}
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          startupProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            failureThreshold: 30
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]

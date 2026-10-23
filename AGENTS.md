@@ -14,11 +14,11 @@
 
 - `cmd/watchledger/`: process entrypoint and lifecycle.
 - `internal/httpapi/`: HTTP routing and transport concerns.
-- `internal/`: future private domain, provider, store, and job packages, created as implemented.
+- `internal/`: private domain, provider, authentication, store, and job packages.
 - `web/src/`: React UI and client-side state.
 - `db/migrations/`: ordered PostgreSQL migrations.
-- `db/queries/`: source queries for future sqlc generation.
-- `deploy/`: future Compose and Helm packaging.
+- `db/queries/`: source queries for sqlc generation.
+- `deploy/`: Compose and Helm packaging.
 - `docs/`: specification, feature status, sources, and development guidance.
 - `.github/workflows/`: validation automation; no automatic publishing.
 
@@ -29,7 +29,7 @@
 - Run `make lint test build` before committing. Use `make test-race` for changes to concurrent Go behavior.
 - Format with `make format`; do not disable lint rules to hide problems.
 - Write meaningful tests for new behavior, especially authorization, history, mapping, filters, and imports. Do not add tests that merely mirror trivial scaffolding.
-- Frontend `make test` currently checks types only; there is no frontend behavioral test suite yet. State this limitation accurately.
+- Frontend `make test` checks types and runs Vitest/jsdom behavioral tests. These are not real-browser or visual acceptance checks; state this limitation accurately.
 - Do not call database readiness or product features complete because `/healthz` succeeds.
 
 ## Implementation conventions

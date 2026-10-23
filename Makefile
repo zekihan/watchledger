@@ -2,7 +2,7 @@
 
 help:
 	@echo "install       Install pinned Node dependencies"
-	@echo "dev-api       Run the Go skeleton server (long-running)"
+	@echo "dev-api       Run the Go API server (long-running)"
 	@echo "dev-web       Run the Vite development server (long-running)"
 	@echo "build         Build the Go binary and frontend"
 	@echo "lint          Check Go, frontend, docs, and formatting"
@@ -50,6 +50,7 @@ typecheck:
 test:
 	go test ./cmd/... ./internal/...
 	npm run typecheck
+	npm run test:web
 
 test-race:
 	go test -race ./cmd/... ./internal/...

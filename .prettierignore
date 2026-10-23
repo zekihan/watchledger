@@ -5,3 +5,5 @@ coverage/
 package-lock.json
 go.sum
 CLAUDE.md
+
+deploy/helm/watchledger/templates/

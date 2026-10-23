@@ -11,7 +11,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zekihan/watchledger/internal/anidb"
+	"github.com/zekihan/watchledger/internal/auth"
+	"github.com/zekihan/watchledger/internal/catalog"
+	"github.com/zekihan/watchledger/internal/config"
 	"github.com/zekihan/watchledger/internal/httpapi"
+	"github.com/zekihan/watchledger/internal/jobs"
+	"github.com/zekihan/watchledger/internal/store"
 )
 
 func main() {
@@ -25,14 +31,32 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	address := os.Getenv("WATCHLEDGER_ADDR")
-	if address == "" {
-		address = "127.0.0.1:8080"
+	c, err := config.Load()
+	if err != nil {
+		return err
 	}
+	pool, err := store.Open(ctx, c.DatabaseURL)
+	if err != nil {
+		return fmt.Errorf("database: %w", err)
+	}
+	defer pool.Close()
+	if err = store.Migrate(ctx, pool); err != nil {
+		return err
+	}
+	identity, err := auth.New(ctx, pool, c)
+	if err != nil {
+		return err
+	}
+	runner := &jobs.Runner{Cache: &catalog.Cache{DB: pool, Provider: catalog.New(c.TMDBToken)}, Anime: &anidb.Cache{DB: pool, Provider: anidb.New(anidb.Config{Client: c.AniDBClient, Version: c.AniDBVersion})}}
+	jobCtx, cancelJobs := context.WithCancel(ctx)
+	jobsDone := make(chan struct{})
+	go func() { defer close(jobsDone); runner.Run(jobCtx) }()
+	defer func() { cancelJobs(); <-jobsDone }()
+	handler := httpapi.NewApplication(c.WebDir, pool, identity, c.TMDBToken, anidb.Config{Client: c.AniDBClient, Version: c.AniDBVersion})
 
 	server := &http.Server{
-		Addr:              address,
-		Handler:           httpapi.NewHandler(os.Getenv("WATCHLEDGER_WEB_DIR")),
+		Addr:              c.Address,
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
@@ -55,7 +79,7 @@ func run(ctx context.Context) error {
 		}
 	}()
 
-	slog.Info("starting skeleton server", "address", address)
+	slog.Info("starting watchledger", "address", c.Address)
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("serve HTTP: %w", err)
 	}

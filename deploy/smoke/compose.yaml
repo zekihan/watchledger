@@ -1,0 +1,39 @@
+# CI-only override. Never use this synthetic provider or database for real users.
+services:
+  app:
+    image: watchledger:ci
+    pull_policy: never
+    environment:
+      SSL_CERT_FILE: /smoke/ca.crt
+    volumes:
+      - ${SMOKE_DIR:?}/ca.crt:/smoke/ca.crt:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      oidc:
+        condition: service_started
+  postgres:
+    image: postgres:17.11
+    environment:
+      POSTGRES_USER: watchledger
+      POSTGRES_PASSWORD: synthetic-ci-only
+      POSTGRES_DB: watchledger_smoke
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U watchledger -d watchledger_smoke"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+  oidc:
+    image: watchledger:ci
+    pull_policy: never
+    user: ${SMOKE_UID:?}:${SMOKE_GID:?}
+    entrypoint: ["/smoke/oidc", "-dir", "/smoke"]
+    environment:
+      WATCHLEDGER_SYNTHETIC_OIDC: "1"
+    volumes:
+      - ${SMOKE_DIR:?}:/smoke:ro
+    ports:
+      - "127.0.0.1:8443:8443"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]

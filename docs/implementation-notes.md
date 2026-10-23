@@ -1,0 +1,257 @@
+# First-release implementation evidence
+
+## Source verification, 2026-10-23
+
+- Repository baseline passes `make lint test build` with Go 1.27.3 and Node 24.22.1.
+- AniDB API overview, HTTP definition and policy return HTTP 403 from this environment. Current client registration, rate, cache and attribution requirements remain unverified. AniDB integration is gated; no fallback semantics have been substituted.
+- animap release `v2026.10.21` downloaded outside the repository and its published SHA-256 verified. Schema is version 2, generated `2026-10-21T15:06:52Z`, mapping revision `051ec3f7db309c7cc28bccd06535231ed4f13194`, with 16,326 AniDB rows.
+- The current animap schema maps TV episodes to TVDB, not TMDB TV. TVDB numbering must not be treated as TMDB numbering. TMDB external-ID resolution and explicit review remain necessary.
+- Inspected ordinary, reordered/special and combined-film examples (AniDB 6098, 23 and 28). Explicit versus default-inferred targets are distinguished. Akira's six AniDB parts share TMDB movie 149; this is not permission to propagate progress without user consent.
+- Dataset remains external. ODbL 1.0 / DbCL 1.0 attribution and provenance must accompany imported mappings; the application's MIT license does not cover that data.
+- TMDB's official FAQ confirms noncommercial attribution requirements. Live TMDB validation remains pending in the operator’s environment.
+- Actual OIDC deployment claims remain unavailable. A private SIMKL JSON export was subsequently inspected; see the continuation below. Synthetic tests cannot establish the actual provider's refresh behavior.
+
+References: [animap release](https://github.com/cplieger/animap/releases/tag/v2026.10.21), [schema](https://github.com/cplieger/animap/blob/4681b20094a31dc7d00b52a1f3365e14ae8c6dbc/docs/schema.md), [license](https://github.com/cplieger/animap/blob/4681b20094a31dc7d00b52a1f3365e14ae8c6dbc/LICENSE-DATA), [TMDB FAQ](https://developer.themoviedb.org/docs/faq).
+
+## Persistence and identity foundation
+
+`make lint test build test-race` passes with disposable PostgreSQL 17.11. Migration tests exercise initial application, repeat application, and rejection of a cross-account status foreign key. Current-claim tests cover missing admission, separate admin grants, admin removal at refresh, and mismatched UserInfo subjects. Session ciphertext tampering is rejected. Full browser login and actual deployment-provider compatibility remain unverified; related checklist items remain unchecked.
+
+## Core workflows in progress
+
+Real TMDB adapters cover search, discovery, details, seasons and watch-provider offers; protocol and provider-outage tests use explicitly synthetic HTTP fixtures. Live TMDB acceptance is deferred to the operator’s own environment. Authenticated PostgreSQL HTTP tests cover single/bulk tracking, retained dates, completion, explicit unwatch decisions, cross-account status rejection, smart-list unknown availability and missing references, export/restore repeat application, and non-admin mapping denial. Mapping relationship tests verify revision-bound consent and preservation of source history.
+
+The React UI uses these APIs, with English/Turkish strings, responsive styles and semantic controls. Browser acceptance is blocked: the cloud browser cannot reach the command environment's loopback server and rejects local-file navigation. Frontend jsdom tests are not browser or visual acceptance. No screenshots or desktop/mobile visual acceptance are claimed.
+
+Subsequent increments add TV person-credit candidates, calendar/statistics, background refresh, and packaging. Their implementation and regression checks do not substitute for live-provider, full browser/accessibility, or deployment-smoke acceptance. Anime source integration/alternate views and complete SIMKL migration remain incomplete. Partial and unverified workflows remain unchecked.
+
+## Extended verification
+
+- `internal/auth/login_test.go` exercises a signed synthetic OIDC issuer, PKCE, nonce/state flow, admission before account creation, stable issuer/subject binding through a display-name change, and no first-user admin promotion. `service_test.go` covers current UserInfo claims, missing admission, removed admin access, mismatched subjects, and encrypted-token tampering.
+- `internal/httpapi/library_test.go` uses the actual authentication middleware and PostgreSQL. It checks unauthenticated access, cross-account status rejection, known-date preservation, single/season/whole-show tracking, explicit unwatch status handling, custom-status lock/rename/replacement, rating validation, referenced-list deletion and rename stability, repeat restore and user isolation, denied non-admin mapping changes, CSRF origin rejection, and calendar timezone boundaries.
+- `internal/tracking/rules_test.go` verifies earlier-episode selection across seasons, specials exclusion, unaired/unknown-release exclusion, and ongoing versus ended completion rules.
+- `web/src/App.test.tsx` uses jsdom with clearly synthetic API responses. It verifies OIDC-only login/language switching, Turkish library grid/table behavior, and an earlier-episode dialog that defaults to only the selected episode. These are not browser-layout checks.
+- `internal/catalog/cache_test.go` checks cached metadata during provider outages, missing requested-language fallback, and uncached failures. `internal/jobs/runner_test.go` checks persisted retry state and delayed retry after an outage.
+- `internal/portable/snapshot_test.go` validates date precision, episode ownership, and cyclic-list rejection. `internal/mapping/mapping_test.go` checks canonical revisions, partial combined targets, consent invalidation, and unchanged source history.
+- A PostgreSQL custom-format dump of the disposable synthetic database was restored into a separate empty database; four migration records and synthetic catalog rows were recovered. No real viewing history was used.
+- Packaging commit `aec7354cffa5244ec1a357dc104bfad8be9f9855` passed hosted CI run [39891809489](https://github.com/zekihan/watchledger/actions/runs/39891809489), including the actual application-container build and Helm lint/template validation. This does not establish Compose startup or Kubernetes deployment acceptance.
+
+Current source gates remain AniDB API-policy requirements, source episode identity reconciliation, custom-list export coverage, and live TMDB/OIDC deployment configuration. The approved specification is unchanged. Anime-native integration, versioned mapping ingestion and linked alternate views, and faithful SIMKL migration remain incomplete rather than being replaced with a different source or guessed data. Browser acceptance remains blocked by cloud-browser/command-network separation; local-file browser navigation is not allowed. No local-user-computer or external-agent fallback was used.
+
+## Final checkpoint before source-dependent continuation
+
+Feature branch: `feat/first-release`. No merge or homelab deployment was performed. Local `make lint test build test-race` passes with a disposable PostgreSQL instance. The frontend suite has three behavioral tests. Commits through `64fbb8b603a5d726b44c69cdb73141c439d0a830` include the checked implementation and two focused data-safety fixes: background availability refresh does not extend a country's foreground-use window, and concurrent language refreshes do not overwrite a newer cached translation. Missing tracking intent is rejected rather than interpreted as an unwatch.
+
+The application is not first-release complete. Required next inputs are current AniDB API/client/policy documentation, custom-list source coverage and securely configured live TMDB/OIDC test settings in the operator’s environment. Real browser acceptance remains unavailable in the current isolated environment. Container build and Helm rendering are verified; Compose startup and a Kubernetes deployment smoke test are not. Required provider-branding verification also remains open. All of these remain release blockers rather than silently waived checks.
+
+## SIMKL continuation after private format inspection
+
+A private JSON backup established the movies/shows/anime structure, source ID fields, status/rating fields, and explicit season/episode records. No private file, real title, viewing history, credential, or dataset is included in this repository. The observed backup has no custom-list section. This does not prove that SIMKL cannot export lists through another supported route.
+
+The new parser validates document structure and item identities, preserves explicit episode gaps and timestamp/date/unknown precision, and does not infer episode history from summary counts. Duplicate source IDs, invalid ratings/dates, and invalid episode records remain flagged for review. Anime entries never resolve through a shared TMDB ID.
+
+Authenticated SIMKL preview and apply endpoints retain the source JSON privately, require a recent per-user export before application, and add safely resolved cached movie/show library records without changing existing app edits. Movie watch records retain date precision and provenance; explicit app unwatch decisions are respected. Original source IDs and unsupported fields remain in the archive. Uncached identities and all source episode-number mappings stay in a persistent private review queue. They are not silently matched to TMDB/AniDB episodes. Reuploading a backup can re-preview and retry newly cached identities; repeat application does not duplicate history or per-import review rows.
+
+The UI includes preview, explicit apply, archive download, and a read-only unresolved review list. It explicitly identifies partial support. Custom-list import, episode mapping resolution, native anime integration, and editable conflict resolution are not implemented by this increment and remain release blockers. The review list is not a claim of a completed resolution workflow.
+
+Synthetic PostgreSQL HTTP regression tests cover backup enforcement, repeat application, history/date preservation, app-edits-win, explicit unwatch tombstones, anime non-merging, archive retention, and cross-account archive/apply/review denial. Frontend behavioral tests cover explicit application, missing-backup blocking, invalid-file replacement, and stale asynchronous preview results. These do not replace real browser acceptance.
+
+The operator chose to run live API tests later on their own PC. Continue development and validation in the command workspace; do not require live credentials here. See `local-acceptance.md` for the remaining operator checks. The feature branch remains unmerged and no existing infrastructure was changed.
+
+## Explicit SIMKL episode review
+
+The next increment adds a private review editor for one-to-one source episode links. Every source episode requires an explicit target choice; equal episode numbers do not initialize a selection. Previously confirmed links are displayed and locked. Confirmation explicitly preserves existing application status, rating, history, and unwatch decisions. The editor paginates long source episode lists and rejects incomplete or duplicate target choices.
+
+Migration 005 stores confirmed per-user source episode identities independently of watched flags. Reimports cannot move a source episode to another target silently, even after it has been unwatched. Server-side validation requires target ownership by the exact explicitly identified catalog title, a recent backup export, and confirmation. Split/combined targets, missing native metadata, and invalid source records remain unresolved rather than being forced through this one-to-one workflow.
+
+Portable exports now include optional `simkl_links`; older version-1 exports without the field still validate. Restore validates source keys and episode ownership. Conflicting existing links reject the restore transaction rather than relocating history. Synthetic PostgreSQL tests cover partial-apply rollback, explicit confirmation, duplicate/foreign targets, exact dates, unknown dates, reimport immutability, unwatch preservation, account isolation, and link/tombstone export/restore. Frontend tests verify empty initial choices, explicit confirmation, duplicate-target blocking, fixed previously confirmed links, and backup gating. Real browser acceptance remains an operator check.
+
+Earlier references to a read-only review list describe the preceding checkpoint. Ordinary cached movie/show conflicts can now be resolved by explicitly keeping app edits, and known episode identities can be explicitly linked. This does not complete AniDB integration, split/combined anime mappings, custom-list source coverage, or live-provider acceptance.
+
+## Resolving uncached source identities
+
+An authenticated review can now load the exact TMDB movie/show ID present in its source record. Metadata loading is a separate action and never inserts library/history records. Target seasons must be selected from the provider's own season list; a source season number does not choose a provider season. Provider failures are retryable and cached/stale responses are identified.
+
+After loading metadata, explicit review confirmation can add a previously unresolved library record and its supported history without reuploading the backup. Existing application values still win. Native anime records without verified AniDB metadata and records without a supported explicit identity remain unresolved; no title-search match or shared anime TMDB ID is assumed. Synthetic HTTP-provider tests cover an uncached movie, differently numbered show episodes, outage/retry, no history during metadata fetch, cross-account fetch denial, and refusal to substitute a shared TMDB ID for native anime. Live credentials are not used by those tests.
+
+## Interrupted tracking flows
+
+Tracking choices now distinguish cancellation from an explicit negative/default choice. Cancel and Escape abort the pending tracking operation rather than applying “only this episode” or retaining status while still unwatching. Leaving the title page cancels a waiting choice, and a preview response arriving after navigation cannot open a dialog or submit history. Explicitly saving the default choice still affects only the selected episode.
+
+Frontend regressions cover Cancel, Escape, navigation while a prompt is open, delayed previews after navigation, and global shortcuts inside the modal. Shortcuts also ignore editable controls; focused movie tracking buttons support the same W action as episode buttons. These behavioral tests do not replace the remaining native browser/focus and mobile acceptance checks.
+
+## Saved list browsing and rule controls
+
+Saved manual and smart lists have a contents view separate from editing. Manual results preserve member order; smart results use the saved rule/sort, private-library scope, and the same unknown-value semantics as preview. Account-scoped result endpoints reject other users' list IDs. Edited previews substitute the proposed rule into the dependency graph so indirect cycles are rejected before save.
+
+The rule builder provides named choices for content kinds, base/custom statuses, existing lists, cached genres, and configured provider options. Numeric operators are limited to numeric fields; empty or pending previews cannot be saved. Manual ordering supports localized up/down buttons alongside dragging, and editing is disabled during save. Result evaluation batches cached availability in the library query and selects metadata deterministically in the user's preferred language instead of choosing a random translation.
+
+Synthetic PostgreSQL tests cover manual order/localization, saved smart results, unknown versus known-empty availability, deterministic metadata filters, edited dependency cycles, and unauthorized/cross-account reads. Frontend tests cover contents browsing, stable IDs behind named selectors, and keyboard-friendly member reordering. Browser layout/accessibility acceptance is still separate.
+
+## Custom-list file import checkpoint
+
+A separate upload supports the documented SIMKL custom-list contents response, including complete multi-page bundles. It does not invent a custom-list section in the observed watchlist backup and makes no live SIMKL requests. Preview reports identity conflicts and missing private-library members. Applying requires a recent export; unresolved membership archives the whole list for review without creating a misleading partial list or changing viewing history.
+
+Successful imports create manual snapshots in source response order, retaining source identity and the unmodified private archive. Reimport preserves current app edits, removed members, and deleted lists. Portable exports/restores retain source identity and deletion markers, preventing duplicate lists or resurrected deletions. Automatic source rules are archived, not translated into guessed smart rules.
+
+Synthetic parser, HTTP/PostgreSQL, portability and frontend tests exercise pagination, source errors, backup gating, private identity resolution, reimport, ordering, app edits/deletions, and export/restore. PostgreSQL must use UTF8 so Unicode name limits behave consistently; startup rejects incompatible encodings. This remains file-based partial migration, not live API or real-browser acceptance.
+
+## Statistics precision and metadata selection
+
+Statistics select the user's preferred metadata language deterministically. Watched episode runtime uses episode metadata only; missing or zero runtimes remain unknown rather than substituting a whole-title duration. Dashboard monthly activity now uses the same account timezone as detailed statistics, preserving date-only values and excluding unknown watched dates. Retired episodes no longer appear in upcoming dashboard results.
+
+Synthetic PostgreSQL regression tests cover month-boundary timestamps in Europe/Istanbul, unchanged date-only records, unknown dates/runtime, translated genre names, account isolation, and retired upcoming episodes. Native browser and live metadata acceptance remain separate.
+
+## Linked-view projection
+
+Cached episode mappings now have a private alternate-view endpoint and interface. Projection is computed in both directions from recorded source events only, never recursively from projected flags. Split/combined relationships require revision-bound consent. Unreviewed, overlapping, retired-source or invalid mappings stay blocked; missing coverage remains visible as incomplete. Source statuses/ratings remain separate and no aggregate rating or watched date is invented.
+
+Synthetic domain and HTTP/PostgreSQL tests cover split/combined directionality, partial coverage, consent, account isolation, retired source identity, and preservation of recorded events. The initial view is read-only; native catalog ingestion and cross-view editing remain separate implementation work, not implied by this projection checkpoint.
+
+## Native AniDB metadata and tracking
+
+Official saved documentation clarified registration, gzip/XML handling, caching, request intervals and non-commercial licensing. One live request using the operator-provided registered client returned a valid anime response; the saved response is parsed locally for compatibility without repeating that dataset request. No source content, user history, password or token is committed.
+
+The adapter loads explicit AniDB identities, normalizes native titles and stable episode IDs, preserves date-only precision, and retains raw source metadata in a server cache. PostgreSQL-backed request reservations survive process restarts, concurrent instances and language changes. Ban/error responses are not catalog data. Native detail pages use AniDB episode identities for ordinary tracking, and SIMKL reviews can separately load their explicit AniDB identity before manual episode resolution.
+
+This checkpoint does not complete title-index search, native artwork/availability, dataset mapping ingestion or alternate-view editing. The official title-index download returned 403. Cached-only search is labelled explicitly, and exact-ID loading remains available. Synthetic cache/history/consent tests and a saved live XML parse are evidence for implemented behavior, not complete browser or deployment acceptance.
+
+## Official native title index
+
+The operator-provided official gzip file verified the title-only XML schema. The application now accepts admin-only XML/gzip index uploads with bounded decompression and identity validation, deduplicates aliases, atomically replaces the index, and records the uploaded checksum and import time. Failure preserves the existing index; repeat identical imports are idempotent. This does not fetch full metadata, change private history, or imply that import time is the source publication time.
+
+Native searches use indexed aliases and the user's requested native/romaji/English title style. An explicit AniDB ID still loads metadata on demand. When no index is installed, cached-only scope remains visibly labelled. The upstream download remains a user/operator step because direct source access returned 403; download at most once per day. No title dataset is bundled in the repository.
+
+## Versioned mapping proposals and corrections
+
+Admin mapping tools now accept checksum-verified animap releases and resolve explicit AniDB-to-TVDB episode identities through TMDB Find By ID. Exact provider episode IDs, not cross-provider numbering, establish the proposed relationship. Inferred defaults and unsupported/missing identities stay in the proposal's unresolved list. An existing local override blocks automatic dataset proposal replacement.
+
+Saving a dataset mapping requires a matching, unexpired server proposal. The server owns dataset provenance and attribution, and rejects altered relationships claiming that provenance. Updates reuse the mapping identity, retain revision history, notify affected users and do not transfer consent to a materially different split/combined graph. Read-only projected flags immediately follow the current revision without modifying source events.
+
+Series overrides now have a dedicated narrow update endpoint, preserve existing statuses/ratings, and survive unrelated library edits. Users can return to their account default. Approved mappings take precedence over unreviewed suggestions; conflicting approved mappings remain blocked. Mapping/source attribution is visible in both review and linked-view screens.
+
+Regression evidence includes the actual pinned release decoder, synthetic differing TVDB/TMDB numbering, a two-native-to-one-target relationship, explicit consent, correction notices, unchanged source history, provenance tampering rejection, local override preservation, revision history, and UI proposal review. Cross-view editing, mapping movies, full Up next aggregation and complete browser acceptance remain further work.
+
+## Linked main tracking and explicit source edits
+
+Main episode tracking now reads effective watched flags from reviewed mappings and revision-bound consent. Marking an already-linked watched episode does not create another history copy or replace its source date. Linked unwatch is a separate explicit choice showing the affected source records. The applied plan is bound to the selected episodes, mapping state and recorded history IDs; changed mappings or replacement source records require a fresh preview.
+
+Unwatch tombstones suppress older/imported counterpart facts. A later genuine local watch action can update the linked view, while imports/restores cannot claim local intent authority. The local action marker is omitted from portable exports and never populated by restore. Mapping changes are locked before account writes to avoid a correction-notice lock inversion. Effective lookups fetch only the relevant mapping neighborhood and source records rather than every private event.
+
+Regression tests cover cancellation, explicit linked confirmation, stale plans, split/combined flags, source-date preservation, no duplicate writes, imported-fact suppression, new local watch intent, portable exclusion and account isolation. Frontend tests flush asynchronous query notifications inside React’s test boundary and bound worker concurrency to two, without relaxing assertions. Movie-link tracking and canonical cross-view statistics remain subsequent work.
+
+## Native artwork and consistent title preferences
+
+Native artwork uses only validated filenames from AniDB's XML response on the verified AniDB image host. Frontend image URLs accept only known source hosts and image paths, reject arbitrary URLs/CSS payloads, and fall back cleanly on failures. A changed image URL retries rather than retaining a previous failure forever. Artwork keeps its original rights; the metadata license is not represented as ownership of the image.
+
+A shared deterministic database presentation function applies native/romaji/English anime title preferences independently of interface and metadata languages. Library, saved lists, smart-list evaluation and cached anime search use the same selection and guarded metadata fallback. Synthetic regressions cover all title styles and malformed image paths; browser visual acceptance remains separate.
+
+### Effective Up next and structure-aware card ordering
+
+Up next now consults the same direct/derived progress and consent rules as tracking. For saved native anime entries with the show structure selected, reviewed links produce cached TMDB show cards using actual provider episode numbering. Cards group by show; no combined rating, status, history record, or library membership is fabricated. An unowned show card opens the native entry's alternate-view screen. Missing, blocked, unknown-release, special, retired, or future counterparts keep an explicitly incomplete native fallback. Native overrides retain native cards. Complete alternate-view editing and broader presentation acceptance remain open.
+
+Private ordering accepts only currently displayed card identities, including derived show cards. Hidden previous ordering is retained, ordinary settings saves preserve it, and portable snapshots validate and carry it. Keyboard-accessible move-up buttons remain alongside drag ordering. `TestUpNextUsesEffectiveProgressAndPrivateStructureOrder` covers source/alternate history, consent, release eligibility, overrides, no invented records, settings retention, and user isolation. Frontend regression coverage checks alternate-view navigation and ordering displayed identities. These are automated backend/jsdom checks, not real-browser acceptance.
+
+### Readable mapping consent and multi-cour aggregate views
+
+Mapping review now includes cached title names, actual source season/episode numbers, and episode names alongside stable IDs. Confirmation still binds to the reviewed revision and remains opt-in; successful confirmation invalidates affected progress, alternate-view, dashboard, and statistics queries. Alternate views use the user's title preference and readable connected-episode labels. A show view includes separately mapped cours on different episodes of the same show without merging those entries or exposing another user's status/rating. Tests cover separate cour progress and rating isolation, human-readable review, cancellation without writes, and exact revision submission. Full alternate-view editing remains open.
+
+### Tracking from alternate presentations
+
+Alternate views now provide individual, season, and whole-show watch/unwatch controls with today/chosen/unknown dates, earlier-episode prompts, and explicit linked-unwatch confirmation. Tracking a show that is not a separate library entry requires a saved native anchor, reviewed/currently confirmed mappings, and saved native entries for every selected episode. Missing mappings cannot silently authorize bulk writes. Native statuses update from effective progress; ratings and same-base custom statuses remain unchanged. No aggregate show status or rating is created.
+
+A private alternate-history container retains the actual source event and anchor without creating another library entry. Portable export/restore includes these containers, source catalog/episodes, history and unwatch markers; mapping consent is not restored. A mapping correction cannot hide or prevent removal of already recorded alternate events. Tests cover virtual single/bulk tracking, preserved dates, native completion/return-to-watching, missing consent and foreign-anchor rejection, portable validation, repeat restore, and confirmation cancellation. Statistics now use the subsequently approved native-unit counting policy; real-browser acceptance remains open.
+
+### Canonical anime statistics
+
+The approved counting policy uses native AniDB episode units for reviewed, confirmed episode mappings, independent of the selected presentation. Recorded alternate parts do not add duplicate episode/runtime/genre totals. Incomplete native units and their recorded source parts are shown separately and excluded from completed-unit/runtime totals. Unconfirmed or ambiguous relationships retain separate recorded facts and display an overlap warning rather than silently deduplicating uncertain identities.
+
+Direct native facts take precedence, including unknown dates. A derived native completion month uses the latest source-part day only when every required recorded part has a known date, converted using the user's timezone. The UI explicitly labels these derived completion units; no original event or date is rewritten. If any required source date is unknown, that unit is excluded from monthly charts. Dashboard and statistics use the same calculation. Tests cover partial/complete splits, duplicate representations, date uncertainty, timezone boundaries, native metadata/runtime, consent boundaries, view-independent totals and user isolation. Movie aliases are handled separately as described below.
+
+### Movie aliases versus episode parts
+
+Animap's official schema states that multiple `tmdb_movies` IDs are records of one work, not different required movies. Movie proposals are therefore separate from episode-part proposals and have their own revision semantics, unique dataset identity and consent. Admins can resolve cached native-episode/movie identities or create explicit local movie overrides. Missing metadata remains unresolved with an explicit movie-detail link; resolution does not scrape or infer numbering. Alias proposals are limited to 256 identities, and every movie alias requires current per-user confirmation.
+
+Confirmed movie components require either one recorded full-movie alias or every required native film part. One native part never completes the remaining parts or the film; ordinary split/combined episode mappings likewise require every part. Overlapping incompatible reviewed definitions remain blocked rather than silently composing uncertain relationships. Movies retain catalog IDs and NULL-episode history records; the mapping-node SQL view does not insert fake movie episodes. Native statuses, private alternate-history containers, linked-unwatch plans and portable restore handle movie events without manufacturing library ratings or duplicate watch facts.
+
+Statistics count a confirmed movie-alias work once using a stable native identity and native runtime metadata. Explicit AniDB Movie metadata with one regular episode is counted as a movie even without an alias, and native movies are excluded from episodic Up next. When all native parts are directly recorded, their completion date is the latest part day only if every date is known. Otherwise, a recorded full-movie alias can establish completion using its earliest recorded alias date only if all recorded alias dates are known. Unknowns remain unknown. Domain/backend tests cover alias-versus-part revision boundaries, consent, one-alias sufficiency, native completion, single movie counting, NULL-episode removal, newer actions after unwatch, private export/repeat restore and non-restoration of consent. Frontend tests cover distinct proposal semantics and actionable missing movie IDs. Real-browser and broad real-dataset acceptance remain open.
+
+### Optional read-only SIMKL custom-list fetching
+
+The application now offers a direct GET-only import for one explicitly selected SIMKL custom list, using an existing AUTH V2 client ID/token supplied transiently in the application. It does not add SIMKL as an application login method or create, store, refresh, export, or background-sync provider credentials. The password input is cleared when the request starts; changing input source or leaving the screen aborts/invalidates stale fetches. Fetching produces only a private preview/archive; the existing current-export prerequisite and explicit apply step remain mandatory.
+
+The adapter uses only the fixed official list endpoint, refuses redirects, sends the token in Authorization rather than URLs, serializes requests, bounds pagination/body/time, checks list identity and complete snapshot consistency, and sanitizes upstream failures. HTTP 200 premium-only responses are failures, not empty lists. Private successful fetch receipts enforce a 24-hour auto-list cache and five-minute ordinary-list cache without extending freshness on reads. Source links include stable numeric SIMKL IDs and supplied slugs. Synthetic HTTP/database/UI tests cover pagination, incomplete/error responses, redirect safety, token non-persistence, user isolation, daily cache behavior, backup/apply gates and automatic token-field clearing. No live token or paid-access eligibility is claimed.
+
+### Dedicated source credits
+
+A dedicated English/Turkish credits page is linked from persistent navigation and the footer. It retains the TMDB non-endorsement notice and source link, identifies JustWatch availability data, and separates AniDB/animap/SIMKL notices from the code's MIT license. Automated UI tests check both languages and provider links. The approved TMDB logo remains a release blocker: the official logo gallery denies automated access here, and an operator-supplied approved asset was requested. No replacement logo was invented and no visual/branding acceptance is claimed.
+
+### Latest physical recovery check
+
+The disposable development database was dumped in PostgreSQL custom format and restored into a separate fresh UTF8 database after all 16 migrations. Migration, catalog, episode, history, mapping-node, alternate-view and import row counts matched. A dedicated synthetic two-account fixture additionally verified a known date-only watch, an unknown-date watch, account attribution, library status and rating after physical restoration. No production database, real viewing history, homelab or external deployment was used. Recovery artifacts remain outside the repository. This does not replace an application/OIDC login or deployment smoke check.
+
+### Saved native anime background refresh
+
+The in-process refresh queue now includes saved AniDB entries: daily while Watching and weekly otherwise. It does not enqueue unsaved catalog titles or require a TMDB token to refresh AniDB. The same persistent provider and per-anime cooldowns used by on-demand loading govern queued work. Disabled sources and active cooldowns are skipped without blocking unrelated eligible jobs; failed native refreshes retain cached metadata/history and schedule the retry no earlier than the provider reservation permits. Failure details remain visible through the existing admin job view.
+
+Synthetic database/HTTP tests use isolated schemas and verify cadence, idempotent queueing, disabled providers, no request during cooldown, successful stable-ID episode renumbering without changing watch dates, retained history during outage and cooldown-aware retries. No live AniDB request is made by these tests. Operator-only assets and runtime/provider/browser acceptance are tracked in the root TODO.md rather than being reported as completed features.
+
+### Installation assets and keyboard access
+
+The manifest now supplies actual 192/512px PNGs, with a 180px Apple touch icon, rendered from Watchledger's own SVG mark. No third-party logo is substituted. Settings offer an install action only after the browser supplies its install event; the listener persists across navigation, prompts require an explicit click, dismissal is not labelled installation, and unsupported browsers receive English/Turkish manual guidance. No service worker caches private APIs or claims offline editing. Manifest prerequisites were checked against [MDN's installability guide](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable); actual device installation remains in TODO.md.
+
+Keyboard users can skip persistent navigation without changing the app route. Current navigation is identified, result-arrow shortcuts apply only when a poster card already has focus, and tracking dialogs have an accessible name, safe default and return focus to the initiating control. Tests exercise these behaviors and real PNG dimensions; they do not replace screen-reader or browser acceptance. The Vite development proxy now includes OIDC login/callback and readiness, with matching development PUBLIC_URL instructions.
+
+### Source-stable season and episode detail navigation
+
+Season selection now has a shareable route. Episode titles, native Up next cards and calendar entries link to the selected season and actual provider episode ID, not an assumed cross-source number. Season details expose available summary/artwork/date; selected episode details show runtime, source identity, date precision and a source-validated still only after spoiler reveal or watched-state permission. A missing/renumbered source episode gets an explicit retained-history notice instead of silently selecting a different episode. Existing single-episode tracking and consent/date safeguards are reused.
+
+Tests cover explicit season loading, stable identity in watch requests, hidden synopsis/images before reveal, failed-image fallback, missing identities and native specials links. Aggregate Up next cards retain their native-anchor alternate view links. Real-browser checks remain in TODO.md.
+
+### Notice acknowledgement and partial refresh failures
+
+Notices now have an explicit per-user Mark as read action. Acknowledgement preserves the notice row, is idempotent, rejects another user's notice and removes only that account's read notice from the bounded newest-first unread feed. The UI does not acknowledge merely by displaying a notice, and failed writes remain visible/retryable.
+
+A TMDB show metadata refresh can succeed while a season refresh falls back to cached episodes. Such a job now remains failed/retryable instead of being incorrectly reported as successful and deleted. Synthetic database/provider tests verify the retained cache and retry state. Authorization recovery now has a server-side runbook that corrects configuration and reevaluates current claims without implicit admin promotion, local login or a role bypass.
+
+Refreshed-ID-token tests additionally verify current admission/admin changes, subject, audience, issuer, expiry and invalid-token rejection. An invalid or insufficient new ID token must not be rescued by a permissive UserInfo response. Existing matching-subject UserInfo tests cover the no-ID-token path; live identity-provider compatibility remains an operator check.
+
+### Honest discovery filtering and service selections
+
+Discovery now shows the match count for the currently loaded page after watched exclusions, not an external provider's unfiltered total. An empty filtered page keeps pagination available. If the private library is unavailable, watched exclusion reports a retryable error rather than treating every title as unwatched. Movie cast and crew inputs are distinct; changing content type clears incompatible advanced/genre filters, and the selected-subscriptions shortcut is unavailable when no subscriptions were selected.
+
+TV person-credit enrichment now supports simple AND/comma and OR/pipe genre/provider selections and selected offer categories, consistent with the [documented discovery filter semantics](https://developer.themoviedb.org/reference/discover-movie). It no longer compares a multi-provider expression with a single numeric provider ID. Unknown/zero runtime cannot satisfy a requested runtime range; large candidate pages cannot overflow the slice index. Mixed separator expressions are rejected rather than assigned invented precedence. Synthetic provider/database/UI tests cover multi-service offers, rental versus subscription choices, genre groups, duplicate candidates, unknown runtimes, page-local counts and failure states. Results remain explicitly non-exhaustive candidate pages, not a mirrored catalog.
+
+### Native source credits and related metadata
+
+The AniDB XML already contains creators, voice actors, related anime, permanent community ratings and source tags. These fields now reach native details instead of being discarded. Multiple roles retain one source actor identity; related works remain AniDB titles, never guessed TMDB matches. Verified positive-weight non-spoiler tags are labelled separately from TMDB genres, preventing taxonomy-ID collisions or fabricated genre equivalence. Source JPEG artwork filenames are supported with the same host/path validation.
+
+Native creator pages show credits from already loaded AniDB catalog entries, capped and explicitly labelled cached-only, with a source link rather than an invented biography. They read only shared catalog metadata, not personal libraries. Cached XML can upgrade its presentation without an upstream request, advancing freshness, modifying history or overwriting newer fetched metadata. Tests cover these provenance boundaries, hidden spoiler/unknown-status tags, actor deduplication, cached creator authorization and source-safe navigation. Complete upstream native biographies, global native popularity discovery and normalized cross-provider genre equivalence are not claimed.
+
+### Native Hot Anime discovery
+
+The operator-supplied official HTTP API definition documents `request=hotanime` explicitly as the supported alternative to scraping the home page. Native discovery now consumes that bounded feed without mirroring its entries into catalog or personal-library records. Feed XML is stored separately, refreshed no more than daily, and shares the persistent two-second global interval and 24-hour ban handling with anime detail loading. Restricted entries are excluded. Cached feed results survive upstream outages and disabled credentials without inventing fresh timestamps.
+
+The UI labels the feed's limited scope, uses AniDB identities and source title preferences, shows freshness/staleness and does not expose unsupported TMDB advanced filters as native functionality. Tests cover parser identity/trailing-content validation, duplicate rejection, daily cache, shared bans, no catalog writes and source-safe UI navigation. Tests use synthetic HTTP responses; no extra live request was made. Full global upcoming/advanced native discovery is not implied by this provider-selected feed.
+
+Physical recovery was repeated after migration 017: source and fresh restored database counts matched for migrations, catalog, episodes, history, feeds and notices. The two-account synthetic fixture retained its known date-only and unknown-date history under the correct account. No dump or private source data was committed.
+
+### Explicit status replacement and settings failure states
+
+Custom-status removal now asks for a separate explicit destination instead of reusing the unrelated new-status form selection. The destination can be a fixed base or another custom status owned by the same user. The transaction locks source/destination, preserves history and ratings, moves library references and locks a newly used destination's base mapping. Self/foreign/missing destinations fail without deletion. The named dialog defaults to cancellation and requires a selection; errors remain in the dialog.
+
+Logout failures are now visible and retryable rather than silently resetting an unrelated settings mutation. Calendar errors expose a retry action, and the remaining native source-link label uses the English/Turkish translation boundary. Backend and frontend regressions cover the replacement and failure paths.
+
+### Synthetic runtime smoke coverage
+
+A standalone synthetic OIDC fixture now exercises the real running app with PKCE, nonce, signed tokens and verified short-lived TLS. It is a test executable, not a production login mode. A local process smoke run passed actual startup/migrations, login, non-admin authorization, preview-without-application restore, explicit restore, known-date movie tracking, portable export without authority, unavailable uncached metadata and session/history persistence after restart.
+
+CI now runs the same HTTP checks against the built image using the actual Compose definition plus a CI-only isolated PostgreSQL/OIDC override. Its unique project, test certificate/key, database and files are ephemeral; no operator credentials, real history or homelab are used. Compose runtime acceptance must be confirmed by the exact-head CI result, not inferred from the process run or image build. Real-provider/browser/Kubernetes acceptance remains separate in TODO.md.
+
+### Final local implementation audit
+
+The tracker distinguishes implemented/tested behavior from operator-only acceptance rather than treating every unchecked browser/source item as missing code. Locked dependencies, stable dataset provenance, standard-HTTP/React/Query architecture, private account-scoped APIs and custom statuses have concrete implementation and regression evidence. Admin oversight has a positive whitelist test: only account ID, display name, admin flag and creation time are returned, never settings or private libraries.
+
+Calendar regression coverage verifies timestamp month-boundary placement in the selected timezone, preserved date-only releases and source-episode links in month/list views. The visual month layout uses day-list semantics instead of claiming an interactive ARIA grid without grid keyboard behavior. Saved settings invalidate dependent queries, including timezone/title-sensitive calendar data. The footer identifies preview/acceptance status without describing shipped workflows as scaffolding. Real-browser/assistive-technology and configured-provider acceptance remains in TODO.md.
+
+The exact runtime-smoke head `981585a788cadd5a1e1494ae8ed6a611dd711d1d` passed [CI run 39997022951](https://github.com/zekihan/watchledger/actions/runs/39997022951), including the actual Compose startup/OIDC/restart step and Helm lint/render. The operator handoff now distinguishes that verified synthetic runtime from real configuration and Kubernetes acceptance. No production deployment or main-branch merge occurred.

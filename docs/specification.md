@@ -1,6 +1,6 @@
 # Application specification
 
-Agreed on 2026-10-23. Status: approved design; implementation not started.
+Agreed on 2026-10-23. Status: approved design; implementation in progress.
 
 This is the first-release product contract. The [feature checklist](features.md) records delivery status. Checked items must represent implemented and verified behavior, not agreement with this document.
 
@@ -132,6 +132,8 @@ Hide unwatched episode summaries and images by default through a per-user spoile
 ### Statistics
 
 Include watched movie counts, watched episode counts, estimated runtime, monthly activity, and genre breakdowns. Keep unknown watched dates outside date-based charts. Alternate anime views must not double-count the same underlying history.
+
+Counting clarification approved on 2026-10-23: confirmed anime episode mappings use native AniDB episodes as the counting units regardless of the selected view. Show partially watched native episodes separately rather than adding them to completed-episode totals. Unconfirmed or ambiguous relationships must be labelled as unresolved rather than silently deduplicated.
 
 ## 9. Manual and smart lists
 
