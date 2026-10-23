@@ -110,6 +110,20 @@ func TestNativeCatalogAndTrackingUseAniDBIdentity(t *testing.T) {
 	if e = p.QueryRow(ctx, "SELECT catalog_id,episode_id,watched_date::text FROM history WHERE user_id=$1", uid).Scan(&storedKey, &storedEpisode, &day); e != nil || storedKey != key || storedEpisode != episode || day != "2026-01-02" {
 		t.Fatal("native identity/date lost", e, storedKey, storedEpisode, day)
 	}
+	// Anime title style is independent of UI and metadata language.
+	if _, e = p.Exec(ctx, `UPDATE catalog SET metadata=jsonb_set(metadata,'{en,titles}','[{"language":"en","type":"official","text":"Synthetic English"},{"language":"x-jat","type":"main","text":"Synthetic Romaji"},{"language":"ja","type":"official","text":"架空"}]') WHERE id=$1`, key); e != nil {
+		t.Fatal(e)
+	}
+	for style, want := range map[string]string{"english": "Synthetic English", "romaji": "Synthetic Romaji", "native": "架空"} {
+		settings, _ := json.Marshal(map[string]string{"language": "tr", "metadata_language": "en", "anime_title": style})
+		if _, e = p.Exec(ctx, "UPDATE users SET settings=$2 WHERE id=$1", uid, settings); e != nil {
+			t.Fatal(e)
+		}
+		w = request("GET", "/api/library", "", true)
+		if w.Code != 200 || !strings.Contains(w.Body.String(), `"title": "`+want+`"`) && !strings.Contains(w.Body.String(), `"title":"`+want+`"`) {
+			t.Fatal("native title preference ignored", style, w.Code, w.Body.String())
+		}
+	}
 	// Index replacement is admin-only, atomic, repeatable, and never adds catalog/history rows.
 	titleXML := `<animetitles><anime aid="928400001"><title xml:lang="en" type="official">Index alias</title><title xml:lang="ja" type="main">架空</title></anime><anime aid="928400099"><title xml:lang="en" type="main">Uncached index entry</title></anime></animetitles>`
 	if w = request("POST", "/api/admin/anidb/titles", titleXML, true); w.Code != 403 {

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { imageURL as image } from "./images";
 import { api, APIError } from "./api";
 import type { Dashboard, Episode, History, LibraryItem, Status, Title, User } from "./api";
 import { en, tr } from "./i18n";
@@ -20,9 +21,6 @@ function subscribe(callback: () => void) {
 }
 function route() {
   return location.hash.slice(1) || "home";
-}
-function image(path: string | undefined, size = "w342") {
-  return path ? `https://image.tmdb.org/t/p/${size}${path}` : undefined;
 }
 function localDay(timezone?: string) {
   if (timezone)
@@ -45,14 +43,15 @@ function ErrorBox({ error, retry, t }: { error: Error; retry?: () => void; t: T 
   );
 }
 function Poster({ title, path }: { title: string; path?: string }) {
-  const [failed, setFailed] = useState(false);
-  return path && !failed ? (
+  const [failedPath, setFailedPath] = useState<string | undefined>();
+  const url = image(path);
+  return url && url !== failedPath ? (
     <img
       loading="lazy"
-      src={image(path)}
+      src={url}
       alt={title}
       onError={() => {
-        setFailed(true);
+        setFailedPath(url);
       }}
     />
   ) : (

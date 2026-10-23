@@ -32,7 +32,7 @@ func (a *API) libraryRoutes(m *http.ServeMux) {
 	m.HandleFunc("PUT /api/settings", a.settings)
 }
 func (a *API) library(w http.ResponseWriter, r *http.Request) {
-	rows, e := a.DB.Query(r.Context(), `SELECT jsonb_build_object('id',l.catalog_id,'title',coalesce(nullif(c.metadata->coalesce(u.settings->>'metadata_language','en')->>'title',''),nullif(c.metadata->coalesce(u.settings->>'metadata_language','en')->>'name',''),c.title),'kind',c.kind,'metadata',jsonb_build_object('selected',coalesce(c.metadata->coalesce(u.settings->>'metadata_language','en'),c.metadata->'',(SELECT value FROM jsonb_each(c.metadata) LIMIT 1))),'base',l.base,'status_id',l.status_id,'status_name',s.name,'rating',l.rating,'added_at',l.added_at,'position',l.position,'anime_view',l.anime_view) FROM library l JOIN users u ON u.id=l.user_id JOIN catalog c ON c.id=l.catalog_id LEFT JOIN statuses s ON s.user_id=l.user_id AND s.id=l.status_id WHERE l.user_id=$1 ORDER BY l.position,c.title`, auth.Current(r.Context()).ID)
+	rows, e := a.DB.Query(r.Context(), `SELECT jsonb_build_object('id',l.catalog_id,'title',catalog_display_title(c.kind,c.metadata,c.title,u.settings),'kind',c.kind,'metadata',jsonb_build_object('selected',catalog_metadata_variant(c.metadata,u.settings)),'base',l.base,'status_id',l.status_id,'status_name',s.name,'rating',l.rating,'added_at',l.added_at,'position',l.position,'anime_view',l.anime_view) FROM library l JOIN users u ON u.id=l.user_id JOIN catalog c ON c.id=l.catalog_id LEFT JOIN statuses s ON s.user_id=l.user_id AND s.id=l.status_id WHERE l.user_id=$1 ORDER BY l.position,c.title`, auth.Current(r.Context()).ID)
 	if e != nil {
 		http.Error(w, "library unavailable", http.StatusServiceUnavailable)
 		return

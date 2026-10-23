@@ -204,7 +204,7 @@ func (a *API) previewList(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) renderListResults(w http.ResponseWriter, r *http.Request, rule smart.Rule, order, editedID string) {
 	uid := auth.Current(r.Context()).ID
-	rows, e := a.DB.Query(r.Context(), `SELECT l.catalog_id,coalesce(nullif(c.metadata->coalesce(u.settings->>'metadata_language','en')->>'title',''),nullif(c.metadata->coalesce(u.settings->>'metadata_language','en')->>'name',''),c.title),c.kind,l.base,coalesce(l.status_id::text,l.base),l.rating,jsonb_build_object('selected',coalesce(c.metadata->coalesce(u.settings->>'metadata_language','en'),c.metadata->'',(SELECT value FROM jsonb_each(c.metadata) ORDER BY key LIMIT 1))),l.added_at::text,coalesce(u.settings->>'country','TR'),a.offers FROM library l JOIN catalog c ON c.id=l.catalog_id JOIN users u ON u.id=l.user_id LEFT JOIN availability a ON a.catalog_id=l.catalog_id AND a.country=coalesce(u.settings->>'country','TR') WHERE l.user_id=$1`, uid)
+	rows, e := a.DB.Query(r.Context(), `SELECT l.catalog_id,catalog_display_title(c.kind,c.metadata,c.title,u.settings),c.kind,l.base,coalesce(l.status_id::text,l.base),l.rating,jsonb_build_object('selected',catalog_metadata_variant(c.metadata,u.settings)),l.added_at::text,coalesce(u.settings->>'country','TR'),a.offers FROM library l JOIN catalog c ON c.id=l.catalog_id JOIN users u ON u.id=l.user_id LEFT JOIN availability a ON a.catalog_id=l.catalog_id AND a.country=coalesce(u.settings->>'country','TR') WHERE l.user_id=$1`, uid)
 	if e != nil {
 		http.Error(w, "library unavailable", http.StatusServiceUnavailable)
 		return
@@ -436,7 +436,7 @@ func (a *API) listResults(w http.ResponseWriter, r *http.Request) {
 		a.renderListResults(w, r, rule, order, "")
 		return
 	}
-	rows, err := a.DB.Query(r.Context(), `SELECT m.catalog_id,coalesce(nullif(c.metadata->coalesce(u.settings->>'metadata_language','en')->>'title',''),nullif(c.metadata->coalesce(u.settings->>'metadata_language','en')->>'name',''),c.title) FROM list_members m JOIN library l ON l.user_id=m.user_id AND l.catalog_id=m.catalog_id JOIN catalog c ON c.id=m.catalog_id JOIN users u ON u.id=m.user_id WHERE m.user_id=$1 AND m.list_id=$2 ORDER BY m.position,m.catalog_id`, uid, r.PathValue("id"))
+	rows, err := a.DB.Query(r.Context(), `SELECT m.catalog_id,catalog_display_title(c.kind,c.metadata,c.title,u.settings) FROM list_members m JOIN library l ON l.user_id=m.user_id AND l.catalog_id=m.catalog_id JOIN catalog c ON c.id=m.catalog_id JOIN users u ON u.id=m.user_id WHERE m.user_id=$1 AND m.list_id=$2 ORDER BY m.position,m.catalog_id`, uid, r.PathValue("id"))
 	if err != nil {
 		http.Error(w, "list contents unavailable", http.StatusServiceUnavailable)
 		return

@@ -139,3 +139,9 @@ Main episode tracking now reads effective watched flags from reviewed mappings a
 Unwatch tombstones suppress older/imported counterpart facts. A later genuine local watch action can update the linked view, while imports/restores cannot claim local intent authority. The local action marker is omitted from portable exports and never populated by restore. Mapping changes are locked before account writes to avoid a correction-notice lock inversion. Effective lookups fetch only the relevant mapping neighborhood and source records rather than every private event.
 
 Regression tests cover cancellation, explicit linked confirmation, stale plans, split/combined flags, source-date preservation, no duplicate writes, imported-fact suppression, new local watch intent, portable exclusion and account isolation. Frontend tests flush asynchronous query notifications inside React’s test boundary and bound worker concurrency to two, without relaxing assertions. Movie-link tracking and canonical cross-view statistics remain subsequent work.
+
+## Native artwork and consistent title preferences
+
+Native artwork uses only validated filenames from AniDB's XML response on the verified AniDB image host. Frontend image URLs accept only known source hosts and image paths, reject arbitrary URLs/CSS payloads, and fall back cleanly on failures. A changed image URL retries rather than retaining a previous failure forever. Artwork keeps its original rights; the metadata license is not represented as ownership of the image.
+
+A shared deterministic database presentation function applies native/romaji/English anime title preferences independently of interface and metadata languages. Library, saved lists, smart-list evaluation and cached anime search use the same selection and guarded metadata fallback. Synthetic regressions cover all title styles and malformed image paths; browser visual acceptance remains separate.

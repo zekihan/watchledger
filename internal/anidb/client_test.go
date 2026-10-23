@@ -71,3 +71,14 @@ func TestOperatorProvidedXML(t *testing.T) {
 		t.Fatal("live response parse", err)
 	}
 }
+
+func TestSourcePosterValidation(t *testing.T) {
+	if PosterURL("123.jpg") != "https://cdn-eu.anidb.net/images/main/123.jpg" {
+		t.Fatal("native picture path missing")
+	}
+	for _, value := range []string{"../123.jpg", "https://example.invalid/x.jpg", "123.jpg?token=x", "x) url(evil)"} {
+		if PosterURL(value) != "" {
+			t.Fatal("unsafe picture path accepted")
+		}
+	}
+}

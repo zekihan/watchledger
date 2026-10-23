@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -155,7 +156,7 @@ func Choose(titles []Title, language, style string) string {
 	switch style {
 	case "english":
 		wanted = "en"
-	case "romaji":
+	case "", "romaji":
 		wanted = "x-jat"
 	case "native":
 		wanted = "ja"
@@ -201,4 +202,13 @@ func Day(value string) *string {
 		return nil
 	}
 	return &value
+}
+
+var pictureName = regexp.MustCompile(`^[1-9][0-9]*\.(jpg|png|webp)$`)
+
+func PosterURL(filename string) string {
+	if !pictureName.MatchString(filename) {
+		return ""
+	}
+	return "https://cdn-eu.anidb.net/images/main/" + filename
 }
