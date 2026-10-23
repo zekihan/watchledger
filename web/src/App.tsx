@@ -1,3 +1,4 @@
+import { CreditsPage } from "./credits";
 import { ChoiceDialog } from "./tracking-ui";
 import { localDay } from "./dates";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -13,8 +14,17 @@ import { AlternateView } from "./alternate";
 import { MappingPage, Notices } from "./admin";
 export type T = (key: Key) => string;
 const bases = ["planned", "watching", "completed", "hold", "dropped"] as const;
-const nav = ["home", "library", "discover", "lists", "calendar", "statistics", "settings"] as const;
-const icons = ["◈", "▤", "⌕", "☷", "▦", "▥", "⚙"];
+const nav = [
+  "home",
+  "library",
+  "discover",
+  "lists",
+  "calendar",
+  "statistics",
+  "settings",
+  "credits",
+] as const;
+const icons = ["◈", "▤", "⌕", "☷", "▦", "▥", "⚙", "ⓘ"];
 function subscribe(callback: () => void) {
   window.addEventListener("hashchange", callback);
   return () => {
@@ -199,7 +209,7 @@ export function App() {
           {nav.map((item, i) => (
             <a key={item} className={root === item ? "active" : ""} href={`#${item}`}>
               <span aria-hidden="true">{icons[i]}</span>
-              {t(item)}
+              {t(item === "credits" ? "sourceCredits" : item)}
             </a>
           ))}
           {user.Admin && <a href="#admin">◇ {t("admin")}</a>}
@@ -264,6 +274,8 @@ export function App() {
             <CalendarPage t={t} user={user} />
           ) : root === "settings" ? (
             <SettingsPage user={user} t={t} />
+          ) : root === "credits" ? (
+            <CreditsPage t={t} />
           ) : root === "admin" || root === "mappings" ? (
             <MappingPage t={t} admin={user.Admin} />
           ) : (
@@ -278,6 +290,7 @@ export function App() {
             <a href="https://www.justwatch.com" target="_blank" rel="noreferrer">
               JustWatch
             </a>
+            <a href="#credits">{t("sourceCredits")}</a>
             <p>{t("incomplete")}</p>
           </footer>
         </main>

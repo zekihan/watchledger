@@ -1,4 +1,15 @@
 export const en = {
+  sourceCredits: "Credits and data sources",
+  sourceRights:
+    "Watchledger's MIT license covers its original code, not third-party metadata, artwork, trademarks or datasets. Source rights and notices remain separate.",
+  justWatchCredits:
+    "Country-specific streaming, rental and purchase availability is provided by JustWatch through TMDB. Offers can change; the supplied availability page is not a guaranteed direct playback link.",
+  anidbCredits:
+    "Native anime identities and metadata come from AniDB, with CC BY-NC-SA 4.0 attribution and non-commercial restrictions. Artwork can have separate rights. Metadata is fetched on demand and cached under the source limits.",
+  animapCredits:
+    "Versioned anime mappings retain the original release, checksum and attribution. Dataset and upstream notices remain applicable; mappings are not bundled with or relicensed as application code.",
+  simklCredits:
+    "SIMKL is an optional source for user-requested migration. Source archives stay private. Imports do not write back to SIMKL or enable ongoing synchronization.",
   linkedReturnPrompt: "Some affected titles are Completed. Move those titles back to Watching?",
   linkedUnwatchPrompt:
     "This also removes the following recorded source history. Other linked views may become unwatched. Continue?",
@@ -328,6 +339,17 @@ export const en = {
 };
 export type Key = keyof typeof en;
 export const tr: Record<Key, string> = {
+  sourceCredits: "Katkılar ve veri kaynakları",
+  sourceRights:
+    "Watchledger'ın MIT lisansı özgün kodunu kapsar; üçüncü taraf bilgileri, görselleri, markaları veya veri kümelerini kapsamaz. Kaynak hakları ve bildirimleri ayrı kalır.",
+  justWatchCredits:
+    "Ülkeye göre abonelik, kiralama ve satın alma bilgileri TMDB üzerinden JustWatch tarafından sağlanır. Teklifler değişebilir; sağlanan sayfa doğrudan oynatma bağlantısı garantisi değildir.",
+  anidbCredits:
+    "Yerel anime kimlikleri ve bilgileri AniDB'den gelir; CC BY-NC-SA 4.0 atfı ve ticari olmayan kullanım kısıtlamaları geçerlidir. Görsellerin ayrı hakları olabilir. Bilgiler talep üzerine alınır ve kaynak sınırlarına göre önbelleğe kaydedilir.",
+  animapCredits:
+    "Sürümlü anime eşleştirmeleri özgün yayın, sağlama toplamı ve atıf bilgilerini korur. Veri kümesi ve üst kaynak bildirimleri geçerlidir; eşleştirmeler uygulama koduyla paketlenmez veya yeniden lisanslanmaz.",
+  simklCredits:
+    "SIMKL, kullanıcının istediği taşıma işlemleri için isteğe bağlı bir kaynaktır. Kaynak arşivleri özel kalır. Aktarımlar SIMKL'ye geri yazmaz ve sürekli eşitlemeyi etkinleştirmez.",
   linkedReturnPrompt:
     "Etkilenen bazı başlıklar Tamamlandı durumunda. Bu başlıklar İzleniyor durumuna taşınsın mı?",
   linkedUnwatchPrompt:
