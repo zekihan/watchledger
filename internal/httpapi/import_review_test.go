@@ -128,9 +128,54 @@ func TestSIMKLEpisodeResolutionPreservesIdentity(t *testing.T) {
 	if e = p.QueryRow(ctx, "SELECT watched_date::text FROM history WHERE user_id=$1 AND episode_id=$2", uid, id+"2").Scan(&day); e != nil || day != nil {
 		t.Fatal("unknown date fabricated", e)
 	}
-	if w = request("POST", "/api/library/"+id+"/track", fmt.Sprintf(`{"watched":false,"episode_id":%q,"date":{}}`, id+"1"), true); w.Code != 200 {
-		t.Fatal(w.Code, w.Body.String())
+
+	// A concurrent tracking request must wait for the same per-user lock held by
+	// import/restore. Observe actual PostgreSQL blocking, not an arbitrary sleep.
+	lockTx, e := p.Begin(ctx)
+	if e != nil {
+		t.Fatal(e)
 	}
+	defer func() { _ = lockTx.Rollback(ctx) }()
+	if _, e = lockTx.Exec(ctx, "SELECT id FROM users WHERE id=$1 FOR UPDATE", uid); e != nil {
+		t.Fatal(e)
+	}
+	var holderPID int
+	if e = lockTx.QueryRow(ctx, "SELECT pg_backend_pid()").Scan(&holderPID); e != nil {
+		t.Fatal(e)
+	}
+	done := make(chan *httptest.ResponseRecorder, 1)
+	go func() {
+		done <- request("POST", "/api/library/"+id+"/track", fmt.Sprintf(`{"watched":false,"episode_id":%q,"date":{}}`, id+"1"), true)
+	}()
+	deadline := time.After(3 * time.Second)
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	blocked := false
+	for !blocked {
+		select {
+		case response := <-done:
+			t.Fatalf("tracking bypassed import lock: %d", response.Code)
+		case <-deadline:
+			t.Fatal("tracking did not reach account lock")
+		case <-ticker.C:
+			e = p.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE $1=ANY(pg_blocking_pids(pid)))", holderPID).Scan(&blocked)
+			if e != nil {
+				t.Fatal(e)
+			}
+		}
+	}
+	if e = lockTx.Commit(ctx); e != nil {
+		t.Fatal(e)
+	}
+	select {
+	case w = <-done:
+		if w.Code != 200 {
+			t.Fatal(w.Code, w.Body.String())
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("tracking stayed blocked after import commit")
+	}
+
 	if w = request("POST", "/api/simkl/preview", raw, true); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}

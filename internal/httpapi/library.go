@@ -166,6 +166,11 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() { _ = tx.Rollback(r.Context()) }()
+	// Coordinate tracking with restore/import and other account-scoped mutations.
+	if _, e = tx.Exec(r.Context(), "SELECT id FROM users WHERE id=$1 FOR UPDATE", uid); e != nil {
+		http.Error(w, "tracking unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	var base, kind string
 	var meta json.RawMessage
 	e = tx.QueryRow(r.Context(), `SELECT l.base,c.kind,c.metadata FROM library l JOIN catalog c ON c.id=l.catalog_id WHERE l.user_id=$1 AND l.catalog_id=$2 FOR UPDATE OF l`, uid, id).Scan(&base, &kind, &meta)
