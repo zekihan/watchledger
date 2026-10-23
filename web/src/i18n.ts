@@ -1,14 +1,25 @@
 export const en = {
+  resolveImport: "Review and resolve",
+  mappingTarget: "Confirmed source title",
+  importMappingSafety:
+    "Choose the actual cached episode for every source record. Matching numbers alone do not prove identity. Only one-to-one mappings are supported here; split/combined mappings remain unresolved. Existing app history, unwatch decisions, ratings, and statuses will be preserved.",
+  linkedEpisodes: "episode identities selected",
+  retiredEpisode: "Retired source episode",
+  confirmedIdentity: "Previously confirmed identity; cannot be silently changed",
+  confirmImportMapping:
+    "I verified these episode identities and accept keeping all existing app edits.",
+  importResolved: "Review resolved. Existing app decisions were preserved.",
+  reviewInstructions:
+    "Review each unresolved source item. Load missing catalog metadata first, then re-preview the same backup. Source validation errors and unsupported custom lists remain archived.",
+
   simklLimits:
-    "Partial migration: cached movie/show identities can be added. Episode mappings, uncached identities, and native anime remain for review. Custom lists are retained in the archive but are not imported yet. No episode-number matching is guessed.",
+    "Partial migration: cached movie/show identities can be added. Episode mappings need explicit review; uncached identities and native anime remain gated. Custom lists are retained in the archive but are not imported yet. No episode-number matching is guessed.",
   simklFile: "SIMKL JSON backup",
   importSize: "Maximum backup size: 32 MiB",
   unresolved: "Items requiring review",
   sourceItems: "Source items",
   sourceArchives: "Private source archives",
   simklApplied: "Resolved records applied. Check the review queue for remaining items.",
-  reviewReadOnly:
-    "Source records are preserved here. Resolving episode mappings and conflicts in this queue is not implemented yet.",
   home: "Home",
   rename: "Rename",
   history: "Viewing history",
@@ -216,15 +227,25 @@ export const en = {
 export type Key = keyof typeof en;
 export const tr: Record<Key, string> = {
   simklLimits:
-    "Kısmi aktarım: önbellekteki film/dizi kimlikleri eklenebilir. Bölüm eşlemeleri, önbellekte olmayan kimlikler ve anime kayıtları incelemeye bırakılır. Özel listeler arşivde korunur ancak henüz aktarılmaz. Bölüm numaralarından eşleme tahmin edilmez.",
+    "Kısmi aktarım: önbellekteki film/dizi kimlikleri eklenebilir. Bölüm eşlemeleri açık inceleme gerektirir; önbellekte olmayan kimlikler ve anime kayıtları bekletilir. Özel listeler arşivde korunur ancak henüz aktarılmaz. Bölüm numaralarından eşleme tahmin edilmez.",
   simklFile: "SIMKL JSON yedeği",
   importSize: "En büyük yedek boyutu: 32 MiB",
   unresolved: "İnceleme gereken kayıtlar",
   sourceItems: "Kaynak kayıtları",
   sourceArchives: "Özel kaynak arşivleri",
   simklApplied: "Çözümlenmiş kayıtlar uygulandı. Kalan kayıtlar için inceleme kuyruğuna bakın.",
-  reviewReadOnly:
-    "Kaynak kayıtları burada korunur. Bu kuyrukta bölüm eşlemeleri ve çakışmaları çözümleme henüz uygulanmadı.",
+  resolveImport: "İncele ve çözümle",
+  mappingTarget: "Doğrulanmış kaynak yapımı",
+  importMappingSafety:
+    "Her kaynak kaydı için gerçek önbellek bölümünü seçin. Aynı numaralar kimliği kanıtlamaz. Burada yalnızca bire bir eşlemeler desteklenir; bölünmüş/birleşik eşlemeler çözümlenmez. Uygulamadaki geçmiş, izlenmedi kararları, puanlar ve durumlar korunur.",
+  linkedEpisodes: "bölüm kimliği seçildi",
+  retiredEpisode: "Kaynakta kaldırılmış bölüm",
+  confirmedIdentity: "Önceden doğrulanmış kimlik; sessizce değiştirilemez",
+  confirmImportMapping:
+    "Bölüm kimliklerini doğruladım ve mevcut uygulama değişikliklerinin korunmasını kabul ediyorum.",
+  importResolved: "İnceleme çözümlendi. Mevcut uygulama kararları korundu.",
+  reviewInstructions:
+    "Çözümlenmemiş kaynak kayıtlarını inceleyin. Eksik katalog bilgilerini yükleyip aynı yedeği yeniden önizleyin. Kaynak doğrulama hataları ve desteklenmeyen özel listeler arşivde kalır.",
   home: "Ana sayfa",
   rename: "Yeniden adlandır",
   history: "İzleme geçmişi",

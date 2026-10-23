@@ -1,3 +1,4 @@
+import { ImportReview } from "./import-review";
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
@@ -24,6 +25,7 @@ interface Review {
 }
 export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
   const client = useQueryClient();
+  const [activeReview, setActiveReview] = useState<string | null>(null);
   const generation = useRef(0);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState(false);
@@ -143,11 +145,31 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
           ))}
       </ul>
       <h4>{t("unresolved")}</h4>
-      <p>{t("reviewReadOnly")}</p>
+      <p>{t("reviewInstructions")}</p>
+      {activeReview && (
+        <ImportReview
+          key={activeReview}
+          id={activeReview}
+          t={t}
+          backed={backed}
+          close={() => {
+            setActiveReview(null);
+          }}
+        />
+      )}
       <ul>
         {reviews.data?.map((row) => (
           <li key={row.id}>
             {row.item.source?.title ?? row.reason}
+            {row.reason === "simkl_source_review" && (
+              <button
+                onClick={() => {
+                  setActiveReview(row.id);
+                }}
+              >
+                {t("resolveImport")}
+              </button>
+            )}
             <ul>
               {row.item.reasons?.map((reason, i) => (
                 <li key={i}>{reason}</li>

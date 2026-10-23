@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/zekihan/watchledger/internal/smart"
 	"github.com/zekihan/watchledger/internal/tracking"
+	"regexp"
 	"time"
 )
 
@@ -71,7 +72,16 @@ type Tombstone struct {
 	EpisodeKey string    `json:"episode_key"`
 	DeletedAt  time.Time `json:"deleted_at"`
 }
+type SIMKLLink struct {
+	SourceKey string `json:"source_key"`
+	CatalogID string `json:"catalog_id"`
+	EpisodeID string `json:"episode_id"`
+}
+
+var sourceEpisodeKey = regexp.MustCompile(`^(shows|anime):[1-9][0-9]*:s[0-9]+:e[1-9][0-9]*$`)
+
 type Snapshot struct {
+	SIMKLLinks []SIMKLLink     `json:"simkl_links,omitempty"`
 	Tombstones []Tombstone     `json:"tombstones"`
 	Version    int             `json:"version"`
 	CreatedAt  time.Time       `json:"created_at"`
@@ -185,6 +195,14 @@ func (s Snapshot) Validate() error {
 		library[l.CatalogID] = true
 	}
 	history := map[string]bool{}
+
+	seenLinks := map[string]bool{}
+	for _, link := range s.SIMKLLinks {
+		if len(link.SourceKey) > 256 || !sourceEpisodeKey.MatchString(link.SourceKey) || seenLinks[link.SourceKey] || !library[link.CatalogID] || episodes[link.EpisodeID] != link.CatalogID {
+			return errors.New("invalid or conflicting SIMKL episode link")
+		}
+		seenLinks[link.SourceKey] = true
+	}
 	for _, h := range s.History {
 		if !library[h.CatalogID] {
 			return errors.New("history without library title")

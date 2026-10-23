@@ -178,6 +178,13 @@ type Session struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type SimklEpisodeLink struct {
+	UserID    pgtype.UUID `json:"user_id"`
+	SourceKey string      `json:"source_key"`
+	CatalogID string      `json:"catalog_id"`
+	EpisodeID string      `json:"episode_id"`
+}
+
 type Status struct {
 	ID     pgtype.UUID `json:"id"`
 	UserID pgtype.UUID `json:"user_id"`

@@ -18,6 +18,8 @@ func (a *API) portableRoutes(m *http.ServeMux) {
 	m.HandleFunc("POST /api/simkl/preview", a.simklPreview)
 	m.HandleFunc("POST /api/simkl/{id}/apply", a.simklApply)
 	m.HandleFunc("GET /api/import-reviews", a.importReviews)
+	m.HandleFunc("GET /api/import-reviews/{id}/candidates", a.reviewCandidates)
+	m.HandleFunc("POST /api/import-reviews/{id}/resolve", a.resolveImportReview)
 	m.HandleFunc("GET /api/imports/{id}/archive", a.importArchive)
 }
 func (a *API) export(w http.ResponseWriter, r *http.Request) {
@@ -38,6 +40,7 @@ func (a *API) export(w http.ResponseWriter, r *http.Request) {
  'episodes',coalesce((SELECT jsonb_agg(to_jsonb(e)) FROM episodes e JOIN library l ON l.catalog_id=e.catalog_id WHERE l.user_id=u.id),'[]'),
  'statuses',coalesce((SELECT jsonb_agg(to_jsonb(s)-'user_id') FROM statuses s WHERE s.user_id=u.id),'[]'),
  'library',coalesce((SELECT jsonb_agg(to_jsonb(l)-'user_id') FROM library l WHERE l.user_id=u.id),'[]'),
+ 'simkl_links',coalesce((SELECT jsonb_agg(to_jsonb(k)-'user_id') FROM simkl_episode_links k WHERE k.user_id=u.id),'[]'),
  'tombstones',coalesce((SELECT jsonb_agg(to_jsonb(t)-'user_id') FROM history_tombstones t WHERE t.user_id=u.id),'[]'),
  'history',coalesce((SELECT jsonb_agg(to_jsonb(h)-'user_id') FROM history h WHERE h.user_id=u.id),'[]'),
  'lists',coalesce((SELECT jsonb_agg((to_jsonb(l)-'user_id') || jsonb_build_object('members',coalesce((SELECT jsonb_agg(catalog_id ORDER BY position) FROM list_members m WHERE m.user_id=u.id AND m.list_id=l.id),'[]'))) FROM lists l WHERE l.user_id=u.id),'[]')) FROM users u WHERE u.id=$1`, uid).Scan(&data)
@@ -208,6 +211,22 @@ func (a *API) restoreApply(w http.ResponseWriter, r *http.Request) {
 		}
 		_, e = tx.Exec(r.Context(), `INSERT INTO library(user_id,catalog_id,base,status_id,rating,position,anime_view,added_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(user_id,catalog_id) DO NOTHING`, uid, l.CatalogID, l.Base, sid, l.Rating, l.Position, l.AnimeView, l.AddedAt, l.UpdatedAt)
 		if fail(e) {
+			return
+		}
+	}
+
+	for _, link := range s.SIMKLLinks {
+		_, e = tx.Exec(r.Context(), "INSERT INTO simkl_episode_links(user_id,source_key,catalog_id,episode_id) VALUES($1,$2,$3,$4) ON CONFLICT(user_id,source_key) DO NOTHING", uid, link.SourceKey, link.CatalogID, link.EpisodeID)
+		if fail(e) {
+			return
+		}
+		var existing string
+		e = tx.QueryRow(r.Context(), "SELECT episode_id FROM simkl_episode_links WHERE user_id=$1 AND source_key=$2", uid, link.SourceKey).Scan(&existing)
+		if fail(e) {
+			return
+		}
+		if existing != link.EpisodeID {
+			http.Error(w, "confirmed SIMKL identity conflict; existing history was not changed", http.StatusConflict)
 			return
 		}
 	}

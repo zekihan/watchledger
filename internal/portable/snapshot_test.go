@@ -38,3 +38,25 @@ func TestRejectCyclicRestore(t *testing.T) {
 		t.Fatal("cycle accepted")
 	}
 }
+
+func TestValidateSIMKLIdentityLinks(t *testing.T) {
+	s := snapshot()
+	s.SIMKLLinks = []SIMKLLink{{SourceKey: "shows:12:s1:e3", CatalogID: "tmdb:tv:1", EpisodeID: "e1"}}
+	if e := s.Validate(); e != nil {
+		t.Fatal(e)
+	}
+	s.SIMKLLinks = append(s.SIMKLLinks, s.SIMKLLinks[0])
+	if s.Validate() == nil {
+		t.Fatal("duplicate source identity accepted")
+	}
+	s.SIMKLLinks = s.SIMKLLinks[:1]
+	s.SIMKLLinks[0].EpisodeID = "foreign"
+	if s.Validate() == nil {
+		t.Fatal("foreign episode link accepted")
+	}
+	s.SIMKLLinks[0].EpisodeID = "e1"
+	s.SIMKLLinks[0].SourceKey = "arbitrary"
+	if s.Validate() == nil {
+		t.Fatal("invalid source identity accepted")
+	}
+}

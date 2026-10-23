@@ -204,7 +204,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
 
 ## SIMKL migration
 
-Current support is partial: cached movie/show library records and movie watch history can be applied; all source episode mappings and uncached/native identities remain for review. The queue is persistent and private but its resolution UI is not complete. Custom lists are archived, not imported. See `implementation-notes.md`.
+Current support is partial: cached movie/show library records and movie watch history can be applied; source episode mappings and uncached/native identities require review. The private queue now supports explicit one-to-one episode resolution and keeping existing app edits; split/combined identities and malformed source records remain unresolved. Custom lists are archived, not imported. See `implementation-notes.md`.
 
 - [x] JSON-backup ingestion and validation.
 - [ ] Read-only API import when verified JSON coverage is insufficient.
