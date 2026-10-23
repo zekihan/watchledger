@@ -28,7 +28,7 @@ jobs:
       - run: npm ci
       - uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.14.0
+          version: v2.15.0
           args: ./cmd/... ./internal/...
       - run: make lint-web lint-docs format-check test test-race build
       - run: git diff --exit-code
