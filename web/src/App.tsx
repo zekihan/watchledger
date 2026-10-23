@@ -271,7 +271,9 @@ export function App() {
         </header>
         <main id="content" tabIndex={-1} className="content">
           <Notices t={t} />
-          {root === "detail" ? (
+          {root === "creator" ? (
+            <NativeCreatorPage id={page.split("/")[1] ?? ""} t={t} user={user} />
+          ) : root === "detail" ? (
             <DetailPage key={page} parts={page.split("/")} user={user} t={t} />
           ) : root === "views" ? (
             <AlternateView
@@ -1036,11 +1038,22 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
             ))}
             {m.vote_average !== undefined && (
               <span>
-                ★ {m.vote_average.toFixed(1)} · {m.vote_count} {t("minVotes")}
+                ★ {m.vote_average.toFixed(1)} · {m.vote_count} {t("votes")}
               </span>
             )}
           </div>
           <p className="synopsis">{m.overview ?? m.biography ?? t("noSynopsis")}</p>
+          {!!m.native_tags?.length && (
+            <details>
+              <summary>{t("nativeTags")}</summary>
+              <p>{t("nativeTagsHint")}</p>
+              <div className="tags">
+                {m.native_tags.map((tag) => (
+                  <span key={tag.id}>{tag.name}</span>
+                ))}
+              </div>
+            </details>
+          )}
           {kind !== "person" && (
             <div className="toolbar">
               {!entry ? (
@@ -1391,7 +1404,14 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
           <h2>{t("cast")}</h2>
           <div className="people">
             {m.credits.cast.slice(0, 20).map((c) => (
-              <a key={c.id} href={`#detail/person/${String(c.id)}`}>
+              <a
+                key={c.id}
+                href={
+                  c.source === "anidb"
+                    ? `#creator/${String(c.id)}`
+                    : `#detail/person/${String(c.id)}`
+                }
+              >
                 <Poster title={c.name} path={c.profile_path} />
                 <strong>{c.name}</strong>
                 <small>{c.character}</small>
@@ -1401,7 +1421,14 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
           <h2>{t("crew")}</h2>
           <div className="crew">
             {m.credits.crew.map((c, i) => (
-              <a key={`${String(c.id)}:${String(i)}`} href={`#detail/person/${String(c.id)}`}>
+              <a
+                key={`${String(c.id)}:${String(i)}`}
+                href={
+                  c.source === "anidb"
+                    ? `#creator/${String(c.id)}`
+                    : `#detail/person/${String(c.id)}`
+                }
+              >
                 {c.name}
                 <small>{c.job}</small>
               </a>
@@ -1663,7 +1690,7 @@ function Filmography({ credits, t }: { credits: { cast: Title[]; crew: Title[] }
             setKind(e.target.value);
           }}
         >
-          {["all", "movie", "tv"].map((k) => (
+          {["all", "movie", "tv", "anime"].map((k) => (
             <option key={k} value={k}>
               {t(k as Key)}
             </option>
@@ -1682,5 +1709,54 @@ function Filmography({ credits, t }: { credits: { cast: Title[]; crew: Title[] }
       </div>
       <Cards results={results} t={t} />
     </section>
+  );
+}
+
+function NativeCreatorPage({ id, t, user }: { id: string; t: T; user: User }) {
+  const q = useQuery({
+    queryKey: ["native-creator", id, user.Settings.metadata_language, user.Settings.anime_title],
+    queryFn: () =>
+      api<Title & { source_url: string; truncated: boolean }>(
+        `/anidb/creators/${encodeURIComponent(id)}`,
+      ),
+    retry: false,
+  });
+  if (q.isPending) return <p>{t("loading")}</p>;
+  if (q.error)
+    return (
+      <ErrorBox
+        error={q.error}
+        t={t}
+        retry={() => {
+          void q.refetch();
+        }}
+      />
+    );
+  if (!q.data) return null;
+  return (
+    <>
+      <a className="back" href="#library">
+        ← {t("back")}
+      </a>
+      <section className="detail-hero">
+        <div className="detail-poster">
+          <Poster title={q.data.name ?? ""} path={q.data.profile_path} />
+        </div>
+        <div>
+          <p className="eyebrow">AniDB · {t("nativeCreator")}</p>
+          <h1>{q.data.name}</h1>
+          <p>{t("nativeCreatorScope")}</p>
+          <a
+            href={`https://anidb.net/cr${encodeURIComponent(id)}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {t("sourceDetails")} ↗
+          </a>
+        </div>
+      </section>
+      {q.data.truncated && <p role="status">{t("nativeCreatorLimit")}</p>}
+      {q.data.combined_credits && <Filmography credits={q.data.combined_credits} t={t} />}
+    </>
   );
 }

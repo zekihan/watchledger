@@ -3,10 +3,12 @@ package anidb
 import (
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -87,5 +89,29 @@ func TestMetadataPreservesNativeMovieType(t *testing.T) {
 	metadata := Metadata(Anime{ID: "1", Type: "Movie", EpisodeCount: 1}, "en", "romaji")
 	if metadata["anime_type"] != "Movie" {
 		t.Fatal("native movie type omitted", metadata)
+	}
+}
+
+func TestNativeCreditsRatingsRelationsAndNonSpoilerTags(t *testing.T) {
+	raw := []byte(`<anime id="42"><titles><title xml:lang="en" type="official">Synthetic work</title></titles><creators><name id="7" type="Direction">Synthetic director</name><name id="7" type="Direction">Synthetic director</name><name id="../8" type="Music">Invalid</name></creators><characters><character><name>First role</name><seiyuu id="9" picture="10.jpeg">Synthetic voice</seiyuu></character><character><name>Second role</name><seiyuu id="9" picture="10.jpeg">Synthetic voice</seiyuu></character></characters><relatedanime><anime id="43" type="Sequel">Synthetic follow-up</anime><anime id="bad">Invalid</anime></relatedanime><ratings><permanent count="25">8.5</permanent></ratings><tags><tag id="1" weight="200" verified="true" localspoiler="false" globalspoiler="false"><name>Safe source tag</name></tag><tag id="2" weight="200" verified="true" localspoiler="true" globalspoiler="false"><name>Hidden spoiler</name></tag><tag id="3" weight="200" verified="true"><name>Unknown spoiler status</name></tag></tags></anime>`)
+	a, err := Parse(raw, "42")
+	if err != nil {
+		t.Fatal(err)
+	}
+	credits := Credits(a)
+	if len(credits.Crew) != 1 || len(credits.Cast) != 1 || credits.Cast[0].Character != "First role, Second role" || credits.Cast[0].Source != "anidb" || credits.Cast[0].ProfilePath != "https://cdn-eu.anidb.net/images/main/10.jpeg" {
+		t.Fatal(credits)
+	}
+	metadata := Metadata(a, "en", "english")
+	if metadata["vote_average"] != 8.5 || metadata["vote_count"] != 25 {
+		t.Fatal(metadata)
+	}
+	rawMeta, err := json.Marshal(metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(rawMeta)
+	if !strings.Contains(text, "Synthetic follow-up") || !strings.Contains(text, "anidb:tag:1") || strings.Contains(text, "Hidden spoiler") || strings.Contains(text, "Unknown spoiler status") || strings.Contains(text, "\"genres\"") {
+		t.Fatal(text)
 	}
 }

@@ -41,6 +41,7 @@ export interface User {
   Settings: Settings;
 }
 export interface Credit {
+  source?: string;
   id: number;
   name: string;
   character?: string;
@@ -48,6 +49,7 @@ export interface Credit {
   profile_path?: string;
 }
 export interface Title {
+  native_tags?: { id: string; name: string }[];
   episodes?: Episode[];
   id: number;
   title?: string;

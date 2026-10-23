@@ -105,7 +105,38 @@ type Episode struct {
 	AirDate string  `xml:"airdate"`
 	Titles  []Title `xml:"title"`
 }
+type Creator struct {
+	ID      string `xml:"id,attr"`
+	Type    string `xml:"type,attr"`
+	Name    string `xml:",chardata"`
+	Picture string `xml:"picture,attr"`
+}
+type Related struct {
+	ID   string `xml:"id,attr"`
+	Type string `xml:"type,attr"`
+	Name string `xml:",chardata"`
+}
+type Character struct {
+	Name   string    `xml:"name"`
+	Voices []Creator `xml:"seiyuu"`
+}
+type Tag struct {
+	ID            string `xml:"id,attr"`
+	Name          string `xml:"name"`
+	Weight        int    `xml:"weight,attr"`
+	LocalSpoiler  string `xml:"localspoiler,attr"`
+	GlobalSpoiler string `xml:"globalspoiler,attr"`
+	Verified      string `xml:"verified,attr"`
+}
 type Anime struct {
+	Creators   []Creator   `xml:"creators>name"`
+	Characters []Character `xml:"characters>character"`
+	Related    []Related   `xml:"relatedanime>anime"`
+	Tags       []Tag       `xml:"tags>tag"`
+	Rating     struct {
+		Count int     `xml:"count,attr"`
+		Value float64 `xml:",chardata"`
+	} `xml:"ratings>permanent"`
 	XMLName      xml.Name  `xml:"anime"`
 	ID           string    `xml:"id,attr"`
 	Type         string    `xml:"type"`
@@ -204,7 +235,7 @@ func Day(value string) *string {
 	return &value
 }
 
-var pictureName = regexp.MustCompile(`^[1-9][0-9]*\.(jpg|png|webp)$`)
+var pictureName = regexp.MustCompile(`^[1-9][0-9]*\.(jpg|jpeg|png|webp)$`)
 
 func PosterURL(filename string) string {
 	if !pictureName.MatchString(filename) {

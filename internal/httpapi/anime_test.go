@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/zekihan/watchledger/internal/anidb"
 	"github.com/zekihan/watchledger/internal/auth"
 	"github.com/zekihan/watchledger/internal/config"
 	"github.com/zekihan/watchledger/internal/store"
@@ -162,5 +163,44 @@ func TestNativeCatalogAndTrackingUseAniDBIdentity(t *testing.T) {
 	}
 	if w = request("GET", "/api/catalog/anime/"+aid, "", false); w.Code != 401 {
 		t.Fatal("anonymous metadata", w.Code)
+	}
+	// Cached XML gains presentation fields without a provider call or freshness reset.
+	{
+		aid := fmt.Sprint(time.Now().UnixNano()%100000000 + 900000000)
+		creatorID := "923456789"
+		nativeID := "anidb:anime:" + aid
+		raw := []byte(`<anime id="` + aid + `"><titles><title xml:lang="en" type="official">Synthetic credited work</title></titles><creators><name id="` + creatorID + `" type="Direction">Synthetic native creator</name></creators></anime>`)
+		fetched := time.Now().UTC().Add(-time.Hour).Truncate(time.Microsecond)
+		if _, e = p.Exec(ctx, "INSERT INTO catalog(id,source,source_id,kind,title,fetched_at) VALUES($1,'anidb',$2,'anime','Old cached presentation',$3)", nativeID, aid, fetched); e != nil {
+			t.Fatal(e)
+		}
+		defer func() {
+			_, _ = p.Exec(ctx, "DELETE FROM catalog WHERE id=$1", nativeID)
+			_, _ = p.Exec(ctx, "DELETE FROM anidb_documents WHERE aid=$1", aid)
+		}()
+		if _, e = p.Exec(ctx, "INSERT INTO anidb_documents(aid,document,fetched_at) VALUES($1,$2,$3)", aid, raw, fetched); e != nil {
+			t.Fatal(e)
+		}
+		nativeCache := anidb.Cache{DB: p, Provider: anidb.New(anidb.Config{})}
+		if _, e = nativeCache.Detail(ctx, aid, "en", "english"); e != nil {
+			t.Fatal(e)
+		}
+		var unchanged bool
+		if e = p.QueryRow(ctx, "SELECT fetched_at=$2 FROM catalog WHERE id=$1", nativeID, fetched).Scan(&unchanged); e != nil || !unchanged {
+			t.Fatal("presentation reset source freshness", unchanged, e)
+		}
+		if w := request("GET", "/api/anidb/creators/"+creatorID, "", true); w.Code != 200 || !strings.Contains(w.Body.String(), "Synthetic native creator") || !strings.Contains(w.Body.String(), "Synthetic credited work") || !strings.Contains(w.Body.String(), `"cached_only":true`) || strings.Contains(w.Body.String(), "user_id") {
+			t.Fatal("native creator", w.Code, w.Body.String())
+		}
+		if w := request("GET", "/api/anidb/creators/"+creatorID, "", false); w.Code != 401 {
+			t.Fatal("unauthenticated creator read", w.Code)
+		}
+		if w := request("GET", "/api/anidb/creators/invalid", "", true); w.Code != 400 {
+			t.Fatal("invalid creator", w.Code)
+		}
+		if w := request("GET", "/api/anidb/creators/999999999999", "", true); w.Code != 404 {
+			t.Fatal("fabricated unknown creator", w.Code)
+		}
+
 	}
 }

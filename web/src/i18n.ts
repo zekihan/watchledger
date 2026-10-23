@@ -1,4 +1,12 @@
 export const en = {
+  nativeCreator: "Creator / voice actor",
+  votes: "votes",
+  nativeTags: "AniDB tags",
+  nativeTagsHint: "Source-specific, non-spoiler tags. They are not assumed to be TMDB genres.",
+  sourceDetails: "Details on source",
+  nativeCreatorScope:
+    "Credits from AniDB titles already loaded in this instance, not a complete biography or filmography. Source identities are not merged with TMDB people.",
+  nativeCreatorLimit: "Showing credits from up to 100 cached titles.",
   filterIDsHint:
     "For multiple genre, provider or movie-person IDs, use commas to require all or | to match any. Do not mix separators.",
   pageMatches: "Matches on this loaded page",
@@ -364,6 +372,15 @@ export const en = {
 };
 export type Key = keyof typeof en;
 export const tr: Record<Key, string> = {
+  nativeCreator: "Yaratıcı / seslendiren",
+  votes: "oy",
+  nativeTags: "AniDB etiketleri",
+  nativeTagsHint:
+    "Kaynağa özgü, spoiler içermeyen etiketlerdir. TMDB türleriyle aynı oldukları varsayılmaz.",
+  sourceDetails: "Kaynakta ayrıntılar",
+  nativeCreatorScope:
+    "Bu kurulumda yüklenmiş AniDB yapımlarının katkılarıdır; tam biyografi veya filmografi değildir. Kaynak kimlikleri TMDB kişileriyle birleştirilmez.",
+  nativeCreatorLimit: "En fazla 100 önbellekteki yapımın katkıları gösteriliyor.",
   filterIDsHint:
     "Birden çok tür, sağlayıcı veya film kişisi kimliğinde tümünü istemek için virgül, herhangi birini eşleştirmek için | kullanın. Ayraçları karıştırmayın.",
   pageMatches: "Yüklenen bu sayfadaki eşleşmeler",

@@ -34,6 +34,7 @@ func (a *API) routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/search", a.search)
 	mux.HandleFunc("GET /api/discover/{kind}", a.discover)
 	mux.HandleFunc("GET /api/catalog/{kind}/{id}", a.detail)
+	mux.HandleFunc("GET /api/anidb/creators/{id}", a.animeCreator)
 	mux.HandleFunc("POST /api/catalog/{kind}/{id}/refresh", a.refresh)
 	mux.HandleFunc("GET /api/catalog/tv/{id}/seasons/{season}", a.season)
 	mux.HandleFunc("GET /api/catalog/{kind}/{id}/providers", a.providers)

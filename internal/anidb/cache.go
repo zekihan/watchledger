@@ -46,7 +46,27 @@ func Metadata(a Anime, language, style string) map[string]interface{} {
 		episodes = append(episodes, map[string]interface{}{"id": numeric, "source_id": e.ID, "name": Choose(e.Titles, language, style), "season_number": season, "episode_number": n, "native_number": e.Number.Text, "native_type": e.Number.Type, "kind": k, "air_date": Day(e.AirDate), "runtime": e.Length})
 	}
 	numeric, _ := strconv.ParseInt(a.ID, 10, 64)
-	return map[string]interface{}{"id": numeric, "anime_type": a.Type, "name": Choose(a.Titles, language, style), "titles": a.Titles, "overview": a.Description, "poster_path": PosterURL(a.Picture), "first_air_date": Day(a.StartDate), "end_date": Day(a.EndDate), "status": status, "number_of_episodes": a.EpisodeCount, "episodes": episodes, "seasons": []map[string]interface{}{{"season_number": 1, "name": "Regular", "episode_count": regular}, {"season_number": 0, "name": "Specials / extras", "episode_count": extras}}, "source": "anidb", "source_url": "https://anidb.net/anime/" + a.ID, "license": "CC-BY-NC-SA-4.0"}
+	metadata := map[string]interface{}{"id": numeric, "anime_type": a.Type, "name": Choose(a.Titles, language, style), "titles": a.Titles, "overview": a.Description, "poster_path": PosterURL(a.Picture), "first_air_date": Day(a.StartDate), "end_date": Day(a.EndDate), "status": status, "number_of_episodes": a.EpisodeCount, "episodes": episodes, "seasons": []map[string]interface{}{{"season_number": 1, "name": "Regular", "episode_count": regular}, {"season_number": 0, "name": "Specials / extras", "episode_count": extras}}, "source": "anidb", "source_url": "https://anidb.net/anime/" + a.ID, "license": "CC-BY-NC-SA-4.0"}
+	metadata["credits"] = Credits(a)
+	related := []map[string]interface{}{}
+	for _, entry := range a.Related {
+		if id, ok := positiveIdentity(entry.ID); ok {
+			related = append(related, map[string]interface{}{"id": id, "name": entry.Name, "media_type": "anime", "relation": entry.Type})
+		}
+	}
+	metadata["recommendations"] = map[string]interface{}{"results": related}
+	tags := []map[string]interface{}{}
+	for _, tag := range a.Tags {
+		if _, ok := positiveIdentity(tag.ID); ok && tag.Verified == "true" && tag.Weight > 0 && tag.LocalSpoiler == "false" && tag.GlobalSpoiler == "false" {
+			tags = append(tags, map[string]interface{}{"id": "anidb:tag:" + tag.ID, "name": tag.Name})
+		}
+	}
+	metadata["native_tags"] = tags
+	if a.Rating.Count > 0 && a.Rating.Value >= 0 && a.Rating.Value <= 10 {
+		metadata["vote_average"] = a.Rating.Value
+		metadata["vote_count"] = a.Rating.Count
+	}
+	return metadata
 }
 
 // reserve persists both the two-second provider interval and one-day per-dataset
@@ -94,6 +114,13 @@ func (c *Cache) Detail(ctx context.Context, id, language, style string) (Result,
 			return result, err
 		}
 		result.Metadata = Metadata(a, language, style)
+		presentation, marshalErr := json.Marshal(map[string]interface{}{"en": Metadata(a, "en", "translated")})
+		if marshalErr != nil {
+			return result, marshalErr
+		}
+		if _, updateErr := c.DB.Exec(ctx, "UPDATE catalog SET metadata=$1,title=$2 WHERE id=$3 AND fetched_at<=$4 AND metadata IS DISTINCT FROM $1::jsonb", presentation, Choose(a.Titles, "en", "translated"), result.ID, result.FetchedAt); updateErr != nil {
+			return result, updateErr
+		}
 		if time.Since(result.FetchedAt) < 24*time.Hour {
 			return result, nil
 		}
