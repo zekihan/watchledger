@@ -88,19 +88,24 @@ type ListSourceTombstone struct {
 	SourceID  string    `json:"source_id"`
 	DeletedAt time.Time `json:"deleted_at"`
 }
+type AlternateHistoryView struct {
+	CatalogID string `json:"catalog_id"`
+	AnchorID  string `json:"anchor_id"`
+}
 type Snapshot struct {
-	ListSourceTombstones []ListSourceTombstone `json:"list_source_tombstones,omitempty"`
-	SIMKLLinks           []SIMKLLink           `json:"simkl_links,omitempty"`
-	Tombstones           []Tombstone           `json:"tombstones"`
-	Version              int                   `json:"version"`
-	CreatedAt            time.Time             `json:"created_at"`
-	Settings             json.RawMessage       `json:"settings"`
-	Catalog              []Catalog             `json:"catalog"`
-	Episodes             []Episode             `json:"episodes"`
-	Statuses             []Status              `json:"statuses"`
-	Library              []Library             `json:"library"`
-	History              []History             `json:"history"`
-	Lists                []List                `json:"lists"`
+	AlternateViews       []AlternateHistoryView `json:"alternate_views,omitempty"`
+	ListSourceTombstones []ListSourceTombstone  `json:"list_source_tombstones,omitempty"`
+	SIMKLLinks           []SIMKLLink            `json:"simkl_links,omitempty"`
+	Tombstones           []Tombstone            `json:"tombstones"`
+	Version              int                    `json:"version"`
+	CreatedAt            time.Time              `json:"created_at"`
+	Settings             json.RawMessage        `json:"settings"`
+	Catalog              []Catalog              `json:"catalog"`
+	Episodes             []Episode              `json:"episodes"`
+	Statuses             []Status               `json:"statuses"`
+	Library              []Library              `json:"library"`
+	History              []History              `json:"history"`
+	Lists                []List                 `json:"lists"`
 }
 
 func (s Snapshot) Validate() error {
@@ -215,6 +220,24 @@ func (s Snapshot) Validate() error {
 		}
 		library[l.CatalogID] = true
 	}
+	views := map[string]bool{}
+	kinds := map[string]string{}
+	for _, c := range s.Catalog {
+		kinds[c.ID] = c.Kind
+	}
+	if len(s.AlternateViews) > 10000 {
+		return errors.New("too many alternate views")
+	}
+	for _, view := range s.AlternateViews {
+		if !catalog[view.CatalogID] || !library[view.AnchorID] || view.CatalogID == view.AnchorID || views[view.CatalogID] {
+			return errors.New("invalid alternate history view")
+		}
+		anchorKind, targetKind := kinds[view.AnchorID], kinds[view.CatalogID]
+		if anchorKind != "anime" || targetKind != "tv" {
+			return errors.New("invalid alternate history kinds")
+		}
+		views[view.CatalogID] = true
+	}
 	history := map[string]bool{}
 
 	seenLinks := map[string]bool{}
@@ -225,8 +248,11 @@ func (s Snapshot) Validate() error {
 		seenLinks[link.SourceKey] = true
 	}
 	for _, h := range s.History {
-		if !library[h.CatalogID] {
+		if !library[h.CatalogID] && !views[h.CatalogID] {
 			return errors.New("history without library title")
+		}
+		if views[h.CatalogID] && h.EpisodeID == nil {
+			return errors.New("alternate show history requires an episode")
 		}
 		key := h.CatalogID
 		if h.EpisodeID != nil {
@@ -248,7 +274,7 @@ func (s Snapshot) Validate() error {
 		}
 	}
 	for _, t := range s.Tombstones {
-		if !library[t.CatalogID] || (t.EpisodeKey != "" && episodes[t.EpisodeKey] != t.CatalogID) {
+		if (!library[t.CatalogID] && !views[t.CatalogID]) || (t.EpisodeKey != "" && episodes[t.EpisodeKey] != t.CatalogID) {
 			return errors.New("invalid tombstone reference")
 		}
 		key := t.CatalogID

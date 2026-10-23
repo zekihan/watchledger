@@ -67,7 +67,7 @@ func (a *API) alternateView(w http.ResponseWriter, r *http.Request) {
 	err = tx.QueryRow(r.Context(), `WITH neighbors AS (
  SELECT DISTINCT e.catalog_id FROM mappings m CROSS JOIN LATERAL jsonb_array_elements(m.relationships) edge JOIN episodes e ON e.id=edge->>'from' OR e.id=edge->>'to'
  WHERE EXISTS(SELECT 1 FROM jsonb_array_elements(m.relationships) seed JOIN episodes root ON root.id=seed->>'from' OR root.id=seed->>'to' WHERE root.catalog_id=$1)
- ) SELECT coalesce(array_agg(id),'{}'::text[]),coalesce(array_agg(DISTINCT catalog_id),'{}'::text[]) FROM episodes WHERE catalog_id=$1 OR catalog_id IN(SELECT catalog_id FROM neighbors)`, id).Scan(&sourceEpisodes, &relatedCatalogs)
+ ) SELECT coalesce(array_agg(id),'{}'::text[]),coalesce(array_agg(DISTINCT catalog_id),'{}'::text[]) FROM episodes WHERE catalog_id=$1 OR catalog_id IN(SELECT catalog_id FROM neighbors) OR catalog_id IN(SELECT catalog_id FROM alternate_history_views WHERE user_id=$2 AND anchor_id=$1)`, id, uid).Scan(&sourceEpisodes, &relatedCatalogs)
 	if err != nil {
 		http.Error(w, "episodes unavailable", http.StatusServiceUnavailable)
 		return
@@ -108,7 +108,7 @@ func (a *API) alternateView(w http.ResponseWriter, r *http.Request) {
 	for eid := range linked {
 		ids = append(ids, eid)
 	}
-	rows, err = tx.Query(r.Context(), `SELECT c.id,catalog_display_title(c.kind,c.metadata,c.title,u.settings),c.kind,l.base,l.rating,e.id,e.season,e.number,e.kind,e.retired,coalesce(e.metadata->>'name','') FROM catalog c JOIN episodes e ON e.catalog_id=c.id JOIN users u ON u.id=$1 LEFT JOIN library l ON l.catalog_id=c.id AND l.user_id=$1 WHERE c.id=$2 OR c.id IN (SELECT catalog_id FROM episodes WHERE id=ANY($3::text[])) ORDER BY c.id,e.season,e.number,e.id`, uid, id, ids)
+	rows, err = tx.Query(r.Context(), `SELECT c.id,catalog_display_title(c.kind,c.metadata,c.title,u.settings),c.kind,l.base,l.rating,e.id,e.season,e.number,e.kind,e.retired,coalesce(e.metadata->>'name','') FROM catalog c JOIN episodes e ON e.catalog_id=c.id JOIN users u ON u.id=$1 LEFT JOIN library l ON l.catalog_id=c.id AND l.user_id=$1 WHERE c.id=$2 OR c.id IN (SELECT catalog_id FROM episodes WHERE id=ANY($3::text[])) OR c.id IN(SELECT catalog_id FROM alternate_history_views WHERE user_id=$1 AND anchor_id=$2) ORDER BY c.id,e.season,e.number,e.id`, uid, id, ids)
 	if err != nil {
 		http.Error(w, "alternate episodes unavailable", http.StatusServiceUnavailable)
 		return

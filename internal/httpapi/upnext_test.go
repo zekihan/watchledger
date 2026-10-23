@@ -9,6 +9,7 @@ import (
 	"github.com/zekihan/watchledger/internal/auth"
 	"github.com/zekihan/watchledger/internal/config"
 	"github.com/zekihan/watchledger/internal/mapping"
+	"github.com/zekihan/watchledger/internal/portable"
 	"github.com/zekihan/watchledger/internal/store"
 	"net/http"
 	"net/http/httptest"
@@ -166,4 +167,111 @@ func TestUpNextUsesEffectiveProgressAndPrivateStructureOrder(t *testing.T) {
 	if err = p.QueryRow(ctx, "SELECT count(*) FROM history WHERE user_id=$1", uid).Scan(&count); err != nil || count != 2 {
 		t.Fatal("read changed facts", count, err)
 	}
+	exec("DELETE FROM history WHERE user_id=$1", uid)
+	exec("UPDATE library SET base='watching',rating=8 WHERE user_id=$1 AND catalog_id=$2", uid, id)
+	trackVirtual := func(eid string, watch bool, extra string) *httptest.ResponseRecorder {
+		return request("POST", "/api/library/"+target+"/track", fmt.Sprintf(`{"view_anchor":%q,"episode_id":%q,"watched":%t,"date":{"day":"2026-02-03"}%s}`, id, eid, watch, extra), true)
+	}
+	if w := trackVirtual(target+"2", true, ",\"preview\":true"); w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if w := trackVirtual(target+"2", true, ""); w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if w := trackVirtual(target+"1", true, ""); w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+
+	exec(`UPDATE catalog SET metadata='{"":{"number_of_episodes":2,"status":"Ended"}}' WHERE id=$1`, target)
+	for _, scope := range []string{`"whole":true`, `"season":2`} {
+		w := request("POST", "/api/library/"+target+"/track", fmt.Sprintf(`{"view_anchor":%q,%s,"watched":true,"date":{}}`, id, scope), true)
+		if w.Code != 200 {
+			t.Fatal("virtual bulk tracking", w.Code, w.Body.String())
+		}
+	}
+	var recordedDay string
+	if err = p.QueryRow(ctx, "SELECT watched_date::text FROM history WHERE user_id=$1 AND episode_id=$2", uid, target+"2").Scan(&recordedDay); err != nil || recordedDay != "2026-02-03" {
+		t.Fatal("bulk overwrote original alternate date", recordedDay, err)
+	}
+	var base string
+	var rating int
+	if err = p.QueryRow(ctx, "SELECT base,rating FROM library WHERE user_id=$1 AND catalog_id=$2", uid, id).Scan(&base, &rating); err != nil || base != "completed" || rating != 8 {
+		t.Fatal("native status/rating", base, rating, err)
+	}
+	if err = p.QueryRow(ctx, "SELECT count(*) FROM library WHERE user_id=$1", uid).Scan(&count); err != nil || count != 1 {
+		t.Fatal("alternate invented membership", count, err)
+	}
+	exported := request("GET", "/api/export", "", true)
+	savedBackup := exported.Body.String()
+	var backup portable.Snapshot
+	if exported.Code != 200 {
+		t.Fatal(exported.Code, exported.Body.String())
+	}
+	if err = json.Unmarshal(exported.Body.Bytes(), &backup); err != nil {
+		t.Fatal(err)
+	}
+	if err = backup.Validate(); err != nil {
+		t.Fatal("virtual history export cannot restore", err)
+	}
+	if len(backup.AlternateViews) != 1 || len(backup.History) != 2 {
+		t.Fatal("alternate export missing records", backup.AlternateViews, len(backup.History))
+	}
+	if w := trackVirtual(target+"2", false, ",\"return_watching\":true"); w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if err = p.QueryRow(ctx, "SELECT base FROM library WHERE user_id=$1 AND catalog_id=$2", uid, id).Scan(&base); err != nil || base != "watching" {
+		t.Fatal("native unwatch status", base, err)
+	}
+	exec("UPDATE mappings SET requires_consent=true WHERE id=$1", mid)
+	if w := trackVirtual(target+"2", true, ""); w.Code != 409 {
+		t.Fatal("unconfirmed alternate write", w.Code, w.Body.String())
+	}
+	exec("UPDATE sessions SET user_id=$2 WHERE token_hash=$1", sum, other)
+	if w := trackVirtual(target+"2", true, ""); w.Code != 404 {
+		t.Fatal("foreign anchor authorized alternate write", w.Code, w.Body.String())
+	}
+
+	exec("UPDATE sessions SET user_id=$2 WHERE token_hash=$1", sum, uid)
+	exec("DELETE FROM mappings WHERE id=$1", mid)
+	view := request("GET", "/api/library/"+id+"/alternate", "", true)
+	if view.Code != 200 || !strings.Contains(view.Body.String(), target+"1") {
+		t.Fatal("mapping correction hid recorded alternate history", view.Code, view.Body.String())
+	}
+	if w := trackVirtual(target+"1", false, ""); w.Code != 200 {
+		t.Fatal("cannot remove retained own history after correction", w.Code, w.Body.String())
+	}
+	exported = request("GET", "/api/export", "", true)
+	if err = json.Unmarshal(exported.Body.Bytes(), &backup); err != nil {
+		t.Fatal(err)
+	}
+	if err = backup.Validate(); err != nil {
+		t.Fatal("alternate tombstones not portable", err)
+	}
+
+	exec("UPDATE sessions SET user_id=$2 WHERE token_hash=$1", sum, other)
+	if w := request("GET", "/api/export", "", true); w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	preview := request("POST", "/api/restore/preview", savedBackup, true)
+	var restore struct {
+		ID string `json:"id"`
+	}
+	if preview.Code != 200 {
+		t.Fatal(preview.Code, preview.Body.String())
+	}
+	if err = json.Unmarshal(preview.Body.Bytes(), &restore); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		if w := request("POST", "/api/restore/"+restore.ID+"/apply", "{}", true); w.Code != 200 {
+			t.Fatal(w.Code, w.Body.String())
+		}
+	}
+	if err = p.QueryRow(ctx, "SELECT count(*) FROM history WHERE user_id=$1", other).Scan(&count); err != nil || count != 2 {
+		t.Fatal("alternate restore history", count, err)
+	}
+	if err = p.QueryRow(ctx, "SELECT count(*) FROM library WHERE user_id=$1", other).Scan(&count); err != nil || count != 1 {
+		t.Fatal("alternate restore fabricated library rows", count, err)
+	}
+
 }

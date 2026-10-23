@@ -8,6 +8,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AlternateHistoryView struct {
+	UserID    pgtype.UUID `json:"user_id"`
+	CatalogID string      `json:"catalog_id"`
+	AnchorID  string      `json:"anchor_id"`
+}
+
 type AnidbDocument struct {
 	Aid       string             `json:"aid"`
 	Document  []byte             `json:"document"`

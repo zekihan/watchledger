@@ -187,6 +187,8 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Per-user default structure.
 - [x] Per-series structure override.
 - [ ] One shared underlying episode history across views.
+  - [x] Confirmed episode-level alternate tracking without duplicate library entries, including native status updates and portable source history.
+  - [ ] Movie relationships and full cross-view/browser acceptance.
 - [ ] Stable source identities without merging entries solely on shared TMDB IDs.
 - [x] Mapping provenance and dataset versions.
 - [x] Native-entry statuses and ratings visible in aggregate show views.

@@ -47,3 +47,16 @@ The feature branch is not a completed first release. Run these checks on a dispo
 - Rename or reorder an imported list, remove a member, and reimport. App edits must remain. Delete an imported list and reimport; it must stay deleted.
 - Export/restore into a disposable second account and repeat reimport. Source identity must prevent duplicates; deletion markers must prevent resurrection. No status, rating or watch date should change from this list-only import.
 - This workflow does not fetch the SIMKL API or establish paid-access eligibility. Do not put credentials in uploaded files.
+
+## Native anime and alternate tracking
+
+- Configure your registered AniDB client name/version. The provided registration is `watchledger`, version `1`; it is a public client identifier, not an account password. Check the deployment's permitted use against the source policy.
+- Upload the official title-only index in the admin screen. Search an alias, explicitly load a native title, and check native episode types, artwork fallback, title preferences, and cached access. Do not repeatedly refresh AniDB to test rate limits against the live service.
+- Upload a versioned animap release with its checksum sidecar. Load required provider metadata, resolve explicit identities, and review proposed episode relationships. Unresolved/inferred/movie placements must not become guessed episode links.
+- Save the native entries for separate cours. Check their individual statuses/ratings in the aggregate show view; do not expect a synthetic combined rating.
+- Review split/combined links by title and episode. Before confirmation, cross-view progress must remain blocked. Cancel once, then explicitly confirm the current revision.
+- Track one alternate show episode without adding that show as another library item. Verify the native progress/status changes, its rating stays intact, and no duplicate private library entry appears. Repeat with season/whole scopes and preserve known dates.
+- Unwatch a derived episode: the connected-record removal dialog must default to cancel. Accept only after inspecting the affected source records. A corrected/stale plan must fail and require another preview.
+- Change a mapping after recording alternate history. The event must remain visible, its original date must survive, and removing your own retained event must still work. New watching through an unconfirmed link must remain blocked.
+- Export and restore this synthetic history to a second account. Alternate history containers must survive without restoring mapping consent or manufacturing aggregate ratings/statuses. Repeat restore and check that records do not duplicate.
+- Compare Up next in native/show modes, move cards with both drag and visible buttons, save unrelated settings, and verify ordering remains. Unmapped or unaired counterparts must fall back visibly rather than advertise a guessed next episode.

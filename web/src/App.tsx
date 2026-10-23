@@ -1,3 +1,5 @@
+import { ChoiceDialog } from "./tracking-ui";
+import { localDay } from "./dates";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { imageURL as image } from "./images";
@@ -21,17 +23,6 @@ function subscribe(callback: () => void) {
 }
 function route() {
   return location.hash.slice(1) || "home";
-}
-function localDay(timezone?: string) {
-  if (timezone)
-    return new Intl.DateTimeFormat("sv-SE", {
-      timeZone: timezone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date());
-  const d = new Date();
-  return `${String(d.getFullYear())}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 function ErrorBox({ error, retry, t }: { error: Error; retry?: () => void; t: T }) {
   return (
@@ -250,7 +241,12 @@ export function App() {
           {root === "detail" ? (
             <DetailPage key={page} parts={page.split("/")} user={user} t={t} />
           ) : root === "views" ? (
-            <AlternateView key={page} id={decodeURIComponent(page.slice(6))} t={t} />
+            <AlternateView
+              key={page}
+              id={decodeURIComponent(page.slice(6))}
+              t={t}
+              timezone={user.Settings.timezone}
+            />
           ) : root === "library" ? (
             <LibraryPage t={t} />
           ) : root === "search" || root === "discover" ? (
@@ -1241,7 +1237,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
           t={t}
         />
       )}
-      {entry && <AlternateView id={key} t={t} />}
+      {entry && <AlternateView id={key} t={t} timezone={user.Settings.timezone} />}
       {entry && (
         <details className="panel">
           <summary>
@@ -1487,7 +1483,11 @@ function DashboardPage({ page, user, t }: { page: string | undefined; user: User
             <a
               className="activity-row"
               key={i}
-              href={`#detail/${e.catalog_id.split(":").slice(1).join("/")}`}
+              href={
+                e.view_anchor
+                  ? `#views/${encodeURIComponent(e.view_anchor)}`
+                  : `#detail/${e.catalog_id.split(":").slice(1).join("/")}`
+              }
             >
               <span className="activity-dot" />
               <strong>{e.title}</strong>
@@ -1517,84 +1517,6 @@ function DashboardPage({ page, user, t }: { page: string | undefined; user: User
     </>
   );
 }
-
-function ChoiceDialog({
-  title,
-  yes,
-  no,
-  submit,
-  cancel,
-  onClose,
-}: {
-  title: string;
-  yes: string;
-  no: string;
-  submit: string;
-  cancel: string;
-  onClose: (value: boolean | null) => void;
-}) {
-  const ref = useRef<HTMLDialogElement>(null);
-  const [value, setValue] = useState(false);
-  useEffect(() => {
-    ref.current?.showModal();
-  }, []);
-  return (
-    <dialog
-      ref={ref}
-      onCancel={(e) => {
-        e.preventDefault();
-        onClose(null);
-      }}
-      className="choice-dialog"
-    >
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          onClose(value);
-        }}
-      >
-        <h2>{title}</h2>
-        <label className="check-label">
-          <input
-            autoFocus
-            type="radio"
-            name="choice"
-            checked={!value}
-            onChange={() => {
-              setValue(false);
-            }}
-          />
-          {no}
-        </label>
-        <label className="check-label">
-          <input
-            type="radio"
-            name="choice"
-            checked={value}
-            onChange={() => {
-              setValue(true);
-            }}
-          />
-          {yes}
-        </label>
-        <div className="toolbar">
-          <button type="submit" className="primary">
-            {submit}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              onClose(null);
-            }}
-          >
-            {cancel}
-          </button>
-        </div>
-      </form>
-    </dialog>
-  );
-}
-
 function Filmography({ credits, t }: { credits: { cast: Title[]; crew: Title[] }; t: T }) {
   const [role, setRole] = useState("cast"),
     [kind, setKind] = useState("all"),

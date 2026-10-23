@@ -124,3 +124,22 @@ func TestPortableUpNextOrder(t *testing.T) {
 		}
 	}
 }
+
+func TestAlternateHistoryViewsDoNotCreateLibraryRatings(t *testing.T) {
+	s := snapshot()
+	s.Catalog = append(s.Catalog, Catalog{ID: "anidb:anime:1", Source: "anidb", SourceID: "1", Kind: "anime", Title: "Native", Metadata: json.RawMessage(`{}`)})
+	s.Library = []Library{{CatalogID: "anidb:anime:1", Base: "watching"}}
+	s.AlternateViews = []AlternateHistoryView{{CatalogID: "tmdb:tv:1", AnchorID: "anidb:anime:1"}}
+	if err := s.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	s.AlternateViews[0].AnchorID = "foreign"
+	if s.Validate() == nil {
+		t.Fatal("foreign anchor accepted")
+	}
+	s.AlternateViews[0].AnchorID = "anidb:anime:1"
+	s.History[0].EpisodeID = nil
+	if s.Validate() == nil {
+		t.Fatal("show represented as movie event")
+	}
+}

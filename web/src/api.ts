@@ -140,6 +140,7 @@ export interface Dashboard {
     air_time: string | null;
   }[];
   activity: {
+    view_anchor?: string | null;
     catalog_id: string;
     title: string;
     watched_date: string | null;

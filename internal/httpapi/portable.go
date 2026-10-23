@@ -39,9 +39,10 @@ func (a *API) export(w http.ResponseWriter, r *http.Request) {
 	}
 	var data json.RawMessage
 	e = tx.QueryRow(r.Context(), `SELECT jsonb_build_object('version',1,'created_at',now(),'settings',u.settings,
- 'catalog',coalesce((SELECT jsonb_agg(to_jsonb(c)) FROM catalog c JOIN library l ON l.catalog_id=c.id WHERE l.user_id=u.id),'[]'),
- 'episodes',coalesce((SELECT jsonb_agg(to_jsonb(e)) FROM episodes e JOIN library l ON l.catalog_id=e.catalog_id WHERE l.user_id=u.id),'[]'),
+ 'catalog',coalesce((SELECT jsonb_agg(to_jsonb(c)) FROM catalog c WHERE c.id IN(SELECT catalog_id FROM library WHERE user_id=u.id UNION SELECT catalog_id FROM alternate_history_views WHERE user_id=u.id)),'[]'),
+ 'episodes',coalesce((SELECT jsonb_agg(to_jsonb(e)) FROM episodes e WHERE e.catalog_id IN(SELECT catalog_id FROM library WHERE user_id=u.id UNION SELECT catalog_id FROM alternate_history_views WHERE user_id=u.id)),'[]'),
  'statuses',coalesce((SELECT jsonb_agg(to_jsonb(s)-'user_id') FROM statuses s WHERE s.user_id=u.id),'[]'),
+ 'alternate_views',coalesce((SELECT jsonb_agg(to_jsonb(v)-'user_id') FROM alternate_history_views v WHERE v.user_id=u.id),'[]'),
  'library',coalesce((SELECT jsonb_agg(to_jsonb(l)-'user_id') FROM library l WHERE l.user_id=u.id),'[]'),
  'list_source_tombstones',coalesce((SELECT jsonb_agg(to_jsonb(t)-'user_id') FROM list_source_tombstones t WHERE t.user_id=u.id),'[]'),
  'simkl_links',coalesce((SELECT jsonb_agg(to_jsonb(k)-'user_id') FROM simkl_episode_links k WHERE k.user_id=u.id),'[]'),
@@ -219,6 +220,12 @@ func (a *API) restoreApply(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	for _, view := range s.AlternateViews {
+		_, e = tx.Exec(r.Context(), "INSERT INTO alternate_history_views(user_id,catalog_id,anchor_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING", uid, view.CatalogID, view.AnchorID)
+		if fail(e) {
+			return
+		}
+	}
 	for _, link := range s.SIMKLLinks {
 		_, e = tx.Exec(r.Context(), "INSERT INTO simkl_episode_links(user_id,source_key,catalog_id,episode_id) VALUES($1,$2,$3,$4) ON CONFLICT(user_id,source_key) DO NOTHING", uid, link.SourceKey, link.CatalogID, link.EpisodeID)
 		if fail(e) {

@@ -85,6 +85,6 @@ test("alternate view explains derived history and never manufactures an aggregat
   expect(screen.getAllByRole("heading", { level: 3 })[0]?.textContent).toContain(
     "Synthetic native",
   );
-  expect(screen.queryByRole("button", { name: en.watched })).toBeNull();
+  expect(screen.getAllByRole("button", { name: en.watched }).length).toBeGreaterThan(0);
   expect(screen.getByText(/Synthetic show · 2:1 · Derived/)).toBeTruthy();
 });

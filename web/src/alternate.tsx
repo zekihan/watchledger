@@ -1,3 +1,4 @@
+import { useAlternateTracking } from "./alternate-tracking";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import type { T } from "./App";
@@ -32,7 +33,8 @@ interface Alternate {
     }[];
   }[];
 }
-export function AlternateView({ id, t }: { id: string; t: T }) {
+export function AlternateView({ id, t, timezone }: { id: string; t: T; timezone?: string }) {
+  const tracking = useAlternateTracking(t, timezone);
   const client = useQueryClient();
   const structure = useMutation({
     mutationFn: (view: string) =>
@@ -80,6 +82,7 @@ export function AlternateView({ id, t }: { id: string; t: T }) {
         </p>
       )}
       {q.data?.incomplete && <p className="notice">{t("alternateIncomplete")}</p>}
+      {q.data && tracking.controls}
       {[...(q.data?.titles ?? [])]
         .sort((a, b) =>
           q.data?.structure === "native"
@@ -95,6 +98,54 @@ export function AlternateView({ id, t }: { id: string; t: T }) {
               {title.base ?? t("notInLibrary")} · {t("rating")}: {title.rating ?? t("unknown")}
             </p>
             {title.incomplete && <p>{t("alternateIncomplete")}</p>}
+            <a href={`#detail/${title.id.split(":").slice(1).join("/")}`}>{t("details")}</a>
+            <div className="toolbar">
+              {[true, false].map((watched) => (
+                <button
+                  key={String(watched)}
+                  disabled={
+                    tracking.pending ||
+                    title.episodes.length === 0 ||
+                    (title.base === null && (title.kind !== "tv" || title.incomplete))
+                  }
+                  onClick={() =>
+                    tracking.run({
+                      catalog_id: title.id,
+                      whole: true,
+                      watched,
+                      view_anchor: title.base === null ? id : undefined,
+                    })
+                  }
+                >
+                  {t("wholeScope")} · {watched ? t("watched") : t("unwatched")}
+                </button>
+              ))}
+            </div>
+            <div className="toolbar">
+              {[...new Set(title.episodes.map((ep) => ep.season))].map((season) => (
+                <span key={season}>
+                  {[true, false].map((watched) => (
+                    <button
+                      key={String(watched)}
+                      disabled={
+                        tracking.pending ||
+                        (title.base === null && (title.kind !== "tv" || title.incomplete))
+                      }
+                      onClick={() =>
+                        tracking.run({
+                          catalog_id: title.id,
+                          season,
+                          watched,
+                          view_anchor: title.base === null ? id : undefined,
+                        })
+                      }
+                    >
+                      {t("seasonScope")} {season} · {watched ? t("watched") : t("unwatched")}
+                    </button>
+                  ))}
+                </span>
+              ))}
+            </div>
             <ul>
               {title.episodes.map((ep) => (
                 <li key={ep.id}>
@@ -109,6 +160,34 @@ export function AlternateView({ id, t }: { id: string; t: T }) {
                         ? t("derivedWatch")
                         : t("unwatched")}
                   </span>
+                  {(title.base !== null ||
+                    ep.state.direct ||
+                    (title.kind === "tv" &&
+                      !ep.state.blocked &&
+                      ep.state.sources.length > 0 &&
+                      ep.state.sources.every((source) =>
+                        q.data?.titles.some(
+                          (native) =>
+                            native.kind === "anime" &&
+                            native.base !== null &&
+                            native.episodes.some((e) => e.id === source),
+                        ),
+                      ))) &&
+                    (!ep.retired || ep.state.direct) && (
+                      <button
+                        disabled={tracking.pending}
+                        onClick={() =>
+                          tracking.run({
+                            catalog_id: title.id,
+                            episode_id: ep.id,
+                            watched: !(ep.state.direct || ep.state.derived),
+                            view_anchor: title.base === null ? id : undefined,
+                          })
+                        }
+                      >
+                        {ep.state.direct || ep.state.derived ? t("unwatched") : t("watched")}
+                      </button>
+                    )}
                   {ep.retired && <span> · {t("retiredEpisode")}</span>}
                   {ep.state.blocked && <span> · {t("mappingNeedsReview")}</span>}
                   {ep.state.sources.length > 0 && (

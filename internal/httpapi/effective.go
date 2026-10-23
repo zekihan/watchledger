@@ -65,7 +65,7 @@ func loadEffective(ctx context.Context, db queryRows, uid, catalogID string, ext
 			needed = append(needed, edge.From, edge.To)
 		}
 	}
-	rows, err = db.Query(ctx, "SELECT h.id::text,h.episode_id,h.catalog_id,c.title,h.local_action_at FROM history h JOIN catalog c ON c.id=h.catalog_id WHERE h.user_id=$1 AND h.episode_id IS NOT NULL AND ($2='' OR h.catalog_id=$2 OR h.episode_id=ANY($3::text[]))", uid, catalogID, needed)
+	rows, err = db.Query(ctx, "SELECT h.id::text,h.episode_id,h.catalog_id,c.title,h.local_action_at FROM history h JOIN catalog c ON c.id=h.catalog_id WHERE h.user_id=$1 AND h.episode_id IS NOT NULL AND ($2='' OR h.catalog_id=$2 OR h.episode_id=ANY($3::text[]) OR h.catalog_id=ANY($4::text[]))", uid, catalogID, needed, extraCatalogs)
 	if err != nil {
 		return out, err
 	}
@@ -88,7 +88,7 @@ func loadEffective(ctx context.Context, db queryRows, uid, catalogID string, ext
 	for id, state := range out.RawStates {
 		out.States[id] = state
 	}
-	rows, err = db.Query(ctx, "SELECT episode_key,deleted_at FROM history_tombstones WHERE user_id=$1 AND episode_key<>'' AND ($2='' OR catalog_id=$2 OR episode_key=ANY($3::text[]))", uid, catalogID, needed)
+	rows, err = db.Query(ctx, "SELECT episode_key,deleted_at FROM history_tombstones WHERE user_id=$1 AND episode_key<>'' AND ($2='' OR catalog_id=$2 OR episode_key=ANY($3::text[]) OR catalog_id=ANY($4::text[]))", uid, catalogID, needed, extraCatalogs)
 	if err != nil {
 		return out, err
 	}

@@ -125,6 +125,7 @@ func (a *API) history(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) track(w http.ResponseWriter, r *http.Request) {
 	var in struct {
+		ViewAnchor     string        `json:"view_anchor,omitempty"`
 		EpisodeID      *string       `json:"episode_id"`
 		Season         *int          `json:"season"`
 		Whole          bool          `json:"whole"`
@@ -183,6 +184,10 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 	var base, kind string
 	var meta json.RawMessage
 	e = tx.QueryRow(r.Context(), `SELECT l.base,c.kind,c.metadata FROM library l JOIN catalog c ON c.id=l.catalog_id WHERE l.user_id=$1 AND l.catalog_id=$2 FOR UPDATE OF l`, uid, id).Scan(&base, &kind, &meta)
+	virtual := errors.Is(e, pgx.ErrNoRows) && in.ViewAnchor != ""
+	if virtual {
+		e = tx.QueryRow(r.Context(), `SELECT 'watching',c.kind,c.metadata FROM catalog c WHERE c.id=$2 AND c.kind='tv' AND EXISTS(SELECT 1 FROM library l JOIN catalog native ON native.id=l.catalog_id WHERE l.user_id=$1 AND l.catalog_id=$3 AND native.kind='anime')`, uid, id, in.ViewAnchor).Scan(&base, &kind, &meta)
+	}
 	if errors.Is(e, pgx.ErrNoRows) {
 		http.Error(w, "library title not found", http.StatusNotFound)
 		return
@@ -219,6 +224,56 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 	for i := range episodes {
 		state := snapshot.States[episodes[i].ID]
 		episodes[i].Watched = state.Direct || state.Derived
+	}
+	// Resolve only this account's saved native entries. A guessed anchor or an
+	// unconfirmed mapping must not authorize tracking a virtual show.
+	peerIDs := []string{}
+	for _, state := range snapshot.States {
+		if !state.Blocked {
+			peerIDs = append(peerIDs, state.Sources...)
+		}
+	}
+	nativeByEpisode := map[string]string{}
+	nativeRows, err := tx.Query(r.Context(), `SELECT e.id,e.catalog_id FROM episodes e JOIN catalog c ON c.id=e.catalog_id JOIN library l ON l.catalog_id=c.id AND l.user_id=$1 WHERE c.kind='anime' AND e.id=ANY($2::text[])`, uid, peerIDs)
+	if err != nil {
+		http.Error(w, "native entries unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	for nativeRows.Next() {
+		var eid, cid string
+		if err = nativeRows.Scan(&eid, &cid); err != nil {
+			nativeRows.Close()
+			http.Error(w, "native entries unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		nativeByEpisode[eid] = cid
+	}
+	nativeRows.Close()
+	if nativeRows.Err() != nil {
+		http.Error(w, "native entries unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	eligible := map[string]bool{}
+	anchored := false
+	for _, ep := range episodes {
+		state := snapshot.States[ep.ID]
+		valid := !state.Blocked && len(state.Sources) > 0
+		for _, peer := range state.Sources {
+			valid = valid && nativeByEpisode[peer] != ""
+			anchored = anchored || (!state.Blocked && nativeByEpisode[peer] == in.ViewAnchor)
+		}
+		eligible[ep.ID] = valid
+	}
+	retainedView := false
+	if virtual && !watched {
+		if e = tx.QueryRow(r.Context(), "SELECT EXISTS(SELECT 1 FROM alternate_history_views WHERE user_id=$1 AND catalog_id=$2 AND anchor_id=$3)", uid, id, in.ViewAnchor).Scan(&retainedView); e != nil {
+			http.Error(w, "alternate history unavailable", http.StatusServiceUnavailable)
+			return
+		}
+	}
+	if virtual && !anchored && !retainedView {
+		http.Error(w, "reviewed mapping to the saved native anchor required", http.StatusConflict)
+		return
 	}
 	location, _ := time.LoadLocation(timezone(r))
 	now := time.Now().In(location)
@@ -262,6 +317,15 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 				v := ep.ID
 				targets = append(targets, &v)
 				earlier = tracking.Earlier(episodes, ep, now)
+				if virtual {
+					filtered := []tracking.Episode{}
+					for _, prior := range earlier {
+						if eligible[prior.ID] {
+							filtered = append(filtered, prior)
+						}
+					}
+					earlier = filtered
+				}
 			} else if (in.Whole || (in.Season != nil && *in.Season == ep.Season)) && (!watched || ep.Aired(now)) {
 				v := ep.ID
 				targets = append(targets, &v)
@@ -308,6 +372,28 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	nativeSet := map[string]bool{}
+	for _, target := range targets {
+		if target == nil {
+			continue
+		}
+		if virtual && !eligible[*target] && (!retainedView || !snapshot.States[*target].Direct) {
+			http.Error(w, "all selected episodes need confirmed mappings and saved native entries", http.StatusConflict)
+			return
+		}
+		state := snapshot.States[*target]
+		if !state.Blocked {
+			for _, peer := range state.Sources {
+				if cid := nativeByEpisode[peer]; cid != "" && cid != id {
+					nativeSet[cid] = true
+				}
+			}
+		}
+	}
+	nativeIDs := []string{}
+	for cid := range nativeSet {
+		nativeIDs = append(nativeIDs, cid)
+	}
 	linkedChanges, linkedPlan := linkedRemovalPlan(uid, targets, snapshot)
 	if watched {
 		linkedChanges = nil
@@ -325,6 +411,14 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 		}
 		offerReturn = offerReturn || otherCompleted
 	}
+	if !watched && len(nativeIDs) > 0 {
+		var completed bool
+		if e = tx.QueryRow(r.Context(), "SELECT EXISTS(SELECT 1 FROM library WHERE user_id=$1 AND catalog_id=ANY($2::text[]) AND base='completed')", uid, nativeIDs).Scan(&completed); e != nil {
+			http.Error(w, "native status unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		offerReturn = offerReturn || completed
+	}
 	if in.Preview {
 		writeJSON(w, map[string]interface{}{"earlier": earlier, "target_count": len(targets), "offer_return_watching": offerReturn, "linked_changes": linkedChanges, "linked_plan": linkedPlan})
 		return
@@ -332,6 +426,12 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 	if !watched && (len(linkedChanges) > 0 || in.IncludeLinked) && (!in.IncludeLinked || in.LinkedPlan != linkedPlan) {
 		http.Error(w, "linked history changed or was not confirmed; preview again", http.StatusConflict)
 		return
+	}
+	if virtual {
+		if _, e = tx.Exec(r.Context(), "INSERT INTO alternate_history_views(user_id,catalog_id,anchor_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING", uid, id, in.ViewAnchor); e != nil {
+			http.Error(w, "alternate history unavailable", http.StatusServiceUnavailable)
+			return
+		}
 	}
 	var day interface{}
 	if in.Date.Day != "" {
@@ -426,11 +526,15 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 	} else if in.ReturnWatching && base == "completed" {
 		dest = "watching"
 	}
-	if dest != base {
+	if !virtual && dest != base {
 		_, e = tx.Exec(r.Context(), "UPDATE library SET base=$3,status_id=NULL,updated_at=now() WHERE user_id=$1 AND catalog_id=$2", uid, id, dest)
 	}
 	if e != nil {
 		http.Error(w, "status update failed", http.StatusServiceUnavailable)
+		return
+	}
+	if e = updateNativeProgress(r.Context(), tx, uid, nativeIDs, watched, in.ReturnWatching); e != nil {
+		http.Error(w, "native status update failed", http.StatusServiceUnavailable)
 		return
 	}
 	if e = tx.Commit(r.Context()); e != nil {
