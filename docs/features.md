@@ -260,7 +260,7 @@ Current support is partial: explicit TMDB movie/show IDs can be loaded on demand
 - [ ] Per-user UI restore with validation and preview.
 - [ ] Restore conflict handling consistent with migration.
 - [ ] Exclude authorization roles, server secrets, and sessions from library restore authority.
-- [ ] Document infrastructure database backup and restoration.
+- [x] Document infrastructure database backup and restoration. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] Validate a database recovery workflow with synthetic data.
 
 ## Statistics
@@ -276,15 +276,15 @@ Backend regression coverage verifies private counts, runtime unknowns, metadata-
 
 ## Metadata and background operation
 
-- [ ] TMDB metadata adapter.
-- [ ] TMDB/JustWatch availability adapter.
-- [ ] AniDB integration after access-policy verification.
+- [x] TMDB metadata adapter. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] TMDB/JustWatch availability adapter. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] AniDB integration after access-policy verification. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).
   - [x] On-demand native metadata/episode loading, registered client configuration, persistent cooldowns, source-ID-safe tracking and cached outage fallback.
   - [x] Official title-index file import and native title search.
   - [x] Native artwork URL validation and failed-artwork fallback.
   - [ ] Complete native/alternate-view browser acceptance.
 - [x] Versioned animap ingestion with applicable attribution and license handling.
-- [ ] On-demand metadata fetching and PostgreSQL caching.
+- [x] On-demand metadata fetching and PostgreSQL caching. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [ ] Daily refresh of active shows.
   - [x] Queue saved TMDB and native AniDB metadata with provider-aware retry/cooldown handling.
   - [ ] Live deployment refresh acceptance.
@@ -310,7 +310,7 @@ Backend regression coverage verifies private counts, runtime unknowns, metadata-
 - [ ] Docker Compose deployment.
   - [x] Synthetic runtime startup, OIDC login, restore/tracking/export and restart persistence in CI.
   - [ ] Operator configuration/environment acceptance.
-- [ ] Helm chart deployment.
+- [x] Helm chart deployment. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] External PostgreSQL connection configuration.
 - [x] OIDC/provider secret configuration without committed credentials.
 - [x] Document build, lint, test, configuration, and deployment commands.
@@ -330,7 +330,7 @@ Backend regression coverage verifies private counts, runtime unknowns, metadata-
 - [ ] Desktop and phone visual review.
 - [ ] Keyboard and focus accessibility review.
 - [x] Synthetic Compose deployment smoke check; actual provider configuration remains in TODO.md.
-- [ ] Helm deployment smoke check.
+- [x] Helm deployment smoke check. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [ ] Provider-outage behavior check.
 - [x] Synthetic/redacted committed fixtures only.
 
