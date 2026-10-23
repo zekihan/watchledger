@@ -73,3 +73,11 @@ Verified against the official [custom-lists guide](https://api.simkl.org/guides/
 The file importer accepts one complete contents response or all unmodified pages for one list. Multi-page files must agree on source identity, update marker, totals, media type and sort. Incomplete/error/index responses fail; response array order is preserved rather than interpreting position or echoed sort fields. Automatic lists become explicitly labelled manual snapshots; original rules and unsupported fields remain in the private archive.
 
 Members resolve only through explicit provider identities or this user's previously previewed SIMKL identities, and must already exist in the private library. Conflicting or collapsed identities block the whole list for review. Anime never resolves via shared TMDB IDs. Existing app list edits and deletions win on reimport and portable restore. This does not establish custom-list coverage inside ordinary SimklBackup.json or live API acceptance.
+
+## Versioned mapping ingestion and external-ID resolution
+
+The mapping reader is pinned to mapread v0.2.0. The v2026.10.21 animap release was checksum-verified and decoded during implementation (SHA-256 57d291192bd647657d093617d3164f07db87392f46d9bff3e5bb1d0b7fc4ca47). Current version-2 source metadata must contain the mapping revision; incompatible earlier version-2 shapes are rejected by the upstream reader. No dataset is bundled in this repository.
+
+[TMDB Find By ID](https://developer.themoviedb.org/reference/find-by-id) explicitly supports TheTVDB episode identifiers. The bridge uses those identities, then checks the returned TMDB episode against cached provider season metadata. It never equates TVDB and TMDB season/episode positions. Missing IDs, inferred defaults, ambiguous provider responses and movie relationships remain explicit review items rather than guessed links.
+
+Dataset uploads retain immutable source bytes, checksum, release version, source revision, generation timestamp and original attribution. Imported data remains separately licensed under ODbL/DbCL and the stated upstream notices; it is not relicensed as MIT. Admin review produces a revision-bound proposal; uploading a dataset alone neither changes approved mappings nor propagates private watched flags.

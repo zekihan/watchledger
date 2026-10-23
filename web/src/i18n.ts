@@ -1,4 +1,15 @@
 export const en = {
+  mappingHistory: "Mapping revision history",
+  mappingDatasets: "Versioned anime mapping datasets",
+  mappingDatasetHint:
+    "Upload an official animap JSON release and its published SHA-256. A proposal uses explicit episode identities only. TVDB numbering is never treated as TMDB numbering. Review before saving; inferred targets remain unresolved.",
+  datasetVersion: "Dataset release version",
+  datasetFile: "animap JSON file",
+  resolveDataset: "Resolve episode identities for review",
+
+  seriesStructure: "This series’ episode view",
+  defaultStructure: "Use account default",
+  showStructure: "Show / season",
   animeIndex: "AniDB title-search index",
   animeIndexHint:
     "Upload the official title-only XML or gzip file. Replacement is atomic and does not import anime metadata or viewing history. Download it at most once per day; never scrape the website.",
@@ -288,6 +299,17 @@ export const en = {
 };
 export type Key = keyof typeof en;
 export const tr: Record<Key, string> = {
+  mappingHistory: "Eşleme sürüm geçmişi",
+  mappingDatasets: "Sürümlü anime eşleme veri kümeleri",
+  mappingDatasetHint:
+    "Resmî animap JSON sürümünü ve yayımlanmış SHA-256 değerini yükleyin. Öneri yalnızca açık bölüm kimliklerini kullanır. TVDB numaraları TMDB numaraları sayılmaz. Kaydetmeden önce inceleyin; tahminî hedefler çözümsüz kalır.",
+  datasetVersion: "Veri kümesi sürümü",
+  datasetFile: "animap JSON dosyası",
+  resolveDataset: "İnceleme için bölüm kimliklerini çöz",
+
+  seriesStructure: "Bu dizinin bölüm görünümü",
+  defaultStructure: "Hesap varsayılanını kullan",
+  showStructure: "Dizi / sezon",
   animeIndex: "AniDB başlık arama dizini",
   animeIndexHint:
     "Resmî yalnızca başlık XML veya gzip dosyasını yükleyin. Değiştirme atomiktir; anime meta verileri veya izleme geçmişi aktarılmaz. Günde en fazla bir kez indirin; siteyi kazımayın.",

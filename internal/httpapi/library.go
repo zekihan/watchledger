@@ -89,7 +89,7 @@ func (a *API) saveLibrary(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	_, e = tx.Exec(r.Context(), `INSERT INTO library(user_id,catalog_id,base,status_id,rating,position,anime_view) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(user_id,catalog_id) DO UPDATE SET base=EXCLUDED.base,status_id=EXCLUDED.status_id,rating=EXCLUDED.rating,position=EXCLUDED.position,anime_view=EXCLUDED.anime_view,updated_at=now()`, uid, r.PathValue("id"), in.Base, in.StatusID, in.Rating, in.Position, in.AnimeView)
+	_, e = tx.Exec(r.Context(), `INSERT INTO library(user_id,catalog_id,base,status_id,rating,position,anime_view) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(user_id,catalog_id) DO UPDATE SET base=EXCLUDED.base,status_id=EXCLUDED.status_id,rating=EXCLUDED.rating,position=EXCLUDED.position,anime_view=coalesce(EXCLUDED.anime_view,library.anime_view),updated_at=now()`, uid, r.PathValue("id"), in.Base, in.StatusID, in.Rating, in.Position, in.AnimeView)
 	if e != nil {
 		http.Error(w, "library update failed", http.StatusServiceUnavailable)
 		return

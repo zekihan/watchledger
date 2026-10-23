@@ -1,9 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import type { T } from "./App";
 
 interface Alternate {
   structure: string;
+  attribution_notices?: string[];
+  override?: string | null;
   incomplete: boolean;
   titles: {
     id: string;
@@ -31,6 +33,15 @@ interface Alternate {
   }[];
 }
 export function AlternateView({ id, t }: { id: string; t: T }) {
+  const client = useQueryClient();
+  const structure = useMutation({
+    mutationFn: (view: string) =>
+      api(`/library/${encodeURIComponent(id)}/structure`, "PUT", { view }),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ["alternate", id] });
+      await client.invalidateQueries({ queryKey: ["library"] });
+    },
+  });
   const q = useQuery({
     queryKey: ["alternate", id],
     queryFn: () => api<Alternate>(`/library/${encodeURIComponent(id)}/alternate`),
@@ -39,6 +50,21 @@ export function AlternateView({ id, t }: { id: string; t: T }) {
     <section className="panel">
       <h2>{t("alternateViews")}</h2>
       <p>{t("alternateHistoryNotice")}</p>
+      {q.data && (
+        <label>
+          {t("seriesStructure")}
+          <select
+            disabled={structure.isPending}
+            value={q.data.override ?? "default"}
+            onChange={(e) => structure.mutate(e.target.value)}
+          >
+            <option value="default">{t("defaultStructure")}</option>
+            <option value="native">{t("native")}</option>
+            <option value="show">{t("showStructure")}</option>
+          </select>
+        </label>
+      )}
+      {structure.error && <p role="alert">{structure.error.message}</p>}
       {q.isPending && <p role="status">{t("loading")}</p>}
       {q.error && (
         <p role="alert">
@@ -95,6 +121,11 @@ export function AlternateView({ id, t }: { id: string; t: T }) {
             </ul>
           </section>
         ))}
+      {q.data?.attribution_notices?.map((notice, i) => (
+        <p className="muted" key={i}>
+          {notice}
+        </p>
+      ))}
       <a href="#mappings">{t("reviewMapping")}</a>
     </section>
   );

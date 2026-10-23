@@ -70,6 +70,16 @@ type ExportReceipt struct {
 	ExportedAt pgtype.Timestamptz `json:"exported_at"`
 }
 
+type ExternalEpisodeLink struct {
+	Source        string             `json:"source"`
+	SourceID      int64              `json:"source_id"`
+	TmdbEpisodeID int64              `json:"tmdb_episode_id"`
+	TmdbShowID    int64              `json:"tmdb_show_id"`
+	Season        int32              `json:"season"`
+	Number        int32              `json:"number"`
+	CheckedAt     pgtype.Timestamptz `json:"checked_at"`
+}
+
 type History struct {
 	ID          pgtype.UUID        `json:"id"`
 	UserID      pgtype.UUID        `json:"user_id"`
@@ -178,6 +188,41 @@ type MappingConsent struct {
 	MappingID   pgtype.UUID        `json:"mapping_id"`
 	Revision    string             `json:"revision"`
 	ConfirmedAt pgtype.Timestamptz `json:"confirmed_at"`
+}
+
+type MappingDataset struct {
+	Checksum       string             `json:"checksum"`
+	Version        string             `json:"version"`
+	SourceRevision string             `json:"source_revision"`
+	GeneratedAt    pgtype.Timestamptz `json:"generated_at"`
+	Attribution    []byte             `json:"attribution"`
+	Document       []byte             `json:"document"`
+	ImportedAt     pgtype.Timestamptz `json:"imported_at"`
+}
+
+type MappingDatasetAnime struct {
+	DatasetChecksum string `json:"dataset_checksum"`
+	AnidbID         int64  `json:"anidb_id"`
+	Data            []byte `json:"data"`
+}
+
+type MappingProposal struct {
+	ID              pgtype.UUID        `json:"id"`
+	DatasetChecksum string             `json:"dataset_checksum"`
+	AnidbID         int64              `json:"anidb_id"`
+	Relationships   []byte             `json:"relationships"`
+	Unresolved      []byte             `json:"unresolved"`
+	Revision        string             `json:"revision"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+}
+
+type MappingRevisionHistory struct {
+	ID            pgtype.UUID        `json:"id"`
+	MappingID     pgtype.UUID        `json:"mapping_id"`
+	Revision      string             `json:"revision"`
+	Provenance    []byte             `json:"provenance"`
+	Relationships []byte             `json:"relationships"`
+	RecordedAt    pgtype.Timestamptz `json:"recorded_at"`
 }
 
 type Notice struct {

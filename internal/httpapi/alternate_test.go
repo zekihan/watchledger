@@ -164,6 +164,22 @@ func TestPrivateAlternateProjectionConsentAndCorrections(t *testing.T) {
 	if !targetState(read()).Blocked {
 		t.Fatal("retired source still propagates")
 	}
+	if w := request("PUT", "/api/library/"+id+"/structure", `{"view":"show"}`, true); w.Code != 204 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if w := request("PUT", "/api/library/"+id, `{"base":"watching","rating":9}`, true); w.Code != 204 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	var viewSetting *string
+	if e = p.QueryRow(ctx, "SELECT anime_view FROM library WHERE user_id=$1 AND catalog_id=$2", uid, id).Scan(&viewSetting); e != nil || viewSetting == nil || *viewSetting != "show" {
+		t.Fatal("rating update erased structure override", viewSetting, e)
+	}
+	if w := request("PUT", "/api/library/"+id+"/structure", `{"view":"default"}`, true); w.Code != 204 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if e = p.QueryRow(ctx, "SELECT anime_view FROM library WHERE user_id=$1 AND catalog_id=$2", uid, id).Scan(&viewSetting); e != nil || viewSetting != nil {
+		t.Fatal("default structure not restored", e)
+	}
 	if _, e = p.Exec(ctx, "UPDATE sessions SET user_id=$2 WHERE token_hash=$1", sum, other); e != nil {
 		t.Fatal(e)
 	}

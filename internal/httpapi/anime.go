@@ -84,7 +84,7 @@ func (a *API) searchAnime(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "anime title index unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	rows, err := a.DB.Query(r.Context(), `SELECT metadata->'en',count(*) OVER() FROM catalog c WHERE source='anidb' AND kind='anime' AND (title ILIKE $1 OR EXISTS(SELECT 1 FROM jsonb_array_elements(coalesce(c.metadata->'en'->'titles','[]'::jsonb)) t WHERE t->>'text' ILIKE $1)) ORDER BY title,id LIMIT 20 OFFSET $2`, pattern, (page-1)*20)
+	rows, err := a.DB.Query(r.Context(), `SELECT coalesce(metadata->'en','{}'::jsonb)||jsonb_build_object('id',source_id::bigint,'name',title),count(*) OVER() FROM catalog c WHERE source='anidb' AND kind='anime' AND source_id~'^[1-9][0-9]{0,17}$' AND (title ILIKE $1 OR EXISTS(SELECT 1 FROM jsonb_array_elements(coalesce(c.metadata->'en'->'titles','[]'::jsonb)) t WHERE t->>'text' ILIKE $1)) ORDER BY title,id LIMIT 20 OFFSET $2`, pattern, (page-1)*20)
 	if err != nil {
 		http.Error(w, "cached anime search unavailable", http.StatusServiceUnavailable)
 		return

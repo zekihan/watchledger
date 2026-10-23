@@ -121,3 +121,13 @@ This checkpoint does not complete title-index search, native artwork/availabilit
 The operator-provided official gzip file verified the title-only XML schema. The application now accepts admin-only XML/gzip index uploads with bounded decompression and identity validation, deduplicates aliases, atomically replaces the index, and records the uploaded checksum and import time. Failure preserves the existing index; repeat identical imports are idempotent. This does not fetch full metadata, change private history, or imply that import time is the source publication time.
 
 Native searches use indexed aliases and the user's requested native/romaji/English title style. An explicit AniDB ID still loads metadata on demand. When no index is installed, cached-only scope remains visibly labelled. The upstream download remains a user/operator step because direct source access returned 403; download at most once per day. No title dataset is bundled in the repository.
+
+## Versioned mapping proposals and corrections
+
+Admin mapping tools now accept checksum-verified animap releases and resolve explicit AniDB-to-TVDB episode identities through TMDB Find By ID. Exact provider episode IDs, not cross-provider numbering, establish the proposed relationship. Inferred defaults and unsupported/missing identities stay in the proposal's unresolved list. An existing local override blocks automatic dataset proposal replacement.
+
+Saving a dataset mapping requires a matching, unexpired server proposal. The server owns dataset provenance and attribution, and rejects altered relationships claiming that provenance. Updates reuse the mapping identity, retain revision history, notify affected users and do not transfer consent to a materially different split/combined graph. Read-only projected flags immediately follow the current revision without modifying source events.
+
+Series overrides now have a dedicated narrow update endpoint, preserve existing statuses/ratings, and survive unrelated library edits. Users can return to their account default. Approved mappings take precedence over unreviewed suggestions; conflicting approved mappings remain blocked. Mapping/source attribution is visible in both review and linked-view screens.
+
+Regression evidence includes the actual pinned release decoder, synthetic differing TVDB/TMDB numbering, a two-native-to-one-target relationship, explicit consent, correction notices, unchanged source history, provenance tampering rejection, local override preservation, revision history, and UI proposal review. Cross-view editing, mapping movies, full Up next aggregation and complete browser acceptance remain further work.

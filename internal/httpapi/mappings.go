@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/zekihan/watchledger/internal/auth"
 	"github.com/zekihan/watchledger/internal/mapping"
 	"net/http"
@@ -10,7 +11,9 @@ import (
 func (a *API) mappingRoutes(m *http.ServeMux) {
 	m.HandleFunc("GET /api/mappings", a.mappings)
 	m.HandleFunc("GET /api/library/{id}/alternate", a.alternateView)
+	m.HandleFunc("PUT /api/library/{id}/structure", a.setAnimeStructure)
 	m.HandleFunc("POST /api/admin/mappings", a.saveMapping)
+	m.HandleFunc("GET /api/admin/mappings/{id}/history", a.mappingHistory)
 	m.HandleFunc("POST /api/mappings/{id}/confirm", a.confirmMapping)
 	m.HandleFunc("GET /api/admin/accounts", a.accounts)
 	m.HandleFunc("GET /api/notices", a.notices)
@@ -46,12 +49,16 @@ func (a *API) saveMapping(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		ID               string         `json:"id"`
 		ExpectedRevision string         `json:"expected_revision"`
+		ProposalID       string         `json:"proposal_id,omitempty"`
 		Relationships    []mapping.Edge `json:"relationships"`
 		Provenance       struct {
-			Source   string `json:"source"`
-			Version  string `json:"version"`
-			Inferred bool   `json:"inferred"`
-			Note     string `json:"note"`
+			Source          string          `json:"source"`
+			Version         string          `json:"version"`
+			Inferred        bool            `json:"inferred"`
+			Note            string          `json:"note"`
+			DatasetChecksum string          `json:"dataset_checksum,omitempty"`
+			AnimeID         int             `json:"anime_id,omitempty"`
+			Attribution     json.RawMessage `json:"attribution,omitempty"`
 		} `json:"provenance"`
 	}
 	if !decode(w, r, &in) {
@@ -68,11 +75,31 @@ func (a *API) saveMapping(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() { _ = tx.Rollback(r.Context()) }()
+	if in.Provenance.Source == "animap" {
+		if in.ProposalID == "" {
+			http.Error(w, "dataset mapping requires a verified proposal", http.StatusBadRequest)
+			return
+		}
+		var proposedRevision string
+		var unresolved []byte
+		e = tx.QueryRow(r.Context(), `SELECT p.revision,p.unresolved,p.anidb_id,d.checksum,d.version,d.attribution FROM mapping_proposals p JOIN mapping_datasets d ON d.checksum=p.dataset_checksum WHERE p.id=$1 AND p.created_at>now()-interval '24 hours'`, in.ProposalID).Scan(&proposedRevision, &unresolved, &in.Provenance.AnimeID, &in.Provenance.DatasetChecksum, &in.Provenance.Version, &in.Provenance.Attribution)
+		if e != nil || proposedRevision != revision {
+			http.Error(w, "proposal identities changed; resolve and review again", http.StatusConflict)
+			return
+		}
+		var remaining []json.RawMessage
+		_ = json.Unmarshal(unresolved, &remaining)
+		in.Provenance.Inferred = false
+		in.Provenance.Note = fmt.Sprintf("Explicit TVDB episode IDs resolved through TMDB Find. %d unresolved source placements retained in proposal.", len(remaining))
+	} else if in.ProposalID != "" {
+		http.Error(w, "proposal source must be animap", http.StatusBadRequest)
+		return
+	}
 	ids := []string{}
 	for _, edge := range edges {
 		for _, id := range []string{edge.From, edge.To} {
 			var exists bool
-			if e = tx.QueryRow(r.Context(), "SELECT EXISTS(SELECT 1 FROM episodes WHERE id=$1)", id).Scan(&exists); e != nil || !exists {
+			if e = tx.QueryRow(r.Context(), "SELECT EXISTS(SELECT 1 FROM episodes WHERE id=$1 AND NOT retired)", id).Scan(&exists); e != nil || !exists {
 				http.Error(w, "referenced source episode not cached", http.StatusConflict)
 				return
 			}
@@ -111,8 +138,13 @@ func (a *API) saveMapping(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "mapping update failed", http.StatusConflict)
 		return
 	}
+	_, e = tx.Exec(r.Context(), `INSERT INTO mapping_revision_history(mapping_id,revision,provenance,relationships) SELECT $1,$2,$3,$4 WHERE NOT EXISTS(SELECT 1 FROM mapping_revision_history WHERE mapping_id=$1 AND revision=$2 AND provenance=$3::jsonb)`, in.ID, revision, provenance, b)
+	if e != nil {
+		http.Error(w, "mapping history unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	if oldRevision != "" && oldRevision != revision {
-		_, e = tx.Exec(r.Context(), `INSERT INTO notices(user_id,kind,data) SELECT DISTINCT h.user_id,'mapping_changed',jsonb_build_object('mapping_id',$1::text,'revision',$2::text) FROM history h WHERE h.episode_id=ANY($3::text[])`, in.ID, revision, ids)
+		_, e = tx.Exec(r.Context(), `INSERT INTO notices(user_id,kind,data) SELECT affected.user_id,'mapping_changed',jsonb_build_object('mapping_id',$1::text,'revision',$2::text) FROM (SELECT h.user_id FROM history h WHERE h.episode_id=ANY($3::text[]) UNION SELECT l.user_id FROM library l JOIN episodes ep ON ep.catalog_id=l.catalog_id WHERE ep.id=ANY($3::text[])) affected`, in.ID, revision, ids)
 		if e != nil {
 			http.Error(w, "mapping notice failed", http.StatusServiceUnavailable)
 			return
@@ -173,4 +205,17 @@ func (a *API) jobStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, json.RawMessage(result))
+}
+
+func (a *API) mappingHistory(w http.ResponseWriter, r *http.Request) {
+	if !requireAdmin(w, r) {
+		return
+	}
+	var raw []byte
+	err := a.DB.QueryRow(r.Context(), `SELECT coalesce(jsonb_agg(x ORDER BY recorded_at DESC),'[]') FROM (SELECT revision,provenance,relationships,recorded_at FROM mapping_revision_history WHERE mapping_id=$1 ORDER BY recorded_at DESC LIMIT 100) x`, r.PathValue("id")).Scan(&raw)
+	if err != nil {
+		http.Error(w, "mapping history unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	writeJSON(w, json.RawMessage(raw))
 }

@@ -1,13 +1,21 @@
+import { MappingDatasets } from "./mapping-datasets";
 import { AnimeIndex } from "./anime-index";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import type { T } from "./App";
-interface Mapping {
+export interface Mapping {
+  proposal_id?: string;
   id: string;
   revision: string;
   relationships: { from: string; to: string }[];
-  provenance: { source: string; version: string; note?: string; inferred?: boolean };
+  provenance: {
+    source: string;
+    version: string;
+    note?: string;
+    attribution?: { notice: string };
+    inferred?: boolean;
+  };
   requires_consent: boolean;
   confirmed: boolean;
   reviewed: boolean;
@@ -15,6 +23,20 @@ interface Mapping {
 export function MappingPage({ t, admin }: { t: T; admin: boolean }) {
   const client = useQueryClient();
   const q = useQuery({ queryKey: ["mappings"], queryFn: () => api<Mapping[]>("/mappings") });
+  const [historyID, setHistoryID] = useState("");
+  const history = useQuery({
+    queryKey: ["mapping-history", historyID],
+    queryFn: () =>
+      api<
+        {
+          revision: string;
+          recorded_at: string;
+          provenance: Mapping["provenance"];
+          relationships: Mapping["relationships"];
+        }[]
+      >(`/admin/mappings/${historyID}/history`),
+    enabled: admin && !!historyID,
+  });
   const [selected, setSelected] = useState<Mapping | null>(null);
   const [from, setFrom] = useState(""),
     [to, setTo] = useState(""),
@@ -28,12 +50,17 @@ export function MappingPage({ t, admin }: { t: T; admin: boolean }) {
       api("/admin/mappings", "POST", {
         id: m.id,
         expected_revision: m.revision,
+        proposal_id: m.proposal_id,
         relationships: m.relationships,
         provenance: {
-          source: "local-admin-override",
-          version: new Date().toISOString(),
-          note,
-          inferred: false,
+          ...(m.proposal_id
+            ? m.provenance
+            : {
+                source: "local-admin-override",
+                version: new Date().toISOString(),
+                note,
+                inferred: false,
+              }),
         },
       }),
     onSuccess: async () => {
@@ -63,6 +90,15 @@ export function MappingPage({ t, admin }: { t: T; admin: boolean }) {
           {e?.message}
         </p>
       ))}
+      {admin && (
+        <MappingDatasets
+          t={t}
+          onReview={(m) => {
+            setSelected(m);
+            setNote(m.provenance.note ?? "");
+          }}
+        />
+      )}
       {admin && (
         <button
           onClick={() => {
@@ -103,7 +139,7 @@ export function MappingPage({ t, admin }: { t: T; admin: boolean }) {
               }}
             />
             <button
-              disabled={!from || !to}
+              disabled={!from || !to || !!selected.proposal_id}
               onClick={() => {
                 setSelected({
                   ...selected,
@@ -122,6 +158,7 @@ export function MappingPage({ t, admin }: { t: T; admin: boolean }) {
                 {edge.from} → {edge.to}
               </code>
               <button
+                disabled={!!selected.proposal_id}
                 onClick={() => {
                   setSelected({
                     ...selected,
@@ -168,6 +205,7 @@ export function MappingPage({ t, admin }: { t: T; admin: boolean }) {
             {m.provenance.source} · {m.provenance.version}
           </h2>
           <p>{m.provenance.note}</p>
+          {m.provenance.attribution && <p className="muted">{m.provenance.attribution.notice}</p>}
           <small>
             {m.id} · {m.revision}
           </small>
@@ -179,6 +217,33 @@ export function MappingPage({ t, admin }: { t: T; admin: boolean }) {
             </div>
           ))}
           {m.requires_consent && <p className="notice">{t("mappingSafety")}</p>}
+          {admin && (
+            <button onClick={() => setHistoryID(historyID === m.id ? "" : m.id)}>
+              {t("mappingHistory")}
+            </button>
+          )}
+          {admin && historyID === m.id && (
+            <div>
+              {history.isPending && <p>{t("loading")}</p>}
+              {history.error && <p role="alert">{history.error.message}</p>}
+              {history.data?.map((h, i) => (
+                <details key={i}>
+                  <summary>
+                    {h.provenance.version} · {new Date(h.recorded_at).toLocaleString()}
+                  </summary>
+                  <p>{h.provenance.note}</p>
+                  <p>{h.provenance.attribution?.notice}</p>
+                  <ul>
+                    {h.relationships.map((edge, n) => (
+                      <li key={n}>
+                        {edge.from} → {edge.to}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ))}
+            </div>
+          )}
           <div className="toolbar">
             {m.requires_consent && !m.confirmed && (
               <button

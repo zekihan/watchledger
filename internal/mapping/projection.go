@@ -31,7 +31,9 @@ func Project(definitions []Definition, watched map[string]bool) map[string]State
 			seen[e.To] = true
 		}
 		for id := range seen {
-			owners[id]++
+			if d.Reviewed {
+				owners[id]++
+			}
 		}
 	}
 	for _, d := range definitions {
@@ -43,6 +45,9 @@ func Project(definitions []Definition, watched map[string]bool) map[string]State
 			peers[e.To] = append(peers[e.To], e.From)
 		}
 		for id, parts := range peers {
+			if !d.Reviewed && owners[id] > 0 {
+				continue
+			}
 			sort.Strings(parts)
 			state := State{Direct: watched[id], Blocked: blocked || owners[id] > 1, Sources: parts, MappingID: d.ID, Revision: d.Revision}
 			all := true

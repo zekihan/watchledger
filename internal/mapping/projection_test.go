@@ -47,3 +47,17 @@ func TestProjectionAmbiguityAndUnreviewedMappings(t *testing.T) {
 		t.Fatal("mixed mapping sides accepted")
 	}
 }
+
+func TestReviewedMappingWinsOverUnreviewedSuggestion(t *testing.T) {
+	edges, rev, _, _ := Canonical([]Edge{{"a", "x"}})
+	reviewed := Definition{ID: "reviewed", Revision: rev, Edges: edges, Reviewed: true}
+	suggestion := reviewed
+	suggestion.ID = "suggestion"
+	suggestion.Reviewed = false
+	for _, definitions := range [][]Definition{{reviewed, suggestion}, {suggestion, reviewed}} {
+		state := Project(definitions, map[string]bool{"a": true})["x"]
+		if !state.Derived || state.Blocked || state.MappingID != "reviewed" {
+			t.Fatal("unreviewed suggestion suppressed approved mapping", state)
+		}
+	}
+}
