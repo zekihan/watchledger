@@ -151,6 +151,7 @@ export function CustomListImport({ t, backed }: { t: T; backed: boolean }) {
             <input
               type="password"
               autoComplete="off"
+              data-bwignore="true"
               value={apiToken}
               onChange={(e) => setAPIToken(e.target.value)}
             />
