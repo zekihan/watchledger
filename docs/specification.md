@@ -133,6 +133,8 @@ Hide unwatched episode summaries and images by default through a per-user spoile
 
 Include watched movie counts, watched episode counts, estimated runtime, monthly activity, and genre breakdowns. Keep unknown watched dates outside date-based charts. Alternate anime views must not double-count the same underlying history.
 
+Counting clarification approved on 2026-10-23: confirmed anime episode mappings use native AniDB episodes as the counting units regardless of the selected view. Show partially watched native episodes separately rather than adding them to completed-episode totals. Unconfirmed or ambiguous relationships must be labelled as unresolved rather than silently deduplicated.
+
 ## 9. Manual and smart lists
 
 Manual lists are private, named collections with drag ordering. Smart lists evaluate only titles in the user's personal library and have a saved sort such as title, release date, personal rating, or date added.

@@ -210,6 +210,8 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [x] Notify affected users about mapping corrections.
 - [x] Renew confirmation for materially changed split/combined relationships.
 - [ ] Avoid double-counting history across alternate views.
+  - [x] Confirmed episode mappings use view-independent native units, separate partial progress, and labelled date/ambiguity handling.
+  - [ ] Movie relationships and final browser acceptance.
 
 ## SIMKL migration
 

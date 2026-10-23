@@ -12,6 +12,10 @@ export function AnalyticsPage({ t }: { t: T }) {
         episodes: number;
         estimated_minutes: number;
         unknown_runtime: number;
+        partial_native_episodes: number;
+        partial_source_records: number;
+        unresolved_linked_records: number;
+        derived_date_units: number;
         monthly: { month: string; count: number }[];
         genres: { name: string; count: number }[];
       }>("/statistics"),
@@ -21,6 +25,13 @@ export function AnalyticsPage({ t }: { t: T }) {
     return (
       <p className="error" role="alert">
         {q.error.message}
+        <button
+          onClick={() => {
+            void q.refetch();
+          }}
+        >
+          {t("retry")}
+        </button>
       </p>
     );
   if (!q.data) return null;
@@ -45,8 +56,26 @@ export function AnalyticsPage({ t }: { t: T }) {
           </small>
         </div>
       </div>
+      <p className="muted">{t("canonicalAnimeStats")}</p>
+      {(d.partial_native_episodes ?? 0) > 0 && (
+        <p>
+          {t("partialNativeStats")}: {d.partial_native_episodes} · {t("sourceRecords")}:{" "}
+          {d.partial_source_records}
+        </p>
+      )}
+      {(d.unresolved_linked_records ?? 0) > 0 && (
+        <p className="notice">
+          {t("unresolvedStats")}: {d.unresolved_linked_records}
+        </p>
+      )}
+      {(d.derived_date_units ?? 0) > 0 && (
+        <p className="muted">
+          {t("derivedStatsDates")}: {d.derived_date_units}
+        </p>
+      )}
       <h2>{t("activity")}</h2>
       <p className="muted">{t("unknownDates")}</p>
+      {!d.monthly.length && <p>{t("empty")}</p>}
       {d.monthly.map((m) => (
         <div className="bar-row" key={m.month}>
           <span>{m.month}</span>
@@ -55,6 +84,7 @@ export function AnalyticsPage({ t }: { t: T }) {
         </div>
       ))}
       <h2>{t("genreBreakdown")}</h2>
+      {!d.genres.length && <p>{t("empty")}</p>}
       {d.genres.map((g) => (
         <div className="bar-row" key={g.name}>
           <span>{g.name}</span>

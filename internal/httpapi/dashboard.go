@@ -2,22 +2,30 @@ package httpapi
 
 import (
 	"encoding/json"
+	"github.com/jackc/pgx/v5"
 	"github.com/zekihan/watchledger/internal/auth"
 	"net/http"
 )
 
 func (a *API) dashboard(w http.ResponseWriter, r *http.Request) {
 	uid := auth.Current(r.Context()).ID
+	tx, err := a.DB.BeginTx(r.Context(), pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		http.Error(w, "dashboard unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	defer func() { _ = tx.Rollback(r.Context()) }()
+
 	var result json.RawMessage
-	e := a.DB.QueryRow(r.Context(), `SELECT jsonb_build_object(
+	e := tx.QueryRow(r.Context(), `SELECT jsonb_build_object(
  'upcoming',coalesce((SELECT jsonb_agg(x) FROM (SELECT e.id,e.catalog_id,c.title,e.season,e.number,e.air_date,e.air_time FROM episodes e JOIN catalog c ON c.id=e.catalog_id JOIN library l ON l.catalog_id=c.id AND l.user_id=$1 WHERE NOT e.retired AND (e.air_date>(now() AT TIME ZONE $2)::date OR e.air_time>now()) ORDER BY e.air_date,e.air_time LIMIT 100) x),'[]'::jsonb),
- 'activity',coalesce((SELECT jsonb_agg(x) FROM (SELECT h.catalog_id,c.title,h.episode_id,h.watched_date,h.watched_time,h.created_at,v.anchor_id AS view_anchor FROM history h JOIN catalog c ON c.id=h.catalog_id LEFT JOIN alternate_history_views v ON v.user_id=h.user_id AND v.catalog_id=h.catalog_id WHERE h.user_id=$1 ORDER BY h.created_at DESC LIMIT 30) x),'[]'::jsonb),
- 'statistics',jsonb_build_object('movies',(SELECT count(*) FROM history WHERE user_id=$1 AND episode_id IS NULL),'episodes',(SELECT count(*) FROM history WHERE user_id=$1 AND episode_id IS NOT NULL),'monthly',coalesce((SELECT jsonb_agg(x) FROM (SELECT to_char(coalesce(watched_date,(watched_time AT TIME ZONE $2)::date),'YYYY-MM') AS month,count(*) AS count FROM history WHERE user_id=$1 AND (watched_date IS NOT NULL OR watched_time IS NOT NULL) GROUP BY 1 ORDER BY 1) x),'[]'::jsonb)))`, uid, timezone(r)).Scan(&result)
+ 'activity',coalesce((SELECT jsonb_agg(x) FROM (SELECT h.catalog_id,c.title,h.episode_id,h.watched_date,h.watched_time,h.created_at,v.anchor_id AS view_anchor FROM history h JOIN catalog c ON c.id=h.catalog_id LEFT JOIN alternate_history_views v ON v.user_id=h.user_id AND v.catalog_id=h.catalog_id WHERE h.user_id=$1 ORDER BY h.created_at DESC LIMIT 30) x),'[]'::jsonb))
+`, uid, timezone(r)).Scan(&result)
 	if e != nil {
 		http.Error(w, "dashboard unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	cards, err := buildUpNext(r.Context(), a.DB, uid, timezone(r))
+	cards, err := buildUpNext(r.Context(), tx, uid, timezone(r))
 	if err != nil {
 		http.Error(w, "up next unavailable", http.StatusServiceUnavailable)
 		return
@@ -27,7 +35,17 @@ func (a *API) dashboard(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "dashboard unavailable", http.StatusServiceUnavailable)
 		return
 	}
+	stats, err := buildStatistics(r.Context(), tx, uid, timezone(r))
+	if err != nil {
+		http.Error(w, "statistics unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	dashboard["statistics"] = stats
 	dashboard["up_next"] = cards
+	if err = tx.Commit(r.Context()); err != nil {
+		http.Error(w, "dashboard unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	writeJSON(w, dashboard)
 }
 

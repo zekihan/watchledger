@@ -243,6 +243,14 @@ export const en = {
   keep: "Keep current status",
   yes: "Yes",
   seasonScope: "Season",
+  canonicalAnimeStats:
+    "Confirmed anime links count native AniDB episodes, not extra show-view copies. Partial episodes are excluded from completed counts and runtime estimates.",
+  partialNativeStats: "Partially watched native episodes",
+  sourceRecords: "Recorded source parts",
+  unresolvedStats:
+    "Unconfirmed or ambiguous linked records remain separate until reviewed; totals may overlap",
+  derivedStatsDates:
+    "Native completion months derived from the latest known source-part day, only when every required part has a date; original history is unchanged",
   wholeScope: "Whole show",
   wholeShow: "Mark aired show episodes watched",
   wholeSeason: "Mark aired season watched",
@@ -546,6 +554,14 @@ export const tr: Record<Key, string> = {
   keep: "Durumu koru",
   yes: "Evet",
   seasonScope: "Sezon",
+  canonicalAnimeStats:
+    "Onaylı anime bağlantıları, ek dizi görünümü kopyaları yerine yerel AniDB bölümlerini sayar. Kısmen izlenen bölümler, tamamlanan bölüm ve tahmini süre toplamlarına katılmaz.",
+  partialNativeStats: "Kısmen izlenen yerel bölümler",
+  sourceRecords: "Kaydedilen kaynak parçaları",
+  unresolvedStats:
+    "Onaylanmamış veya belirsiz bağlantılı kayıtlar incelenene kadar ayrı tutulur; toplamlar örtüşebilir",
+  derivedStatsDates:
+    "Yerel tamamlanma ayları, gereken tüm parçaların tarihi biliniyorsa en son kaynak parçasının gününden türetilir; özgün geçmiş değişmez",
   wholeScope: "Tüm dizi",
   wholeShow: "Yayımlanmış dizi bölümlerini izlendi işaretle",
   wholeSeason: "Yayımlanmış sezonu izlendi işaretle",
