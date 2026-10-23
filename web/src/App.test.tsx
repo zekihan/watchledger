@@ -236,3 +236,59 @@ test("global shortcuts do not steal focus from a tracking confirmation dialog", 
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(writes.filter((body) => body.preview !== true)).toHaveLength(0);
 });
+
+test("Up next links aggregate views to their native anchor and reorders displayed cards", async () => {
+  const writes: unknown[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((input: string, init?: RequestInit) => {
+      if (input === "/api/up-next/order") {
+        if (typeof init?.body !== "string") throw new Error("Expected request body");
+        writes.push(JSON.parse(init.body) as unknown);
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+      const data =
+        input === "/api/me"
+          ? { ID: "fixture", Name: "Fixture", Admin: false, Settings: { language: "en" } }
+          : input === "/api/dashboard"
+            ? {
+                up_next: [
+                  {
+                    catalog_id: "tmdb:tv:1",
+                    episode_id: "tmdb:episode:11",
+                    title: "Aggregate show",
+                    season: 2,
+                    number: 7,
+                    view_anchor: "anidb:anime:1",
+                  },
+                  {
+                    catalog_id: "anidb:anime:2",
+                    episode_id: "anidb:episode:22",
+                    title: "Unmapped native",
+                    season: 1,
+                    number: 1,
+                    incomplete: true,
+                  },
+                ],
+                activity: [],
+                upcoming: [],
+                statistics: { movies: 0, episodes: 0, monthly: [] },
+              }
+            : [];
+      return Promise.resolve(
+        new Response(JSON.stringify(data), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    }),
+  );
+  mount();
+  const card = await screen.findByRole("link", { name: /Aggregate show/ });
+  expect(card.getAttribute("href")).toBe("#views/anidb%3Aanime%3A1");
+  expect(screen.getByRole("link", { name: /Unmapped native/ }).getAttribute("href")).toBe(
+    "#detail/anime/2",
+  );
+  await userEvent.click(screen.getByRole("button", { name: "↑ Unmapped native" }));
+  await waitFor(() => expect(writes).toEqual([{ ids: ["anidb:anime:2", "tmdb:tv:1"] }]));
+});

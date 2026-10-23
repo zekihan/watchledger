@@ -31,7 +31,7 @@ type effectiveSnapshot struct {
 func loadEffective(ctx context.Context, db queryRows, uid, catalogID string) (effectiveSnapshot, error) {
 	out := effectiveSnapshot{Direct: map[string]recordedLink{}}
 	query := `WITH related AS (
- SELECT DISTINCT m.id FROM mappings m CROSS JOIN LATERAL jsonb_array_elements(m.relationships) edge JOIN episodes e ON e.id=edge->>'from' OR e.id=edge->>'to' WHERE e.catalog_id=$2
+ SELECT DISTINCT m.id FROM mappings m CROSS JOIN LATERAL jsonb_array_elements(m.relationships) edge JOIN episodes e ON e.id=edge->>'from' OR e.id=edge->>'to' WHERE e.catalog_id=$2 OR ($2='' AND EXISTS(SELECT 1 FROM library l WHERE l.user_id=$1 AND l.catalog_id=e.catalog_id))
  ), vertices AS (
  SELECT edge->>'from' AS id FROM mappings m JOIN related r ON r.id=m.id CROSS JOIN LATERAL jsonb_array_elements(m.relationships) edge
  UNION SELECT edge->>'to' FROM mappings m JOIN related r ON r.id=m.id CROSS JOIN LATERAL jsonb_array_elements(m.relationships) edge
@@ -65,7 +65,7 @@ func loadEffective(ctx context.Context, db queryRows, uid, catalogID string) (ef
 			needed = append(needed, edge.From, edge.To)
 		}
 	}
-	rows, err = db.Query(ctx, "SELECT h.id::text,h.episode_id,h.catalog_id,c.title,h.local_action_at FROM history h JOIN catalog c ON c.id=h.catalog_id WHERE h.user_id=$1 AND h.episode_id IS NOT NULL AND (h.catalog_id=$2 OR h.episode_id=ANY($3::text[]))", uid, catalogID, needed)
+	rows, err = db.Query(ctx, "SELECT h.id::text,h.episode_id,h.catalog_id,c.title,h.local_action_at FROM history h JOIN catalog c ON c.id=h.catalog_id WHERE h.user_id=$1 AND h.episode_id IS NOT NULL AND ($2='' OR h.catalog_id=$2 OR h.episode_id=ANY($3::text[]))", uid, catalogID, needed)
 	if err != nil {
 		return out, err
 	}
@@ -88,7 +88,7 @@ func loadEffective(ctx context.Context, db queryRows, uid, catalogID string) (ef
 	for id, state := range out.RawStates {
 		out.States[id] = state
 	}
-	rows, err = db.Query(ctx, "SELECT episode_key,deleted_at FROM history_tombstones WHERE user_id=$1 AND episode_key<>'' AND (catalog_id=$2 OR episode_key=ANY($3::text[]))", uid, catalogID, needed)
+	rows, err = db.Query(ctx, "SELECT episode_key,deleted_at FROM history_tombstones WHERE user_id=$1 AND episode_key<>'' AND ($2='' OR catalog_id=$2 OR episode_key=ANY($3::text[]))", uid, catalogID, needed)
 	if err != nil {
 		return out, err
 	}

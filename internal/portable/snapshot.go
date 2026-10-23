@@ -138,6 +138,18 @@ func (s Snapshot) Validate() error {
 				if json.Unmarshal(v, &value) != nil {
 					return errors.New("invalid spoiler preference")
 				}
+			case "up_next_order":
+				var value []string
+				if json.Unmarshal(v, &value) != nil || len(value) > 10000 {
+					return errors.New("invalid up next order")
+				}
+				seen := map[string]bool{}
+				for _, id := range value {
+					if id == "" || len(id) > 256 || seen[id] {
+						return errors.New("invalid up next identity")
+					}
+					seen[id] = true
+				}
 			case "services":
 				var value []int
 				if json.Unmarshal(v, &value) != nil {

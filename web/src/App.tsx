@@ -1441,7 +1441,11 @@ function DashboardPage({ page, user, t }: { page: string | undefined; user: User
                 if (dragged) move(dragged, e.catalog_id);
               }}
 
-              href={`#detail/${e.catalog_id.split(":").slice(1).join("/")}`}
+              href={
+                e.view_anchor
+                  ? `#views/${encodeURIComponent(e.view_anchor)}`
+                  : `#detail/${e.catalog_id.split(":").slice(1).join("/")}`
+              }
             >
               <span className="play">▷</span>
 
@@ -1449,6 +1453,7 @@ function DashboardPage({ page, user, t }: { page: string | undefined; user: User
                 S{e.season} · E{e.number}
               </p>
               <h2>{e.title}</h2>
+              {e.incomplete && <small>{t("alternateIncomplete")}</small>}
               <span>{t("details")} →</span>
             </a>
           ))}

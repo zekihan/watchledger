@@ -640,7 +640,12 @@ export function SettingsPage({ user, t }: { user: User; t: T }) {
     retry: false,
   });
   const save = useMutation({
-    mutationFn: () => api("/settings", "PUT", settings),
+    mutationFn: () =>
+      api(
+        "/settings",
+        "PUT",
+        Object.fromEntries(Object.entries(settings).filter(([key]) => key !== "up_next_order")),
+      ),
     onSuccess: () => client.invalidateQueries({ queryKey: ["me"] }),
   });
   const custom = useMutation({

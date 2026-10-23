@@ -24,6 +24,7 @@ export async function api<T>(
   return (await response.json()) as T;
 }
 export interface Settings {
+  up_next_order?: string[];
   language?: string;
   metadata_language?: string;
   country?: string;
@@ -121,6 +122,8 @@ export interface List {
 }
 export interface Dashboard {
   up_next: {
+    view_anchor?: string;
+    incomplete?: boolean;
     catalog_id: string;
     title: string;
     episode_id: string;

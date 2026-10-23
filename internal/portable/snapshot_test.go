@@ -110,3 +110,17 @@ func TestValidateCustomListDeletionMarkers(t *testing.T) {
 		t.Fatal("live list and deletion accepted together")
 	}
 }
+
+func TestPortableUpNextOrder(t *testing.T) {
+	s := snapshot()
+	s.Settings = json.RawMessage(`{"up_next_order":["tmdb:tv:1","anidb:anime:2"]}`)
+	if err := s.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for _, raw := range []string{`{"up_next_order":["x","x"]}`, `{"up_next_order":[1]}`, `{"up_next_order":[""]}`, `{"up_next_order":"x"}`} {
+		s.Settings = json.RawMessage(raw)
+		if s.Validate() == nil {
+			t.Fatal("invalid order accepted", raw)
+		}
+	}
+}

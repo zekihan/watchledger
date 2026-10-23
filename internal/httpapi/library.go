@@ -547,7 +547,7 @@ func (a *API) settings(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid settings", http.StatusBadRequest)
 		return
 	}
-	if _, e = a.DB.Exec(r.Context(), "UPDATE users SET settings=$2 WHERE id=$1", auth.Current(r.Context()).ID, b); e != nil {
+	if _, e = a.DB.Exec(r.Context(), "UPDATE users SET settings=$2::jsonb || CASE WHEN settings?'up_next_order' THEN jsonb_build_object('up_next_order',settings->'up_next_order') ELSE '{}'::jsonb END WHERE id=$1", auth.Current(r.Context()).ID, b); e != nil {
 		http.Error(w, "settings unavailable", http.StatusServiceUnavailable)
 		return
 	}
