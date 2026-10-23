@@ -115,3 +115,9 @@ Official saved documentation clarified registration, gzip/XML handling, caching,
 The adapter loads explicit AniDB identities, normalizes native titles and stable episode IDs, preserves date-only precision, and retains raw source metadata in a server cache. PostgreSQL-backed request reservations survive process restarts, concurrent instances and language changes. Ban/error responses are not catalog data. Native detail pages use AniDB episode identities for ordinary tracking, and SIMKL reviews can separately load their explicit AniDB identity before manual episode resolution.
 
 This checkpoint does not complete title-index search, native artwork/availability, dataset mapping ingestion or alternate-view editing. The official title-index download returned 403. Cached-only search is labelled explicitly, and exact-ID loading remains available. Synthetic cache/history/consent tests and a saved live XML parse are evidence for implemented behavior, not complete browser or deployment acceptance.
+
+## Official native title index
+
+The operator-provided official gzip file verified the title-only XML schema. The application now accepts admin-only XML/gzip index uploads with bounded decompression and identity validation, deduplicates aliases, atomically replaces the index, and records the uploaded checksum and import time. Failure preserves the existing index; repeat identical imports are idempotent. This does not fetch full metadata, change private history, or imply that import time is the source publication time.
+
+Native searches use indexed aliases and the user's requested native/romaji/English title style. An explicit AniDB ID still loads metadata on demand. When no index is installed, cached-only scope remains visibly labelled. The upstream download remains a user/operator step because direct source access returned 403; download at most once per day. No title dataset is bundled in the repository.

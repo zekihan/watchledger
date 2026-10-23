@@ -14,6 +14,18 @@ type AnidbDocument struct {
 	FetchedAt pgtype.Timestamptz `json:"fetched_at"`
 }
 
+type AnidbTitleIndex struct {
+	Aid    string `json:"aid"`
+	Titles []byte `json:"titles"`
+}
+
+type AnidbTitleIndexState struct {
+	Singleton  bool               `json:"singleton"`
+	Checksum   string             `json:"checksum"`
+	EntryCount int32              `json:"entry_count"`
+	ImportedAt pgtype.Timestamptz `json:"imported_at"`
+}
+
 type Availability struct {
 	CatalogID string             `json:"catalog_id"`
 	Country   string             `json:"country"`

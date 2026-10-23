@@ -110,6 +110,36 @@ func TestNativeCatalogAndTrackingUseAniDBIdentity(t *testing.T) {
 	if e = p.QueryRow(ctx, "SELECT catalog_id,episode_id,watched_date::text FROM history WHERE user_id=$1", uid).Scan(&storedKey, &storedEpisode, &day); e != nil || storedKey != key || storedEpisode != episode || day != "2026-01-02" {
 		t.Fatal("native identity/date lost", e, storedKey, storedEpisode, day)
 	}
+	// Index replacement is admin-only, atomic, repeatable, and never adds catalog/history rows.
+	titleXML := `<animetitles><anime aid="928400001"><title xml:lang="en" type="official">Index alias</title><title xml:lang="ja" type="main">架空</title></anime><anime aid="928400099"><title xml:lang="en" type="main">Uncached index entry</title></anime></animetitles>`
+	if w = request("POST", "/api/admin/anidb/titles", titleXML, true); w.Code != 403 {
+		t.Fatal("nonadmin index replacement", w.Code)
+	}
+	if _, e = p.Exec(ctx, "UPDATE users SET admin=true WHERE id=$1", uid); e != nil {
+		t.Fatal(e)
+	}
+	defer func() {
+		_, _ = p.Exec(ctx, "DELETE FROM anidb_title_index")
+		_, _ = p.Exec(ctx, "DELETE FROM anidb_title_index_state")
+	}()
+	for i := 0; i < 2; i++ {
+		if w = request("POST", "/api/admin/anidb/titles", titleXML, true); w.Code != 200 {
+			t.Fatal(w.Code, w.Body.String())
+		}
+	}
+	if w = request("GET", "/api/search?kind=anime&query=Index%20alias", "", true); w.Code != 200 || !strings.Contains(w.Body.String(), "imported_title_index") || !strings.Contains(w.Body.String(), "928400001") {
+		t.Fatal("index alias missing", w.Code, w.Body.String())
+	}
+	if w = request("POST", "/api/admin/anidb/titles", "<html>Denied</html>", true); w.Code != 400 {
+		t.Fatal("bad index accepted")
+	}
+	if w = request("GET", "/api/admin/anidb/titles", "", true); w.Code != 200 || !strings.Contains(w.Body.String(), `"entries":2`) {
+		t.Fatal("failed import replaced previous index", w.Code, w.Body.String())
+	}
+	var indexedCatalog int
+	if e = p.QueryRow(ctx, "SELECT count(*) FROM catalog WHERE id='anidb:anime:928400099'").Scan(&indexedCatalog); e != nil || indexedCatalog != 0 {
+		t.Fatal("title index invented full metadata", indexedCatalog, e)
+	}
 	if _, e = p.Exec(ctx, "UPDATE sessions SET user_id=$2 WHERE token_hash=$1", sum, other); e != nil {
 		t.Fatal(e)
 	}

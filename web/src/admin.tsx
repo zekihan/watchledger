@@ -1,3 +1,4 @@
+import { AnimeIndex } from "./anime-index";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
@@ -206,6 +207,7 @@ export function MappingPage({ t, admin }: { t: T; admin: boolean }) {
       ))}
       {admin && (
         <>
+          <AnimeIndex t={t} />
           <h2>{t("accounts")}</h2>
           <p>{t("accountsPrivacy")}</p>
           {accounts.error && <p className="error">{accounts.error.message}</p>}

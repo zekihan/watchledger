@@ -8,7 +8,7 @@ A self-hosted movie, TV, and anime tracker with private user libraries, episode 
 
 The first release is defined in the [application specification](docs/specification.md). Track implementation in the [feature checklist](docs/features.md); partial or unverified items remain unchecked.
 
-Implemented increments include PostgreSQL persistence, OIDC authentication, TMDB adapters and caching, private tracking, nested lists, portable backup APIs, mapping review foundations, and connected English/Turkish React screens. Compose and Helm packaging is present. Native AniDB on-demand details and tracking are implemented with registered-client configuration and persistent request limits. Full title search, faithful SIMKL migration, full anime presentation and browser/deployment acceptance remain incomplete. See the [implementation evidence](docs/implementation-notes.md) and [deployment guide](docs/deployment.md).
+Implemented increments include PostgreSQL persistence, OIDC authentication, TMDB adapters and caching, private tracking, nested lists, portable backup APIs, mapping review foundations, and connected English/Turkish React screens. Compose and Helm packaging is present. Native AniDB on-demand details and tracking are implemented with registered-client configuration and persistent request limits. An admin-uploaded official title index supports native title search. Faithful SIMKL migration, full anime presentation and browser/deployment acceptance remain incomplete. See the [implementation evidence](docs/implementation-notes.md) and [deployment guide](docs/deployment.md).
 
 ## Local development
 

@@ -68,7 +68,8 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] TV catalog search and metadata.
 - [ ] Anime catalog search and native identities.
   - [x] Explicit AniDB ID lookup and honestly labelled cached-alias search.
-  - [ ] Complete title-index search and native presentation acceptance.
+  - [x] Search aliases from an admin-uploaded official title-only index with atomic replacement.
+  - [ ] Complete native presentation acceptance.
 - [ ] People search.
 - [ ] Popular and upcoming browsing.
 - [ ] Posters, artwork, synopsis, dates, runtime, and genres.
@@ -257,7 +258,8 @@ Backend regression coverage verifies private counts, runtime unknowns, metadata-
 - [ ] TMDB/JustWatch availability adapter.
 - [ ] AniDB integration after access-policy verification.
   - [x] On-demand native metadata/episode loading, registered client configuration, persistent cooldowns, source-ID-safe tracking and cached outage fallback.
-  - [ ] Full title-index search, native artwork and complete native/alternate-view acceptance.
+  - [x] Official title-index file import and native title search.
+  - [ ] Native artwork and complete native/alternate-view acceptance.
 - [ ] Versioned animap ingestion with applicable attribution and license handling.
 - [ ] On-demand metadata fetching and PostgreSQL caching.
 - [ ] Daily refresh of active shows.

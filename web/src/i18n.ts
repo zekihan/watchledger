@@ -1,4 +1,14 @@
 export const en = {
+  animeIndex: "AniDB title-search index",
+  animeIndexHint:
+    "Upload the official title-only XML or gzip file. Replacement is atomic and does not import anime metadata or viewing history. Download it at most once per day; never scrape the website.",
+  animeIndexDownload: "Official title-index download",
+  animeIndexFile: "AniDB title index file",
+  animeIndexSize: "Title index file must not exceed 16 MiB.",
+  indexImported: "Index imported",
+  animeIndexScope:
+    "Results come from the imported AniDB title index. Metadata loads only when you open a title; index import time is not a source publication date.",
+
   animeSearchScope:
     "AniDB: search currently covers cached titles, or enter an exact AniDB ID to load it. This is not a complete anime catalog search.",
   anidbNotice:
@@ -278,6 +288,16 @@ export const en = {
 };
 export type Key = keyof typeof en;
 export const tr: Record<Key, string> = {
+  animeIndex: "AniDB başlık arama dizini",
+  animeIndexHint:
+    "Resmî yalnızca başlık XML veya gzip dosyasını yükleyin. Değiştirme atomiktir; anime meta verileri veya izleme geçmişi aktarılmaz. Günde en fazla bir kez indirin; siteyi kazımayın.",
+  animeIndexDownload: "Resmî başlık dizini indirmesi",
+  animeIndexFile: "AniDB başlık dizini dosyası",
+  animeIndexSize: "Başlık dizini dosyası 16 MiB sınırını aşmamalıdır.",
+  indexImported: "Dizinin yüklenme zamanı",
+  animeIndexScope:
+    "Sonuçlar yüklenen AniDB başlık dizininden gelir. Meta veriler yalnızca başlığı açtığınızda yüklenir; yükleme zamanı kaynağın yayın tarihi değildir.",
+
   animeSearchScope:
     "AniDB: arama şu anda önbellekteki adları kapsar; yüklemek için tam AniDB kimliğini girin. Bu eksiksiz anime kataloğu araması değildir.",
   anidbNotice:

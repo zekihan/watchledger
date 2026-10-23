@@ -650,7 +650,13 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
       </label>
       {q.data?.exhaustive === false && (
         <p className="notice">
-          {t(kind === "anime" ? "animeSearchScope" : "candidateNotice")}{" "}
+          {t(
+            kind === "anime"
+              ? q.data.search_scope === "imported_title_index"
+                ? "animeIndexScope"
+                : "animeSearchScope"
+              : "candidateNotice",
+          )}{" "}
           {q.data.enrichment_failures ? `${t("error")}: ${String(q.data.enrichment_failures)}` : ""}
         </p>
       )}

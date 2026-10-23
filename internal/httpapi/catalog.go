@@ -18,6 +18,8 @@ type API struct {
 }
 
 func (a *API) routes(mux *http.ServeMux) {
+	mux.HandleFunc("POST /api/admin/anidb/titles", a.importAnimeTitles)
+	mux.HandleFunc("GET /api/admin/anidb/titles", a.animeTitleIndexState)
 	a.libraryRoutes(mux)
 	a.listRoutes(mux)
 	a.portableRoutes(mux)
