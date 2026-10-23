@@ -111,7 +111,9 @@ export function App() {
   useEffect(() => {
     const listener = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.target instanceof HTMLElement && e.target.closest("dialog[open]")) return;
       const editing =
+        (e.target instanceof HTMLElement && e.target.isContentEditable) ||
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement ||
         e.target instanceof HTMLSelectElement;
@@ -139,11 +141,7 @@ export function App() {
         }
       }
 
-      if (
-        e.key === "/" &&
-        !(e.target instanceof HTMLInputElement) &&
-        !(e.target instanceof HTMLTextAreaElement)
-      ) {
+      if (e.key === "/" && !editing) {
         e.preventDefault();
         searchRef.current?.focus();
       }
@@ -766,10 +764,21 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
     title: string;
     yes: string;
     no: string;
-    resolve: (value: boolean) => void;
+    resolve: (value: boolean | null) => void;
   } | null>(null);
+  const active = useRef(true);
+  const pendingChoice = useRef<((value: boolean | null) => void) | null>(null);
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+      pendingChoice.current?.(null);
+      pendingChoice.current = null;
+    };
+  }, []);
   const ask = (title: string, yes: string, no: string) =>
-    new Promise<boolean>((resolve) => {
+    new Promise<boolean | null>((resolve) => {
+      pendingChoice.current = resolve;
       setPrompt({ title, yes, no, resolve });
     });
   const track = useMutation({
@@ -788,13 +797,20 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
         "POST",
         { ...scope, date, preview: true },
       );
-      const earlier =
-        scope.watched && scope.episode_id && preview.earlier.length > 0
-          ? await ask(t("earlierPrompt"), t("earlier"), t("onlyThis"))
-          : false;
-      const returnWatching = preview.offer_return_watching
-        ? await ask(t("returnPrompt"), t("yes"), t("keep"))
-        : false;
+      if (!active.current) return;
+      let earlier = false;
+      if (scope.watched && scope.episode_id && preview.earlier.length > 0) {
+        const decision = await ask(t("earlierPrompt"), t("earlier"), t("onlyThis"));
+        if (decision === null || !active.current) return;
+        earlier = decision;
+      }
+      let returnWatching = false;
+      if (preview.offer_return_watching) {
+        const decision = await ask(t("returnPrompt"), t("yes"), t("keep"));
+        if (decision === null || !active.current) return;
+        returnWatching = decision;
+      }
+      if (!active.current) return;
       return api(`/library/${key}/track`, "POST", {
         ...scope,
         date,
@@ -843,6 +859,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
           submit={t("save")}
           cancel={t("cancel")}
           onClose={(value) => {
+            pendingChoice.current = null;
             prompt.resolve(value);
             setPrompt(null);
           }}
@@ -1035,6 +1052,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
           )}
           {kind === "movie" && (
             <button
+              data-watch-action="movie"
               disabled={track.isPending}
               onClick={() => {
                 track.mutate({ watched: !history.data?.length });
@@ -1435,7 +1453,7 @@ function ChoiceDialog({
   no: string;
   submit: string;
   cancel: string;
-  onClose: (value: boolean) => void;
+  onClose: (value: boolean | null) => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [value, setValue] = useState(false);
@@ -1447,7 +1465,7 @@ function ChoiceDialog({
       ref={ref}
       onCancel={(e) => {
         e.preventDefault();
-        onClose(false);
+        onClose(null);
       }}
       className="choice-dialog"
     >
@@ -1488,7 +1506,7 @@ function ChoiceDialog({
           <button
             type="button"
             onClick={() => {
-              onClose(false);
+              onClose(null);
             }}
           >
             {cancel}

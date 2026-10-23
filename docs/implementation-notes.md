@@ -73,3 +73,9 @@ Earlier references to a read-only review list describe the preceding checkpoint.
 An authenticated review can now load the exact TMDB movie/show ID present in its source record. Metadata loading is a separate action and never inserts library/history records. Target seasons must be selected from the provider's own season list; a source season number does not choose a provider season. Provider failures are retryable and cached/stale responses are identified.
 
 After loading metadata, explicit review confirmation can add a previously unresolved library record and its supported history without reuploading the backup. Existing application values still win. Native anime records without verified AniDB metadata and records without a supported explicit identity remain unresolved; no title-search match or shared anime TMDB ID is assumed. Synthetic HTTP-provider tests cover an uncached movie, differently numbered show episodes, outage/retry, no history during metadata fetch, cross-account fetch denial, and refusal to substitute a shared TMDB ID for native anime. Live credentials are not used by those tests.
+
+## Interrupted tracking flows
+
+Tracking choices now distinguish cancellation from an explicit negative/default choice. Cancel and Escape abort the pending tracking operation rather than applying “only this episode” or retaining status while still unwatching. Leaving the title page cancels a waiting choice, and a preview response arriving after navigation cannot open a dialog or submit history. Explicitly saving the default choice still affects only the selected episode.
+
+Frontend regressions cover Cancel, Escape, navigation while a prompt is open, delayed previews after navigation, and global shortcuts inside the modal. Shortcuts also ignore editable controls; focused movie tracking buttons support the same W action as episode buttons. These behavioral tests do not replace the remaining native browser/focus and mobile acceptance checks.

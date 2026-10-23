@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App } from "./App";
@@ -76,7 +76,7 @@ test("authenticated private library and Turkish navigation render from API", asy
   expect(screen.getByRole("table")).toBeTruthy();
 });
 
-test("earlier-episode confirmation defaults to only the selected episode", async () => {
+function mountTrackingFixture(delayedPreview?: Promise<Response>) {
   location.hash = "detail/tv/101";
   HTMLDialogElement.prototype.showModal = function () {
     this.open = true;
@@ -142,6 +142,7 @@ test("earlier-episode confirmation defaults to only the selected episode", async
         if (typeof init?.body !== "string") throw new Error("Expected JSON request body");
         const body = JSON.parse(init.body) as Record<string, unknown>;
         writes.push(body);
+        if (body.preview && delayedPreview) return delayedPreview;
         data = body.preview
           ? { earlier: [{ ID: "tmdb:episode:1" }], offer_return_watching: false }
           : { base: "watching" };
@@ -155,6 +156,10 @@ test("earlier-episode confirmation defaults to only the selected episode", async
     }),
   );
   mount();
+  return writes;
+}
+test("earlier-episode confirmation defaults to only the selected episode", async () => {
+  const writes = mountTrackingFixture();
   const buttons = await screen.findAllByRole("button", { name: "＋ Mark watched" });
   await userEvent.click(buttons[1]!);
   const only = await screen.findByRole("radio", { name: "Only this episode" });
@@ -165,4 +170,69 @@ test("earlier-episode confirmation defaults to only the selected episode", async
       (x) => x.preview !== true && x.episode_id === "tmdb:episode:2" && x.earlier === false,
     ),
   ).toBe(true);
+});
+
+test.each(["button", "escape", "navigation"])(
+  "tracking cancellation via %s makes no private write",
+  async (mode) => {
+    const writes = mountTrackingFixture();
+    const buttons = await screen.findAllByRole<HTMLButtonElement>("button", {
+      name: "＋ Mark watched",
+    });
+    const selected = buttons[1];
+    if (!selected) throw new Error("missing selected episode");
+    await userEvent.click(selected);
+    const dialog = await screen.findByRole("dialog");
+    if (mode === "button") await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    else if (mode === "escape")
+      fireEvent(dialog, new Event("cancel", { bubbles: true, cancelable: true }));
+    else await userEvent.click(screen.getByRole("link", { name: "My library" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    if (mode !== "navigation") await waitFor(() => expect(selected.disabled).toBe(false));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(writes.filter((body) => body.preview !== true)).toHaveLength(0);
+  },
+);
+
+test("a tracking preview arriving after navigation cannot open a prompt or apply history", async () => {
+  let finish: ((response: Response) => void) | undefined;
+  const pending = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  const writes = mountTrackingFixture(pending);
+  const buttons = await screen.findAllByRole("button", { name: "＋ Mark watched" });
+  const selected = buttons[1];
+  if (!selected) throw new Error("missing selected episode");
+  await userEvent.click(selected);
+  await waitFor(() => expect(writes).toHaveLength(1));
+  await userEvent.click(screen.getByRole("link", { name: "My library" }));
+  await act(async () => {
+    finish?.(
+      new Response(
+        JSON.stringify({ earlier: [{ ID: "tmdb:episode:1" }], offer_return_watching: false }),
+        { status: 200 },
+      ),
+    );
+    await Promise.resolve();
+  });
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(writes.filter((body) => body.preview !== true)).toHaveLength(0);
+});
+
+test("global shortcuts do not steal focus from a tracking confirmation dialog", async () => {
+  const writes = mountTrackingFixture();
+  const buttons = await screen.findAllByRole("button", { name: "＋ Mark watched" });
+  const selected = buttons[1];
+  if (!selected) throw new Error("missing selected episode");
+  await userEvent.click(selected);
+  await screen.findByRole("dialog");
+  const save = screen.getByRole("button", { name: "Save" });
+  save.focus();
+  await userEvent.keyboard("/");
+  expect(document.activeElement).toBe(save);
+  await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(writes.filter((body) => body.preview !== true)).toHaveLength(0);
 });
