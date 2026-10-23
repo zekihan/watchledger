@@ -27,3 +27,23 @@ exports/
 
 # Local scratch files
 work/
+
+# Go tooling and executable outputs
+/bin/
+*.prof
+*.cover
+coverage.out
+go.work
+go.work.sum
+
+# Frontend/tool caches and reports
+*.tsbuildinfo
+.vite/
+.cache/
+playwright-report/
+test-results/
+
+# Local database and mapping snapshots
+*.dump
+*.sqlite
+*.sqlite3

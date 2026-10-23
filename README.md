@@ -4,11 +4,22 @@ A self-hosted movie, TV, and anime tracker with private user libraries, episode 
 
 ## Project status
 
-**Specification only. No application features are implemented yet.**
+**Bootstrap skeleton. No product features are implemented yet.**
 
 The first release is defined in the [application specification](docs/specification.md). Track implementation in the [feature checklist](docs/features.md); every item starts unchecked.
 
-This repository currently contains documentation and project metadata. There is no runnable application, container image, or deployment chart yet.
+The repository includes a Go liveness server, a placeholder React page, shared lint/build commands, and CI configuration. Authentication, persistence, tracking, container packaging, and deployment charts are not implemented.
+
+## Local development
+
+Install the prerequisites listed in the [development guide](docs/development.md), then run:
+
+```sh
+make install
+make lint test build
+```
+
+Run `make dev-api` and `make dev-web` in separate terminals for the long-running development servers. The skeleton has no authentication; keep it on loopback.
 
 ## Planned first release
 
@@ -30,14 +41,16 @@ This repository currently contains documentation and project metadata. There is 
 - PostgreSQL for application state, metadata caching, and background jobs.
 - One app container serving the frontend and API and running background jobs, with PostgreSQL alongside it or provided externally.
 
-These are design choices, not installed dependencies.
+The Go/React build and lint tooling is bootstrapped. pgx/sqlc and database jobs remain planned until real persistence is added.
 
 ## Documentation
 
 - [Application specification](docs/specification.md): agreed behavior, boundaries, and acceptance criteria.
 - [Feature checklist](docs/features.md): implementation status for the complete agreed release and explicitly deferred work.
 - [Data sources](docs/data-sources.md): proposed providers, verified constraints, and open verification tasks.
+- [Development guide](docs/development.md): directory structure, prerequisites, and local commands.
 - [Contributing](CONTRIBUTING.md): development and feature-completion conventions.
+- [Agent instructions](AGENTS.md): repository rules shared through the `CLAUDE.md` symlink.
 
 ## Data ownership and third-party services
 

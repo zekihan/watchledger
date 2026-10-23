@@ -1,0 +1,17 @@
+{
+  "name": "@watchledger/web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.104.5",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  }
+}

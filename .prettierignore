@@ -1,0 +1,7 @@
+node_modules/
+web/dist/
+build/
+coverage/
+package-lock.json
+go.sum
+CLAUDE.md

@@ -2,7 +2,7 @@
 
 ## Current phase
 
-This is a documentation-only repository. Implementation has not started. Read the [specification](docs/specification.md) and [feature checklist](docs/features.md) before proposing changes.
+This repository has buildable application scaffolding, but product features are not implemented. Read the [specification](docs/specification.md) and [feature checklist](docs/features.md) before proposing changes.
 
 ## Implementing features
 
@@ -17,14 +17,14 @@ Deferred items are not part of the agreed first release. Changing a checkbox is 
 
 ## Validation
 
-Lint documentation before committing:
+Install dependencies with `make install`, then validate before committing:
 
 ```sh
-npx --yes markdownlint-cli2 '**/*.md'
+make lint test build
 git diff --check
 ```
 
-There are no application build or test commands yet. Add documented build, lint, and test commands with the first implementation changes, and run the relevant checks before committing.
+Use `make format` for formatting and `make test-race` for concurrency changes. Frontend tests currently mean TypeScript checks, and no behavioral suites exist yet. Add meaningful tests with the first product behavior. See the [development guide](docs/development.md) for commands and the directory structure.
 
 ## Commits and publishing
 
