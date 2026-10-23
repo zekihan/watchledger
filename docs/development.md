@@ -69,6 +69,14 @@ CLAUDE.md              Relative symlink to AGENTS.md
 
 Create domain, provider, store, and job packages under `internal/` when implemented. Keep domain logic independent of transport and provider formats.
 
+## Dependency updates
+
+`renovate.json` extends the shared `zekihan/renovate-config` preset used by the other projects. It covers npm workspace dependencies and overrides, Go modules/toolchain, GitHub Actions and their supported tool-version inputs, and `.node-version` through Renovate's built-in managers. Node runtime updates stay within the declared Node 24 support range.
+
+The shared preset supplies the dashboard, labels, reviewer, and Friday 00:00–05:59 Europe/Istanbul update window. Weekly lockfile maintenance uses the same window. This repository explicitly disables automatic merging, including inherited package rules, so updates require review.
+
+Configuration alone does not activate a bot. The Renovate GitHub App must have access to this repository, or a self-hosted Renovate runner must include it. No app installation, runner change, or live bot run is performed by adding this file.
+
 ## Current limitations
 
 The skeleton runs a liveness endpoint and a placeholder React page. It does not implement authentication, tracking, metadata, persistence, deployment packaging, or the localized product UI. All product checklist entries remain unchecked.

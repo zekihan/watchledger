@@ -1,0 +1,21 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["github>zekihan/renovate-config"],
+  "automerge": false,
+  "packageRules": [
+    {
+      "description": "Keep dependency changes reviewable, including inherited automerge rules",
+      "matchPackageNames": ["*"],
+      "automerge": false
+    },
+    {
+      "description": "Keep the runtime aligned with the supported package.json Node range",
+      "matchPackageNames": ["node"],
+      "allowedVersions": ">=24 <25"
+    }
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["* 0-5 * * 5"]
+  }
+}
