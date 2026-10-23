@@ -275,6 +275,8 @@ Backend regression coverage verifies private counts, runtime unknowns, metadata-
 - [x] Versioned animap ingestion with applicable attribution and license handling.
 - [ ] On-demand metadata fetching and PostgreSQL caching.
 - [ ] Daily refresh of active shows.
+  - [x] Queue saved TMDB and native AniDB metadata with provider-aware retry/cooldown handling.
+  - [ ] Live deployment refresh acceptance.
 - [ ] Weekly refresh of other saved titles.
 - [ ] Daily availability refresh for recently used countries.
 - [ ] Manual refresh.

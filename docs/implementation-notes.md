@@ -189,3 +189,9 @@ A dedicated English/Turkish credits page is linked from persistent navigation an
 ### Latest physical recovery check
 
 The disposable development database was dumped in PostgreSQL custom format and restored into a separate fresh UTF8 database after all 16 migrations. Migration, catalog, episode, history, mapping-node, alternate-view and import row counts matched. A dedicated synthetic two-account fixture additionally verified a known date-only watch, an unknown-date watch, account attribution, library status and rating after physical restoration. No production database, real viewing history, homelab or external deployment was used. Recovery artifacts remain outside the repository. This does not replace an application/OIDC login or deployment smoke check.
+
+### Saved native anime background refresh
+
+The in-process refresh queue now includes saved AniDB entries: daily while Watching and weekly otherwise. It does not enqueue unsaved catalog titles or require a TMDB token to refresh AniDB. The same persistent provider and per-anime cooldowns used by on-demand loading govern queued work. Disabled sources and active cooldowns are skipped without blocking unrelated eligible jobs; failed native refreshes retain cached metadata/history and schedule the retry no earlier than the provider reservation permits. Failure details remain visible through the existing admin job view.
+
+Synthetic database/HTTP tests use isolated schemas and verify cadence, idempotent queueing, disabled providers, no request during cooldown, successful stable-ID episode renumbering without changing watch dates, retained history during outage and cooldown-aware retries. No live AniDB request is made by these tests. Operator-only assets and runtime/provider/browser acceptance are tracked in the root TODO.md rather than being reported as completed features.

@@ -47,7 +47,7 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	runner := &jobs.Runner{Cache: &catalog.Cache{DB: pool, Provider: catalog.New(c.TMDBToken)}}
+	runner := &jobs.Runner{Cache: &catalog.Cache{DB: pool, Provider: catalog.New(c.TMDBToken)}, Anime: &anidb.Cache{DB: pool, Provider: anidb.New(anidb.Config{Client: c.AniDBClient, Version: c.AniDBVersion})}}
 	jobCtx, cancelJobs := context.WithCancel(ctx)
 	jobsDone := make(chan struct{})
 	go func() { defer close(jobsDone); runner.Run(jobCtx) }()

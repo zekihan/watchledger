@@ -1,6 +1,6 @@
 # Local acceptance checklist
 
-The feature branch is not a completed first release. Run these checks on a disposable local installation before using real history. Source-dependent limitations in `implementation-notes.md` are not waived by this checklist.
+The feature branch is not a completed first release. [TODO.md](../TODO.md) collects the checks and assets needing operator involvement. Run these checks on a disposable local installation before using real history. Source-dependent limitations in `implementation-notes.md` are not waived by this checklist.
 
 ## Setup and credentials
 
@@ -28,7 +28,7 @@ The feature branch is not a completed first release. Run these checks on a dispo
 - Edit a rating or explicitly unwatch in the app, then reimport. Existing app decisions must win. Download the source archive and verify unsupported fields remain present.
 - Open an uncached review, load its explicit source catalog ID, and choose the provider seasons to load. Loading metadata alone must not add private history. Native anime or missing source IDs must not be guessed.
 - Open an unresolved episode review and select each actual cached target episode. Equal numbers must not auto-select targets. Confirm the choices explicitly; duplicate/foreign targets and changes to a previously confirmed source identity must be rejected. Test an unwatch followed by reimport to ensure it stays unwatched.
-- Split/combined episode mappings, native anime integration, and full custom-list migration are still incomplete. Do not use this partial importer as a complete migration of your real library.
+- Native metadata and confirmed alternate tracking are implemented, but broad split/combined import resolution and actual backup custom-list coverage still require verification. Do not treat unresolved items as a complete migration of your real library.
 - Export/restore into a disposable second account. Inspect conflicts, unknown dates, list references, and settings. Authorization and sessions must never be restored from portable data.
 
 ## Browser and packaging acceptance
@@ -46,7 +46,7 @@ The feature branch is not a completed first release. Run these checks on a dispo
 - Export, preview, and explicitly apply. Check response order, manual snapshot labelling for auto lists, and preservation of unsupported fields in the downloadable source archive.
 - Rename or reorder an imported list, remove a member, and reimport. App edits must remain. Delete an imported list and reimport; it must stay deleted.
 - Export/restore into a disposable second account and repeat reimport. Source identity must prevent duplicates; deletion markers must prevent resurrection. No status, rating or watch date should change from this list-only import.
-- This workflow does not fetch the SIMKL API or establish paid-access eligibility. Do not put credentials in uploaded files.
+- This file-upload workflow does not fetch the SIMKL API or establish paid-access eligibility. The separate optional live fetch is described below. Do not put credentials in uploaded files.
 
 ## Native anime and alternate tracking
 
