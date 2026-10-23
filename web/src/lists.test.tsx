@@ -169,3 +169,54 @@ test("manual drag order is announced and a cancelled drag cannot reorder a later
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0]).toMatchObject({ members: ["tmdb:movie:2", "tmdb:movie:1"] });
 });
+
+test("failed list loading can be retried and an empty collection is explicit", async () => {
+  let attempts = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string) => {
+      if (path === "/api/lists") {
+        attempts++;
+        return Promise.resolve(
+          attempts === 1
+            ? new Response("Synthetic temporary failure", { status: 503 })
+            : new Response("[]", { status: 200 }),
+        );
+      }
+      return Promise.resolve(new Response(JSON.stringify(fixtures(path)), { status: 200 }));
+    }),
+  );
+  mount();
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("Synthetic temporary failure");
+  await userEvent.click(within(alert).getByRole("button", { name: en.retry }));
+  expect(await screen.findByText(en.empty)).toBeTruthy();
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
+test("smart preview failures have explicit retry and cannot be saved until recovered", async () => {
+  let fail = true;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string) =>
+      Promise.resolve(
+        path === "/api/lists/preview" && fail
+          ? new Response("Synthetic preview failure", { status: 503 })
+          : new Response(JSON.stringify(fixtures(path)), { status: 200 }),
+      ),
+    ),
+  );
+  mount();
+  await screen.findByText("Favorites");
+  await userEvent.click(screen.getByRole("button", { name: `＋ ${en.newList}` }));
+  await userEvent.type(screen.getByRole("textbox", { name: en.name }), "Recovered preview");
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: en.kind }), "smart");
+  const alert = await screen.findByRole("alert");
+  expect(screen.getByRole<HTMLButtonElement>("button", { name: en.save }).disabled).toBe(true);
+  fail = false;
+  await userEvent.click(within(alert).getByRole("button", { name: en.retry }));
+  await waitFor(() =>
+    expect(screen.getByRole<HTMLButtonElement>("button", { name: en.save }).disabled).toBe(false),
+  );
+  expect(screen.getByRole("link", { name: "Alpha" })).toBeTruthy();
+});

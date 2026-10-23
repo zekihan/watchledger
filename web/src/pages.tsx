@@ -328,14 +328,28 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
           ＋ {t("newList")}
         </button>
       </div>
-      {[q.error, library.error, statuses.error, providers.error, save.error, remove.error]
-        .filter(Boolean)
-        .map((e, i) => (
-          <p role="alert" className="error" key={i}>
-            {e?.message}
-          </p>
-        ))}
-      {q.isPending && <p>{t("loading")}</p>}
+      {[q, library, statuses, providers].map((query, index) =>
+        query.error ? (
+          <div role="alert" className="error" key={index}>
+            {query.error.message}
+            <button
+              disabled={query.isFetching}
+              onClick={() => {
+                void query.refetch();
+              }}
+            >
+              {t("retry")}
+            </button>
+          </div>
+        ) : null,
+      )}
+      {[save.error, remove.error].filter(Boolean).map((error, index) => (
+        <p role="alert" className="error" key={index}>
+          {error?.message}
+        </p>
+      ))}
+      {q.isPending && <p role="status">{t("loading")}</p>}
+      {!edit && !viewed && q.isSuccess && q.data.length === 0 && <p>{t("empty")}</p>}
       {edit ? (
         <section className="panel">
           <fieldset disabled={save.isPending} style={{ border: 0, padding: 0, minWidth: 0 }}>
@@ -389,19 +403,37 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
                   }}
                 />
                 <div className="preview">
-                  <h3>
-                    {t("preview")}: {preview.data?.count ?? "…"}
-                  </h3>
-                  {preview.error && <p role="alert">{preview.error.message}</p>}
-                  {preview.data?.results.slice(0, 20).map((x) => (
-                    <a
-                      className="chip"
-                      key={x.id}
-                      href={`#detail/${x.id.split(":").slice(1).join("/")}`}
-                    >
-                      {x.title}
-                    </a>
-                  ))}
+                  <h3>{t("preview")}</h3>
+                  {preview.isFetching && <p role="status">{t("loading")}</p>}
+                  {preview.error && (
+                    <div role="alert">
+                      {preview.error.message}
+                      <button
+                        disabled={preview.isFetching}
+                        onClick={() => {
+                          void preview.refetch();
+                        }}
+                      >
+                        {t("retry")}
+                      </button>
+                    </div>
+                  )}
+                  {!preview.isFetching && !preview.error && preview.data && (
+                    <p role="status">
+                      {preview.data.count} {t("title")}
+                    </p>
+                  )}
+                  {!preview.isFetching &&
+                    !preview.error &&
+                    preview.data?.results.slice(0, 20).map((x) => (
+                      <a
+                        className="chip"
+                        key={x.id}
+                        href={`#detail/${x.id.split(":").slice(1).join("/")}`}
+                      >
+                        {x.title}
+                      </a>
+                    ))}
                 </div>
               </>
             ) : (

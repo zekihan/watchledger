@@ -61,6 +61,14 @@ export function ImportReview({
     return (
       <div>
         <p role="alert">{candidates.error.message}</p>
+        <button
+          disabled={candidates.isFetching}
+          onClick={() => {
+            void candidates.refetch();
+          }}
+        >
+          {t("retry")}
+        </button>
         <button onClick={close}>{t("cancel")}</button>
       </div>
     );
