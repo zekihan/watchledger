@@ -6,7 +6,7 @@
 - Node matching `.node-version`, with npm.
 - golangci-lint matching the version in `.github/workflows/ci.yml`.
 
-Run `make install` once to install the locked frontend and lint dependencies. No database or identity provider is needed for the current bootstrap.
+Run `make install` once to install the locked frontend and lint dependencies. The backend requires PostgreSQL 17 or newer and an OIDC provider. Set the variables in `.env.example` in your shell; the server does not load `.env` automatically. It applies embedded, checksum-verified migrations transactionally on startup. Use a dedicated database.
 
 ## Run locally
 
@@ -31,9 +31,9 @@ make build
 WATCHLEDGER_WEB_DIR=web/dist ./build/watchledger
 ```
 
-The second command is long-running and serves the built frontend at `http://127.0.0.1:8080`. Client-side routing and production deployment are not implemented yet.
+The second command is long-running and serves the built frontend at `http://127.0.0.1:8080`. Production deployment packaging is not implemented yet.
 
-`WATCHLEDGER_ADDR` overrides the Go listening address. `WATCHLEDGER_WEB_DIR` enables static file serving from a directory. The process does not automatically load `.env`; export settings in your shell when needed. Commented provider settings in `.env.example` are reserved and are not read yet.
+`WATCHLEDGER_ADDR` overrides the Go listening address. `WATCHLEDGER_WEB_DIR` enables static file serving from a directory. The process does not automatically load `.env`; export settings in your shell when needed. `DATABASE_URL`, `PUBLIC_URL`, OIDC settings, and `SESSION_KEY` are required. The session key is base64 of 32 random bytes and encrypts stored OAuth tokens. Losing it invalidates existing sessions. Register `PUBLIC_URL/auth/callback` at the identity provider. Claim paths use dot-separated object keys and accept a string or array of strings. Login requests `openid profile offline_access`. Refresh must return a validated ID token with current authorization claims or a UserInfo response with the matching subject. Missing claims deny admission or remove admin access. Sessions last at most 12 hours; authorization is refreshed at token expiry or after one hour, whichever is earlier. HTTPS is required except on loopback development URLs.
 
 ## TypeScript compiler and lint API
 
@@ -85,4 +85,10 @@ Configuration alone does not activate a bot. The Renovate GitHub App must have a
 
 ## Current limitations
 
-The skeleton runs a liveness endpoint and a placeholder React page. It does not implement authentication, tracking, metadata, persistence, deployment packaging, or the localized product UI. All product checklist entries remain unchecked.
+Persistence and OIDC foundations are implemented. The React page remains a placeholder, and product workflows, providers, packaging, and localized UI remain incomplete. Actual identity-provider compatibility still needs deployment configuration. See `implementation-notes.md` for source blockers.
+
+## Database and generated queries
+
+Install sqlc v1.31.1, then run `sqlc generate` after changing `db/queries` or migrations. Commit the generated Go queries. Do not edit applied migration files; add the next numbered migration. The application refuses changed checksums.
+
+Set `TEST_DATABASE_URL` to a disposable PostgreSQL database to run migration and database constraint tests. Never point tests at a production database. Tests use synthetic records and transaction rollback. `/readyz` checks database connectivity; `/healthz` remains process liveness only.

@@ -1,6 +1,6 @@
 # Feature checklist
 
-**Status: no application features implemented. All items are unchecked.**
+**Status: persistence and OIDC foundations in progress. Product workflows are not yet complete. See [validation notes](implementation-notes.md).**
 
 This is the implementation tracker for the [agreed specification](specification.md). A checked box means the behavior is implemented and verified. Keep partial work unchecked; link supporting commits, pull requests, or validation notes when checking an item. Add subitems when a feature needs finer tracking.
 
@@ -17,15 +17,15 @@ The final section is explicitly deferred and does not count toward first-release
 ## Identity and privacy
 
 - [ ] OIDC login with stable issuer/subject identity binding.
-- [ ] Configurable admission claim name and allowed value.
+- [x] Configurable admission claim name and allowed value.
 - [ ] Automatic account creation only after admission succeeds.
-- [ ] Separate configurable admin claim.
+- [x] Separate configurable admin claim.
 - [ ] No automatic first-user admin promotion or manual account creation.
 - [ ] Current admission/admin claim evaluation at login and token refresh.
 - [ ] Current claims from validated refreshed ID token or subject-validated UserInfo.
-- [ ] Access denial when admission claims are absent.
-- [ ] Admin-right removal when admin claims are absent.
-- [ ] Require login when current authorization claims cannot be obtained.
+- [x] Access denial when admission claims are absent.
+- [x] Admin-right removal when admin claims are absent.
+- [x] Require login when current authorization claims cannot be obtained.
 - [ ] Server-side authorization configuration recovery without an implicit role bypass.
 - [ ] Private per-user libraries, history, ratings, lists, statuses, settings, and import data.
 - [ ] Authorization checks on every user-scoped API and admin operation.
@@ -261,8 +261,8 @@ The final section is explicitly deferred and does not count toward first-release
 ## Architecture and packaging
 
 - [ ] Go standard-HTTP API backend.
-- [ ] PostgreSQL schema and migrations.
-- [ ] `pgx` and `sqlc` database access.
+- [x] PostgreSQL schema and migrations.
+- [x] `pgx` and `sqlc` database access.
 - [ ] React/TypeScript/Vite frontend.
 - [ ] Tailwind and accessible UI primitives.
 - [ ] TanStack Query API state and mutations.
@@ -270,8 +270,8 @@ The final section is explicitly deferred and does not count toward first-release
 - [ ] App container serving frontend and API.
 - [ ] Docker Compose deployment.
 - [ ] Helm chart deployment.
-- [ ] External PostgreSQL connection configuration.
-- [ ] OIDC/provider secret configuration without committed credentials.
+- [x] External PostgreSQL connection configuration.
+- [x] OIDC/provider secret configuration without committed credentials.
 - [ ] Document build, lint, test, configuration, and deployment commands.
 
 ## Acceptance and quality
