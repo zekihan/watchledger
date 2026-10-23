@@ -107,3 +107,11 @@ Synthetic PostgreSQL regression tests cover month-boundary timestamps in Europe/
 Cached episode mappings now have a private alternate-view endpoint and interface. Projection is computed in both directions from recorded source events only, never recursively from projected flags. Split/combined relationships require revision-bound consent. Unreviewed, overlapping, retired-source or invalid mappings stay blocked; missing coverage remains visible as incomplete. Source statuses/ratings remain separate and no aggregate rating or watched date is invented.
 
 Synthetic domain and HTTP/PostgreSQL tests cover split/combined directionality, partial coverage, consent, account isolation, retired source identity, and preservation of recorded events. The initial view is read-only; native catalog ingestion and cross-view editing remain separate implementation work, not implied by this projection checkpoint.
+
+## Native AniDB metadata and tracking
+
+Official saved documentation clarified registration, gzip/XML handling, caching, request intervals and non-commercial licensing. One live request using the operator-provided registered client returned a valid anime response; the saved response is parsed locally for compatibility without repeating that dataset request. No source content, user history, password or token is committed.
+
+The adapter loads explicit AniDB identities, normalizes native titles and stable episode IDs, preserves date-only precision, and retains raw source metadata in a server cache. PostgreSQL-backed request reservations survive process restarts, concurrent instances and language changes. Ban/error responses are not catalog data. Native detail pages use AniDB episode identities for ordinary tracking, and SIMKL reviews can separately load their explicit AniDB identity before manual episode resolution.
+
+This checkpoint does not complete title-index search, native artwork/availability, dataset mapping ingestion or alternate-view editing. The official title-index download returned 403. Cached-only search is labelled explicitly, and exact-ID loading remains available. Synthetic cache/history/consent tests and a saved live XML parse are evidence for implemented behavior, not complete browser or deployment acceptance.

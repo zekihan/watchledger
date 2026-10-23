@@ -8,6 +8,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AnidbDocument struct {
+	Aid       string             `json:"aid"`
+	Document  []byte             `json:"document"`
+	FetchedAt pgtype.Timestamptz `json:"fetched_at"`
+}
+
 type Availability struct {
 	CatalogID string             `json:"catalog_id"`
 	Country   string             `json:"country"`
@@ -169,6 +175,11 @@ type Notice struct {
 	Data      []byte             `json:"data"`
 	ReadAt    pgtype.Timestamptz `json:"read_at"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type ProviderRequestLimit struct {
+	Key           string             `json:"key"`
+	NextAllowedAt pgtype.Timestamptz `json:"next_allowed_at"`
 }
 
 type SeasonCache struct {

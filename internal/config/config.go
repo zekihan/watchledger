@@ -5,17 +5,30 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strconv"
+	"strings"
 )
 
 type Config struct {
 	Address, WebDir, DatabaseURL, PublicURL                                                string
 	Issuer, ClientID, ClientSecret, AdmissionClaim, AdmissionValue, AdminClaim, AdminValue string
+	AniDBClient                                                                            string
+	AniDBVersion                                                                           int
 	TMDBToken, SessionKey                                                                  string
 }
 
 func Load() (Config, error) { return Parse(os.Getenv) }
 func Parse(get func(string) string) (Config, error) {
 	c := Config{Address: get("WATCHLEDGER_ADDR"), WebDir: get("WATCHLEDGER_WEB_DIR"), DatabaseURL: get("DATABASE_URL"), PublicURL: get("PUBLIC_URL"), Issuer: get("OIDC_ISSUER"), ClientID: get("OIDC_CLIENT_ID"), ClientSecret: get("OIDC_CLIENT_SECRET"), AdmissionClaim: get("OIDC_ADMISSION_CLAIM"), AdmissionValue: get("OIDC_ADMISSION_VALUE"), AdminClaim: get("OIDC_ADMIN_CLAIM"), AdminValue: get("OIDC_ADMIN_VALUE"), TMDBToken: get("TMDB_TOKEN"), SessionKey: get("SESSION_KEY")}
+	c.AniDBClient = get("ANIDB_CLIENT")
+	version := get("ANIDB_CLIENT_VERSION")
+	if c.AniDBClient != "" || version != "" {
+		var err error
+		c.AniDBVersion, err = strconv.Atoi(version)
+		if err != nil || c.AniDBVersion < 1 || c.AniDBClient == "" || c.AniDBClient != strings.ToLower(c.AniDBClient) {
+			return c, fmt.Errorf("ANIDB_CLIENT and a positive registered ANIDB_CLIENT_VERSION are required together")
+		}
+	}
 	if c.Address == "" {
 		c.Address = "127.0.0.1:8080"
 	}

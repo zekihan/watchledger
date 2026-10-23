@@ -8,7 +8,7 @@ The final section is explicitly deferred and does not count toward first-release
 
 ## Verification prerequisites
 
-- [ ] Verify current AniDB API access, registration, rate, cache, and attribution requirements.
+- [x] Verify current AniDB API access, registration, rate, cache, and attribution requirements.
 - [ ] Inspect a private SIMKL JSON backup and document actual import field coverage using redacted examples.
 - [ ] Verify the configured OIDC provider supplies current access/admin claims at refresh or UserInfo.
 - [ ] Verify mapping coverage for ordinary shows, split cours, specials, and split/combined anime episodes.
@@ -67,6 +67,8 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Movie catalog search and metadata.
 - [ ] TV catalog search and metadata.
 - [ ] Anime catalog search and native identities.
+  - [x] Explicit AniDB ID lookup and honestly labelled cached-alias search.
+  - [ ] Complete title-index search and native presentation acceptance.
 - [ ] People search.
 - [ ] Popular and upcoming browsing.
 - [ ] Posters, artwork, synopsis, dates, runtime, and genres.
@@ -254,6 +256,8 @@ Backend regression coverage verifies private counts, runtime unknowns, metadata-
 - [ ] TMDB metadata adapter.
 - [ ] TMDB/JustWatch availability adapter.
 - [ ] AniDB integration after access-policy verification.
+  - [x] On-demand native metadata/episode loading, registered client configuration, persistent cooldowns, source-ID-safe tracking and cached outage fallback.
+  - [ ] Full title-index search, native artwork and complete native/alternate-view acceptance.
 - [ ] Versioned animap ingestion with applicable attribution and license handling.
 - [ ] On-demand metadata fetching and PostgreSQL caching.
 - [ ] Daily refresh of active shows.

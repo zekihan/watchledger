@@ -301,6 +301,28 @@ func (a *API) loadReviewCatalog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	parts := strings.Split(review.Source.Target(), ":")
+	if len(parts) == 3 && parts[0] == "anidb" && parts[1] == "anime" {
+		if in.Season != nil {
+			http.Error(w, "native episodes load with the source entry", http.StatusBadRequest)
+			return
+		}
+		if a.Anime == nil {
+			http.Error(w, "AniDB source unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		var settings struct {
+			Language string `json:"metadata_language"`
+			Style    string `json:"anime_title"`
+		}
+		_ = json.Unmarshal(auth.Current(r.Context()).Settings, &settings)
+		detail, err := a.Anime.Detail(r.Context(), parts[2], settings.Language, settings.Style)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		writeJSON(w, map[string]interface{}{"status": "catalog_loaded", "target": review.Source.Target(), "history_applied": false, "stale": detail.Stale, "warning": detail.Warning})
+		return
+	}
 	if len(parts) != 3 || parts[0] != "tmdb" || (parts[1] != "movie" && parts[1] != "tv") {
 		http.Error(w, "no supported explicit TMDB identity; no match was guessed", http.StatusConflict)
 		return

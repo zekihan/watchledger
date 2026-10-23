@@ -18,6 +18,8 @@ services:
       OIDC_ADMIN_VALUE: ${OIDC_ADMIN_VALUE:?Set admin value}
       SESSION_KEY: ${SESSION_KEY:?Set base64 session encryption key}
       TMDB_TOKEN: ${TMDB_TOKEN:-}
+      ANIDB_CLIENT: ${ANIDB_CLIENT:-}
+      ANIDB_CLIENT_VERSION: ${ANIDB_CLIENT_VERSION:-}
     read_only: true
     tmpfs:
       - /tmp:size=16m,mode=1777

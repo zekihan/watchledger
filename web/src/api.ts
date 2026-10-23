@@ -47,6 +47,7 @@ export interface Credit {
   profile_path?: string;
 }
 export interface Title {
+  episodes?: Episode[];
   id: number;
   title?: string;
   name?: string;

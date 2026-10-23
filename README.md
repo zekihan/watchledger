@@ -8,7 +8,7 @@ A self-hosted movie, TV, and anime tracker with private user libraries, episode 
 
 The first release is defined in the [application specification](docs/specification.md). Track implementation in the [feature checklist](docs/features.md); partial or unverified items remain unchecked.
 
-Implemented increments include PostgreSQL persistence, OIDC authentication, TMDB adapters and caching, private tracking, nested lists, portable backup APIs, mapping review foundations, and connected English/Turkish React screens. Compose and Helm packaging is present. AniDB access, faithful SIMKL migration, full anime presentation, real-provider acceptance and browser verification remain incomplete. See the [implementation evidence](docs/implementation-notes.md) and [deployment guide](docs/deployment.md).
+Implemented increments include PostgreSQL persistence, OIDC authentication, TMDB adapters and caching, private tracking, nested lists, portable backup APIs, mapping review foundations, and connected English/Turkish React screens. Compose and Helm packaging is present. Native AniDB on-demand details and tracking are implemented with registered-client configuration and persistent request limits. Full title search, faithful SIMKL migration, full anime presentation and browser/deployment acceptance remain incomplete. See the [implementation evidence](docs/implementation-notes.md) and [deployment guide](docs/deployment.md).
 
 ## Local development
 
@@ -56,7 +56,7 @@ Database migrations and sqlc queries are committed. Background refresh runs in t
 
 Viewing history belongs in the self-hosted database and must be exportable. The app will use external catalog and availability providers; cached library data and tracking should continue working when providers are unavailable.
 
-The proposed catalog sources are TMDB, AniDB, and animap. AniDB API access requirements must be verified before implementation. SIMKL is a migration source, not an ongoing synchronization dependency.
+The proposed catalog sources are TMDB, AniDB, and animap. AniDB API requirements were verified from operator-supplied official documentation; its data is non-commercial CC-BY-NC-SA 4.0. SIMKL is a migration source, not an ongoing synchronization dependency.
 
 The MIT license covers this repository's original code and documentation. It does not grant rights to third-party metadata, artwork, trademarks, or mapping datasets. Provider attribution and applicable data licenses must be respected; see [data sources](docs/data-sources.md).
 

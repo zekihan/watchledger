@@ -136,7 +136,7 @@ function ReviewEditor({
         {t("mappingTarget")}: {data.target || t("unresolved")}
       </p>
 
-      {/^tmdb:(movie|tv):[0-9]+$/.test(data.target) && (
+      {/^(tmdb:(movie|tv)|anidb:anime):[0-9]+$/.test(data.target) && (
         <a href={`#detail/${data.target.split(":").slice(1).join("/")}`}>{t("openSourceTitle")}</a>
       )}
       <div className="settings-grid">
@@ -166,7 +166,7 @@ function ReviewEditor({
         </div>
       </div>
 
-      {/^tmdb:(movie|tv):[0-9]+$/.test(data.target) && (
+      {/^(tmdb:(movie|tv)|anidb:anime):[0-9]+$/.test(data.target) && (
         <div className="panel">
           <p>{t("loadMetadataHint")}</p>
           <button
@@ -178,7 +178,7 @@ function ReviewEditor({
           >
             {t("loadImportMetadata")}
           </button>
-          {data.seasons.length > 0 && (
+          {data.target.startsWith("tmdb:tv:") && data.seasons.length > 0 && (
             <>
               <label>
                 {t("targetSeason")}

@@ -92,3 +92,13 @@ Persistence and OIDC foundations are implemented. The React UI now connects core
 Install sqlc v1.31.1, then run `sqlc generate` after changing `db/queries` or migrations. Commit the generated Go queries. Do not edit applied migration files; add the next numbered migration. The application refuses changed checksums.
 
 Set `TEST_DATABASE_URL` to a disposable PostgreSQL database to run migration and database constraint tests. Never point tests at a production database. Tests use synthetic records with transaction rollback or scoped cleanup. Use a disposable database even when cleanup is expected. `/readyz` checks database connectivity; `/healthz` remains process liveness only.
+
+## AniDB native metadata
+
+Configure the registered public HTTP client identity using ANIDB_CLIENT and ANIDB_CLIENT_VERSION; these are not an AniDB account password or secret token. The operator verified watchledger version 1. Leaving both unset disables uncached live access while preserving cached reads. Compose forwards these variables; Helm exposes anidb.client and anidb.version.
+
+The shared database enforces a two-second provider request interval and a 24-hour per-anime request cooldown, including failed attempts and manual refresh. XML ban responses suspend all provider requests for 24 hours. Do not remove these limits to retry. Cached metadata remains available with a stale warning. Source episodes keep their stable IDs through renumbering; disappearing IDs retire instead of deleting history.
+
+Search currently supports exact AniDB IDs and cached title aliases. The documented title-only daily download returned HTTP 403 during validation, so do not describe cached search as a complete catalog search. No HTML scraping is used. Native artwork and availability are not guessed from TMDB IDs.
+
+Tests use synthetic XML and HTTP servers. To validate an already-downloaded operator response without re-requesting it, set ANIDB_XML_FIXTURE to that local XML file when running the AniDB package tests. Never commit the response. AniDB data retains its own CC-BY-NC-SA 4.0 restrictions and attribution; the application MIT license does not relicense it.

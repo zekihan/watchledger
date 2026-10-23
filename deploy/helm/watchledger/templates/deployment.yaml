@@ -53,6 +53,12 @@ spec:
               value: {{ .Values.oidc.adminClaim | quote }}
             - name: OIDC_ADMIN_VALUE
               value: {{ .Values.oidc.adminValue | quote }}
+            {{- if .Values.anidb.client }}
+            - name: ANIDB_CLIENT
+              value: {{ .Values.anidb.client | quote }}
+            - name: ANIDB_CLIENT_VERSION
+              value: {{ .Values.anidb.version | quote }}
+            {{- end }}
           readinessProbe:
             httpGet:
               path: /readyz

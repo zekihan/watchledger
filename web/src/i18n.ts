@@ -1,4 +1,8 @@
 export const en = {
+  animeSearchScope:
+    "AniDB: search currently covers cached titles, or enter an exact AniDB ID to load it. This is not a complete anime catalog search.",
+  anidbNotice:
+    "Non-commercial metadata. Native source identity is preserved; artwork and provider availability are not inferred from another catalog.",
   alternateViews: "Linked episode views",
   alternateHistoryNotice:
     "Derived progress is calculated from recorded source events, not copied history. It has no invented watched date or combined rating.",
@@ -36,7 +40,7 @@ export const en = {
   targetSeason: "Provider season to load",
   loadImportSeason: "Load selected season",
   loadMetadataHint:
-    "Loads only the explicit TMDB ID in your source record. Metadata loading does not import history. Choose provider seasons separately; source numbering is not assumed to match.",
+    "Loads only the explicit TMDB or AniDB ID in your source record. Metadata loading does not import history. Choose provider seasons separately; source numbering is not assumed to match.",
   catalogLoadedNoHistory: "Catalog metadata loaded. No history was applied.",
 
   openSourceTitle: "Open source title / load catalog details",
@@ -61,7 +65,7 @@ export const en = {
     "Review each unresolved source item. Load its explicit catalog ID and choose provider seasons here before confirming. Source validation errors and unsupported custom lists remain archived.",
 
   simklLimits:
-    "Partial migration: cached movie/show identities can be added. Episode mappings need explicit review; uncached identities and native anime remain gated. Custom lists are retained in the archive but are not imported yet. No episode-number matching is guessed.",
+    "Partial migration: explicit movie, show and AniDB identities can be loaded. Episode mappings need explicit review. Custom lists use the separate complete-response file importer. No episode-number matching is guessed.",
   simklFile: "SIMKL JSON backup",
   importSize: "Maximum backup size: 32 MiB",
   unresolved: "Items requiring review",
@@ -274,6 +278,10 @@ export const en = {
 };
 export type Key = keyof typeof en;
 export const tr: Record<Key, string> = {
+  animeSearchScope:
+    "AniDB: arama şu anda önbellekteki adları kapsar; yüklemek için tam AniDB kimliğini girin. Bu eksiksiz anime kataloğu araması değildir.",
+  anidbNotice:
+    "Ticari olmayan meta veriler. Yerel kaynak kimliği korunur; görseller ve sağlayıcı uygunluğu başka bir katalogdan varsayılmaz.",
   alternateViews: "Bağlantılı bölüm görünümleri",
   alternateHistoryNotice:
     "Türetilmiş ilerleme, kopyalanmış geçmişten değil kayıtlı kaynak olaylarından hesaplanır. İzleme tarihi veya birleşik puan uydurulmaz.",
@@ -285,7 +293,7 @@ export const tr: Record<Key, string> = {
   connectedEpisodes: "Bağlantılı kaynak bölümleri",
 
   simklLimits:
-    "Kısmi aktarım: önbellekteki film/dizi kimlikleri eklenebilir. Bölüm eşlemeleri açık inceleme gerektirir; önbellekte olmayan kimlikler ve anime kayıtları bekletilir. Özel listeler arşivde korunur ancak henüz aktarılmaz. Bölüm numaralarından eşleme tahmin edilmez.",
+    "Kısmi aktarım: açık film, dizi ve AniDB kimlikleri yüklenebilir. Bölüm eşlemeleri açık inceleme gerektirir. Özel listeler ayrı tam yanıt dosyası aktarıcısını kullanır. Bölüm numaralarından eşleme tahmin edilmez.",
   simklFile: "SIMKL JSON yedeği",
   importSize: "En büyük yedek boyutu: 32 MiB",
   unresolved: "İnceleme gereken kayıtlar",

@@ -403,15 +403,7 @@ function LibraryPage({ t }: { t: T }) {
               {entries.map((x) => (
                 <tr key={x.id}>
                   <td>
-                    <a
-                      href={
-                        x.kind === "anime"
-                          ? `#views/${encodeURIComponent(x.id)}`
-                          : `#detail/${x.id.split(":").slice(1).join("/")}`
-                      }
-                    >
-                      {x.title}
-                    </a>
+                    <a href={`#detail/${x.id.split(":").slice(1).join("/")}`}>{x.title}</a>
                   </td>
                   <td>{x.status_name ?? t(bases.find((b) => b === x.base) ?? "planned")}</td>
                   <td>{x.rating ?? "—"}</td>
@@ -428,11 +420,7 @@ function LibraryPage({ t }: { t: T }) {
               <a
                 className="poster-card"
                 key={x.id}
-                href={
-                  x.kind === "anime"
-                    ? `#views/${encodeURIComponent(x.id)}`
-                    : `#detail/${x.id.split(":").slice(1).join("/")}`
-                }
+                href={`#detail/${x.id.split(":").slice(1).join("/")}`}
               >
                 <div className="poster">
                   <Poster title={x.title} path={m?.poster_path} />
@@ -509,6 +497,7 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
         results: Title[];
         total_pages: number;
         exhaustive?: boolean;
+        search_scope?: string;
         enrichment_failures?: number;
       }>(path),
     retry: false,
@@ -526,9 +515,9 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
             setPage(1);
           }}
         >
-          {(search ? ["multi", "movie", "tv", "person"] : ["movie", "tv"]).map((k) => (
+          {(search ? ["multi", "movie", "tv", "anime", "person"] : ["movie", "tv"]).map((k) => (
             <option key={k} value={k}>
-              {k === "multi" ? t("all") : t(k as "movie" | "tv" | "person")}
+              {k === "multi" ? t("all") : t(k as "movie" | "tv" | "anime" | "person")}
             </option>
           ))}
         </select>
@@ -618,7 +607,7 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
                 />
               </label>
             ))}
-            {kind === "tv" && (
+            {(kind === "tv" || kind === "anime") && (
               <label>
                 {t("cast")} / {t("crew")}
                 <select
@@ -661,7 +650,7 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
       </label>
       {q.data?.exhaustive === false && (
         <p className="notice">
-          {t("candidateNotice")}{" "}
+          {t(kind === "anime" ? "animeSearchScope" : "candidateNotice")}{" "}
           {q.data.enrichment_failures ? `${t("error")}: ${String(q.data.enrichment_failures)}` : ""}
         </p>
       )}
@@ -682,7 +671,8 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
               !exclude ||
               !library.data?.some(
                 (l) =>
-                  l.id === `tmdb:${item.media_type ?? kind}:${String(item.id)}` &&
+                  l.id ===
+                    `${(item.media_type ?? kind) === "anime" ? "anidb" : "tmdb"}:${item.media_type ?? kind}:${String(item.id)}` &&
                   l.base === "completed",
               ),
           )}
@@ -717,11 +707,11 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
 function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
   const kind = parts[1] ?? "movie",
     id = parts[2] ?? "0",
-    key = `tmdb:${kind}:${id}`,
+    key = `${kind === "anime" ? "anidb" : "tmdb"}:${kind}:${id}`,
     client = useQueryClient();
   const language = user.Settings.metadata_language ?? "en";
   const q = useQuery({
-    queryKey: ["detail", kind, id, language],
+    queryKey: ["detail", kind, id, language, user.Settings.anime_title],
     queryFn: () =>
       api<{ metadata: Title; fetched_at: string; stale: boolean; warning?: string }>(
         `/catalog/${kind}/${id}?language=${encodeURIComponent(language)}`,
@@ -761,7 +751,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
         fetched_at: string;
         stale: boolean;
       }>(`/catalog/${kind}/${id}/providers?country=${user.Settings.country ?? "TR"}`),
-    enabled: kind !== "person",
+    enabled: kind !== "person" && kind !== "anime",
     retry: false,
   });
   const save = useMutation({
@@ -837,11 +827,12 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
       await client.invalidateQueries({ queryKey: ["history", key] });
       await client.invalidateQueries({ queryKey: ["library"] });
       await client.invalidateQueries({ queryKey: ["dashboard"] });
+      await client.invalidateQueries({ queryKey: ["alternate"] });
     },
   });
   const bulk = useMutation({
     mutationFn: async (watched: boolean) => {
-      for (const item of q.data?.metadata.seasons ?? []) {
+      for (const item of kind === "tv" ? (q.data?.metadata.seasons ?? []) : []) {
         await api(`/catalog/tv/${id}/seasons/${String(item.season_number)}?language=${language}`);
       }
       track.mutate({ whole: true, watched });
@@ -1000,6 +991,13 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
         </div>
       </section>
       {q.data.warning && <p className="notice">{q.data.warning}</p>}
+      {kind === "anime" && (
+        <p className="notice">
+          AniDB · <a href={`https://anidb.net/anime/${id}`}>Source</a> ·{" "}
+          <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC-BY-NC-SA 4.0</a> ·{" "}
+          {t("anidbNotice")}
+        </p>
+      )}
       {[save.error, track.error, refresh.error]
         .filter((e): e is Error => !!e)
         .map((e, i) => (
@@ -1099,7 +1097,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
           {bulk.error && <p role="alert">{bulk.error.message}</p>}
         </div>
       )}
-      {kind === "tv" && (
+      {(kind === "tv" || kind === "anime") && (
         <section>
           <div className="section-heading">
             <h2>{t("episodes")}</h2>
@@ -1140,8 +1138,11 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
           {eps.error ? (
             <ErrorBox error={eps.error} t={t} />
           ) : (
-            eps.data?.episodes.map((ep) => {
-              const eid = `tmdb:episode:${String(ep.id)}`,
+            (kind === "anime"
+              ? m.episodes?.filter((ep) => ep.season_number === season)
+              : eps.data?.episodes
+            )?.map((ep) => {
+              const eid = `${kind === "anime" ? "anidb" : "tmdb"}:episode:${String(ep.id)}`,
                 seen = history.data?.some((h) => h.episode_id === eid);
               const show = seen || user.Settings.spoilers || reveal.includes(eid);
               return (

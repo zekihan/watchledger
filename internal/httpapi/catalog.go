@@ -1,7 +1,10 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/zekihan/watchledger/internal/anidb"
+	"github.com/zekihan/watchledger/internal/auth"
 	"github.com/zekihan/watchledger/internal/catalog"
 	"net/http"
 	"net/url"
@@ -11,6 +14,7 @@ import (
 type API struct {
 	DB      *pgxpool.Pool
 	Catalog *catalog.Cache
+	Anime   *anidb.Cache
 }
 
 func (a *API) routes(mux *http.ServeMux) {
@@ -32,6 +36,10 @@ func (a *API) routes(mux *http.ServeMux) {
 }
 func (a *API) search(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
+	if q.Get("kind") == "anime" {
+		a.searchAnime(w, r)
+		return
+	}
 	if kind := q.Get("kind"); kind != "" && kind != "multi" && !catalog.ValidKind(kind) {
 		http.Error(w, "catalog source is not available for this kind", http.StatusBadRequest)
 		return
@@ -77,6 +85,24 @@ func (a *API) discover(w http.ResponseWriter, r *http.Request) {
 func (a *API) detail(w http.ResponseWriter, r *http.Request)  { a.getDetail(w, r, false) }
 func (a *API) refresh(w http.ResponseWriter, r *http.Request) { a.getDetail(w, r, true) }
 func (a *API) getDetail(w http.ResponseWriter, r *http.Request, force bool) {
+	if r.PathValue("kind") == "anime" {
+		if a.Anime == nil {
+			http.Error(w, "AniDB source unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		var settings struct {
+			AnimeTitle string `json:"anime_title"`
+		}
+		_ = json.Unmarshal(auth.Current(r.Context()).Settings, &settings)
+		d, err := a.Anime.Detail(r.Context(), r.PathValue("id"), r.URL.Query().Get("language"), settings.AnimeTitle)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		writeJSON(w, d)
+		return
+	}
+
 	if _, e := catalog.Identity(r.PathValue("kind"), r.PathValue("id")); e != nil {
 		http.Error(w, e.Error(), http.StatusBadRequest)
 		return

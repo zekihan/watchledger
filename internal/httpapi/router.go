@@ -3,6 +3,7 @@ package httpapi
 import (
 	"encoding/json"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/zekihan/watchledger/internal/anidb"
 	"github.com/zekihan/watchledger/internal/auth"
 	"github.com/zekihan/watchledger/internal/catalog"
 	"net/http"
@@ -23,7 +24,7 @@ func NewHandler(webDirectory string) http.Handler {
 }
 
 // NewApplication serves only authenticated product APIs. Liveness stays independent.
-func NewApplication(webDir string, pool *pgxpool.Pool, identity *auth.Service, tmdbToken string) http.Handler {
+func NewApplication(webDir string, pool *pgxpool.Pool, identity *auth.Service, tmdbToken string, animeConfig ...anidb.Config) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, map[string]string{"status": "ok"}) })
 	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
@@ -37,6 +38,11 @@ func NewApplication(webDir string, pool *pgxpool.Pool, identity *auth.Service, t
 	mux.HandleFunc("GET /auth/callback", identity.Callback)
 	api := http.NewServeMux()
 	application := &API{DB: pool, Catalog: &catalog.Cache{DB: pool, Provider: catalog.New(tmdbToken)}}
+	var native anidb.Config
+	if len(animeConfig) > 0 {
+		native = animeConfig[0]
+	}
+	application.Anime = &anidb.Cache{DB: pool, Provider: anidb.New(native)}
 	application.routes(api)
 	api.HandleFunc("POST /api/logout", identity.Logout)
 	api.HandleFunc("GET /api/me", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, auth.Current(r.Context())) })

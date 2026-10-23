@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zekihan/watchledger/internal/anidb"
 	"github.com/zekihan/watchledger/internal/auth"
 	"github.com/zekihan/watchledger/internal/catalog"
 	"github.com/zekihan/watchledger/internal/config"
@@ -51,7 +52,7 @@ func run(ctx context.Context) error {
 	jobsDone := make(chan struct{})
 	go func() { defer close(jobsDone); runner.Run(jobCtx) }()
 	defer func() { cancelJobs(); <-jobsDone }()
-	handler := httpapi.NewApplication(c.WebDir, pool, identity, c.TMDBToken)
+	handler := httpapi.NewApplication(c.WebDir, pool, identity, c.TMDBToken, anidb.Config{Client: c.AniDBClient, Version: c.AniDBVersion})
 
 	server := &http.Server{
 		Addr:              c.Address,

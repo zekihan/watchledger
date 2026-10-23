@@ -182,7 +182,7 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "database unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	rows, e := tx.Query(r.Context(), `SELECT e.id,e.season,e.number,e.kind='special',coalesce(e.air_date::text,''),e.air_time,EXISTS(SELECT 1 FROM history h WHERE h.user_id=$1 AND h.episode_id=e.id) FROM episodes e WHERE e.catalog_id=$2 AND NOT e.retired ORDER BY e.season,e.number`, uid, id)
+	rows, e := tx.Query(r.Context(), `SELECT e.id,e.season,e.number,e.kind<>'regular',coalesce(e.air_date::text,''),e.air_time,EXISTS(SELECT 1 FROM history h WHERE h.user_id=$1 AND h.episode_id=e.id) FROM episodes e WHERE e.catalog_id=$2 AND NOT e.retired ORDER BY e.season,e.number`, uid, id)
 	if e != nil {
 		http.Error(w, "episodes unavailable", http.StatusServiceUnavailable)
 		return
