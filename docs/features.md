@@ -11,7 +11,7 @@ The final section is explicitly deferred and does not count toward first-release
 ## Verification prerequisites
 
 - [x] Verify current AniDB API access, registration, rate, cache, and attribution requirements.
-- [ ] Inspect a private SIMKL JSON backup and document actual import field coverage using redacted examples.
+- [x] Inspect a private SIMKL JSON backup and document actual import field coverage using [synthetic examples and validation limits](acceptance-next-steps.md#observed-simkl-backup-coverage).
 - [ ] Verify the configured OIDC provider supplies current access/admin claims at refresh or UserInfo.
 - [ ] Verify mapping coverage for ordinary shows, split cours, specials, and split/combined anime episodes.
 - [x] Pin compatible implementation dependencies and mapping dataset versions.

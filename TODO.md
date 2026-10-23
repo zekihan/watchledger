@@ -2,7 +2,9 @@
 
 This is the handoff list for work that cannot be completed independently in the current workspace. It is **not** a declaration that all product features are finished. Independently implementable work stays in [the feature tracker](docs/features.md); do not move ordinary coding or fixable test failures here to call the release complete.
 
-Do these checks after the remaining implementation increments are pushed. Use a disposable local installation with synthetic history first. Record the tested commit, environment, result, and any redacted failure evidence beside each item. Do not commit credentials, private source exports, database dumps, or real viewing history. Nothing here authorizes a homelab deployment, new credential issuance, or merging the feature branch.
+Run these checks against a recorded revision. The original feature branch has already been merged; acceptance is still incomplete. Use a disposable local installation with synthetic history first. Record the tested commit, environment, result, and any redacted failure evidence beside each item. Do not commit credentials, private source exports, database dumps, or real viewing history. Nothing here authorizes a homelab deployment, new credential issuance, or merging the feature branch.
+
+Start with [the next acceptance steps](docs/acceptance-next-steps.md), which separate work available locally from missing operator prerequisites.
 
 ## Required asset
 
@@ -16,7 +18,7 @@ Do these checks after the remaining implementation increments are pushed. Use a 
 
 ## Private SIMKL coverage and optional live list import
 
-- [ ] Inspect a current private SIMKL JSON backup locally against [the import acceptance steps](docs/local-acceptance.md). Confirm actual status, date, episode-gap, rating and custom-list field coverage. Keep the original backup private; share only a deliberately redacted minimal example if a mismatch needs a code fix. Unsupported and ambiguous records must remain visible in the review queue, not be guessed or silently discarded.
+- [x] Inspect the private SIMKL JSON backup locally for field coverage. On 2026-10-24, both operator-provided JSON backups were byte-identical and parsed without record-level issues using the parser at `d118b5b`. [Coverage and synthetic examples](docs/acceptance-next-steps.md#observed-simkl-backup-coverage) record statuses, explicit episodes/gaps, timestamps, null ratings, absent custom lists and remaining warnings. This completes structural inspection only; UI preview/apply, source episode resolution and repeat-import acceptance remain open. Originals and private history were not committed.
 - [ ] If using optional direct custom-list fetching, test with your existing AUTH V2 client ID and eligible SIMKL account/token. Enter the token only in the app's temporary password field over HTTPS or loopback. Verify complete pagination, denied/premium-only errors, preview without writes, explicit apply, repeat-import behavior, original cache timestamps and account isolation. No ongoing sync, new authorization grant or credential creation is performed by the app. A complete API-response file is an alternative when live access is unavailable.
 
 ## Source-dependent coverage decision
@@ -25,7 +27,7 @@ Do these checks after the remaining implementation increments are pushed. Use a 
 
 ## Browser and device acceptance
 
-- [ ] Run [local acceptance](docs/local-acceptance.md) in a real desktop and phone browser. Chromium cannot run in the current command workspace; jsdom tests are not browser/visual acceptance. Check both English and Turkish, narrow screens, touch controls, loading/error/empty/retry states, keyboard navigation, dialog focus/escape/return focus and visible equivalents of shortcuts. Report screenshots with private data and credentials removed.
+- [ ] Run [local acceptance](docs/local-acceptance.md) in a real desktop and phone browser. Chrome is available on this Mac; authenticated acceptance first needs a disposable installation and OIDC client. jsdom tests are not browser/visual acceptance. Check both English and Turkish, narrow screens, touch controls, loading/error/empty/retry states, keyboard navigation, dialog focus/escape/return focus and visible equivalents of shortcuts. Report screenshots with private data and credentials removed.
 - [ ] Verify home-screen installation and launch on your intended browsers/devices. Confirm icon, app name, start URL and authentication return behavior. Offline editing is explicitly not supported.
 - [ ] Exercise ordinary, split-cour, special, split/combined and movie-alias anime mappings using explicit source IDs. Confirm native and alternate views show the same effective progress, no duplicate library ratings/statuses are invented, incomplete mappings stay usable, consent is required, changed mappings preserve history, and statistics count native units with partial/unknown dates separately. Broad live mapping coverage is not established by synthetic regressions or decoding the full dataset alone.
 - [ ] With two disposable accounts, complete the tracking, custom-status, smart-list, import/reimport and portable export/restore workflows. Verify all private records remain isolated, existing edits and unwatch decisions win, unknown dates remain unknown and roles/sessions are not restored. Save an actual export file before import, not just a successful export request.
@@ -39,4 +41,4 @@ Do these checks after the remaining implementation increments are pushed. Use a 
 
 ## Completion rule
 
-An item is complete only with evidence from the tested revision. If a check exposes a code defect, return that defect to implementation, fix and retest it; do not classify it as permanently blocked merely because it was discovered on your PC. Keep the feature branch unmerged until explicitly authorized.
+An item is complete only with evidence from the tested revision. If a check exposes a code defect, return that defect to implementation, fix and retest it; do not classify it as permanently blocked merely because it was discovered on your PC. This checklist does not authorize merging or pushing subsequent changes.
