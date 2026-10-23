@@ -658,7 +658,7 @@ export function SettingsPage({
         "PUT",
         Object.fromEntries(Object.entries(settings).filter(([key]) => key !== "up_next_order")),
       ),
-    onSuccess: () => client.invalidateQueries({ queryKey: ["me"] }),
+    onSuccess: () => client.invalidateQueries(),
   });
   const custom = useMutation({
     mutationFn: () => api("/statuses", "POST", { Name: name, Base: base }),

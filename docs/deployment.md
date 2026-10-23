@@ -25,7 +25,7 @@ Per-user export does not contain authentication sessions, server secrets, or adm
 
 Instance recovery is an operator task. Before upgrades, create a consistent custom-format PostgreSQL backup with `pg_dump --format=custom --file=watchledger.dump "$DATABASE_URL"`. Test recovery into a separate empty database using `pg_restore --no-owner --dbname="$RECOVERY_DATABASE_URL" watchledger.dump`. Never point test restoration at the running instance. Preserve database roles/ownership through your normal infrastructure process. Verify schema versions, account isolation, history counts and date precision, and then perform an authorized login and read-only library check. Changing a session key intentionally invalidates stored OAuth tokens.
 
-Container startup and actual Kubernetes smoke acceptance require a container runtime and a disposable cluster. These checks have not yet been performed in this environment. Do not deploy to the homelab as a substitute.
+Synthetic Compose runtime smoke passed in [CI run 39997022951](https://github.com/zekihan/watchledger/actions/runs/39997022951): actual startup/migrations, OIDC login, restore preview/apply, tracking/export and persistence after restart. It uses the production image and Compose definition with a CI-only isolated database/provider override; see `deploy/smoke/README.md`. This does not establish compatibility with your real provider configuration. Helm rendering/lint passes, but an actual Kubernetes deployment remains an operator-selected disposable-environment check. Do not deploy to the homelab as a substitute.
 
 ## Authorization configuration recovery
 

@@ -1,8 +1,10 @@
 # Feature checklist
 
-**Status: core APIs and UI are partially implemented. First-release acceptance is not complete. See [validation notes](implementation-notes.md).**
+**Status: implemented workflows are under validation; first-release acceptance is not complete. See [validation notes](implementation-notes.md) and the [operator handoff](../TODO.md).**
 
 This is the implementation tracker for the [agreed specification](specification.md). A checked box means the behavior is implemented and verified. Keep partial work unchecked; link supporting commits, pull requests, or validation notes when checking an item. Add subitems when a feature needs finer tracking.
+
+Unchecked items include source coverage, configured-provider, browser/device and deployment acceptance; they do not all mean absent code. Operator-only prerequisites and decisions are collected in TODO.md and are not waived by that handoff.
 
 The final section is explicitly deferred and does not count toward first-release completion.
 
@@ -12,7 +14,7 @@ The final section is explicitly deferred and does not count toward first-release
 - [ ] Inspect a private SIMKL JSON backup and document actual import field coverage using redacted examples.
 - [ ] Verify the configured OIDC provider supplies current access/admin claims at refresh or UserInfo.
 - [ ] Verify mapping coverage for ordinary shows, split cours, specials, and split/combined anime episodes.
-- [ ] Pin compatible implementation dependencies and mapping dataset versions.
+- [x] Pin compatible implementation dependencies and mapping dataset versions.
 
 Checked behaviors below are supported by the named regression tests in [implementation evidence](implementation-notes.md). Browser, live-provider, and anime cross-view acceptance remain separate and unchecked.
 
@@ -29,9 +31,9 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [x] Admin-right removal when admin claims are absent.
 - [x] Require login when current authorization claims cannot be obtained.
 - [ ] Server-side authorization configuration recovery without an implicit role bypass.
-- [ ] Private per-user libraries, history, ratings, lists, statuses, settings, and import data.
-- [ ] Authorization checks on every user-scoped API and admin operation.
-- [ ] Admin account oversight without exposing private library browsing.
+- [x] Private per-user libraries, history, ratings, lists, statuses, settings, and import data.
+- [x] Authorization checks on every user-scoped API and admin operation.
+- [x] Admin account oversight without exposing private library browsing.
 
 ## Interface and localization
 
@@ -118,9 +120,9 @@ Checked behaviors below are supported by the named regression tests in [implemen
 
 ## Library statuses and ratings
 
-- [ ] Fixed Plan to watch, Watching, Completed, On hold, and Dropped base statuses.
-- [ ] Per-user custom status creation and naming.
-- [ ] Custom status mapping to one base status.
+- [x] Fixed Plan to watch, Watching, Completed, On hold, and Dropped base statuses.
+- [x] Per-user custom status creation and naming.
+- [x] Custom status mapping to one base status.
 - [x] Lock base mapping once a custom status has been used.
 - [x] Rename custom statuses without breaking references.
 - [x] Require replacement status before deleting a used status.
@@ -157,6 +159,8 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Recent activity on the dashboard.
 - [ ] Upcoming episodes on the dashboard.
 - [ ] Calendar month view.
+  - [x] Date-only preservation, timestamp timezone placement, source episode links and day-list semantics in UI regression tests.
+  - [ ] Desktop/phone visual and assistive-technology acceptance.
 - [ ] Calendar list view.
 - [ ] Preserve date-only release precision.
 - [ ] Display known release timestamps in each user's timezone.
@@ -187,6 +191,8 @@ Checked behaviors below are supported by the named regression tests in [implemen
 ## Anime structures and mappings
 
 - [ ] Native anime entry/cour organization and numbering.
+  - [x] Source episode types/numbers, native credits/related titles and bounded official Hot Anime discovery.
+  - [ ] Broader source coverage and presentation acceptance.
 - [ ] TMDB-style show/season organization.
 - [ ] Per-user default structure.
 - [x] Per-series structure override.
@@ -292,24 +298,26 @@ Backend regression coverage verifies private counts, runtime unknowns, metadata-
 
 ## Architecture and packaging
 
-- [ ] Go standard-HTTP API backend.
+- [x] Go standard-HTTP API backend.
 - [x] PostgreSQL schema and migrations.
 - [x] `pgx` and `sqlc` database access.
-- [ ] React/TypeScript/Vite frontend.
+- [x] React/TypeScript/Vite frontend.
 - [ ] Tailwind and accessible UI primitives.
-- [ ] TanStack Query API state and mutations.
-- [ ] Background jobs in the app process with PostgreSQL state.
-- [ ] App container serving frontend and API.
+- [x] TanStack Query API state and mutations.
+- [x] Background jobs in the app process with PostgreSQL state.
+- [x] App container serving frontend and API.
 - [ ] Docker Compose deployment.
+  - [x] Synthetic runtime startup, OIDC login, restore/tracking/export and restart persistence in CI.
+  - [ ] Operator configuration/environment acceptance.
 - [ ] Helm chart deployment.
 - [x] External PostgreSQL connection configuration.
 - [x] OIDC/provider secret configuration without committed credentials.
-- [ ] Document build, lint, test, configuration, and deployment commands.
+- [x] Document build, lint, test, configuration, and deployment commands.
 
 ## Acceptance and quality
 
-- [ ] Backend tests for claims, user isolation, and admin operations.
-- [ ] Tests for tracking, date precision, bulk actions, and status transitions.
+- [x] Backend tests for claims, user isolation, and admin operations.
+- [x] Tests for tracking, date precision, bulk actions, and status transitions.
 - [x] Tests for custom-status locking and safe deletion.
 - [x] Tests for nested smart rules, unknown values, dependencies, and cycle rejection.
 - [x] Tests for mapping consent, corrections, and history preservation.
@@ -320,10 +328,10 @@ Backend regression coverage verifies private counts, runtime unknowns, metadata-
 - [ ] English and Turkish layout review.
 - [ ] Desktop and phone visual review.
 - [ ] Keyboard and focus accessibility review.
-- [ ] Compose deployment smoke check.
+- [x] Synthetic Compose deployment smoke check; actual provider configuration remains in TODO.md.
 - [ ] Helm deployment smoke check.
 - [ ] Provider-outage behavior check.
-- [ ] Synthetic/redacted committed fixtures only.
+- [x] Synthetic/redacted committed fixtures only.
 
 ## Deferred beyond the first release
 

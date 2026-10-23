@@ -4,4 +4,4 @@ The application container, `compose.yaml` and `helm/watchledger` chart are imple
 
 Follow the [deployment and recovery guide](../docs/deployment.md) for environment variables, existing Secrets, external PostgreSQL, TLS termination and backup/restore. The chart runs one replica while OIDC login transactions remain in process memory.
 
-Image builds and chart rendering are checked by CI, but they are not proof of a successful deployment or configured-provider compatibility. The remaining operator-owned checks and source assets are in [TODO.md](../TODO.md). Do not expose the app as an acceptance-complete release or deploy it to existing infrastructure without explicit authorization.
+CI checks image builds, chart rendering and a synthetic Compose runtime/login/restart smoke. These do not establish configured-provider compatibility, real-device behavior or a Kubernetes deployment. The remaining operator-owned checks and source assets are in [TODO.md](../TODO.md). Do not expose the app as an acceptance-complete release or deploy it to existing infrastructure without explicit authorization.

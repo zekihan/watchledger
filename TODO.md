@@ -33,7 +33,7 @@ Do these checks after the remaining implementation increments are pushed. Use a 
 
 ## Runtime and deployment acceptance
 
-- [ ] Run the [Compose smoke check](docs/deployment.md) on a local machine with a container runtime and the disposable configuration above. Verify actual startup/migrations, readiness, login, frontend/API serving, restart persistence and graceful shutdown. Image builds and `/healthz` alone do not prove this.
+- [ ] Verify your real Compose configuration on your PC using the [deployment guide](docs/deployment.md). CI has already passed synthetic container startup/migrations, readiness, OIDC login, frontend/API serving, restore/tracking/export and restart persistence. The remaining check is your actual provider configuration, network/TLS and runtime environment, not the existence of a functioning Compose package.
 - [ ] Validate the Helm chart, then smoke-test only in a disposable Kubernetes environment you explicitly choose and authorize. Supply an existing Secret and external PostgreSQL. Verify the single replica, readiness, configuration, login and cached tracking. Do not deploy to an existing homelab merely to complete the checklist.
 - [ ] Verify recovery in your intended runtime: dump a disposable populated database, restore to a different empty database, then log in and inspect private history/date precision with the intended OIDC/session configuration. Physical synthetic recovery through 17 migrations has already passed in this workspace; this item is runtime/login acceptance, not a claim that recovery code is missing.
 

@@ -373,7 +373,7 @@ export const en = {
   excludeWatched: "Exclude watched titles",
   nextPage: "Next page",
   previousPage: "Previous page",
-  incomplete: "Partial implementation: additional first-release workflows are still in progress.",
+  incomplete: "Preview release: provider, browser and source-coverage acceptance remains open.",
 };
 export type Key = keyof typeof en;
 export const tr: Record<Key, string> = {
@@ -746,5 +746,5 @@ export const tr: Record<Key, string> = {
   excludeWatched: "İzlenenleri hariç tut",
   nextPage: "Sonraki sayfa",
   previousPage: "Önceki sayfa",
-  incomplete: "Kısmi uygulama: ilk sürümün diğer iş akışları geliştirilmeye devam ediyor.",
+  incomplete: "Önizleme sürümü: sağlayıcı, tarayıcı ve kaynak kapsamı kabul kontrolleri sürüyor.",
 };

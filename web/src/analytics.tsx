@@ -112,7 +112,7 @@ export function CalendarPage({ t, user }: { t: T; user: User }) {
   );
   const [view, setView] = useState("month");
   const q = useQuery({
-    queryKey: ["calendar", month],
+    queryKey: ["calendar", month, zone, user.Settings.metadata_language, user.Settings.anime_title],
     queryFn: () => api<Dashboard["upcoming"]>(`/calendar?month=${month}`),
   });
   const y = Number(month.slice(0, 4)),
@@ -168,19 +168,19 @@ export function CalendarPage({ t, user }: { t: T; user: User }) {
       )}
       {q.isPending && <p>{t("loading")}</p>}
       {view === "month" ? (
-        <div className="month-grid" role="grid" aria-label={month}>
+        <div className="month-grid" role="list" aria-label={month}>
           {Array.from({ length: 7 }, (_, i) => (
-            <div className="weekday" key={`w${String(i)}`}>
+            <div className="weekday" aria-hidden="true" key={`w${String(i)}`}>
               {new Intl.DateTimeFormat(lang, { weekday: "short" }).format(new Date(2026, 0, 5 + i))}
             </div>
           ))}
           {Array.from({ length: offset }, (_, i) => (
-            <div className="calendar-cell blank" key={`blank${String(i)}`} />
+            <div className="calendar-cell blank" aria-hidden="true" key={`blank${String(i)}`} />
           ))}
           {Array.from({ length: days }, (_, i) => {
             const day = `${month}-${String(i + 1).padStart(2, "0")}`;
             return (
-              <div className="calendar-cell" role="gridcell" key={day}>
+              <div className="calendar-cell" role="listitem" aria-label={day} key={day}>
                 <time dateTime={day}>{i + 1}</time>
                 {q.data
                   ?.filter((e) => date(e) === day)

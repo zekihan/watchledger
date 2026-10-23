@@ -316,4 +316,24 @@ func TestPrivateTrackingAndStatusLocks(t *testing.T) {
 		t.Fatal("foreign notice changed", count, e)
 	}
 
+	if w := request("GET", "/api/admin/accounts", "", true); w.Code != 403 {
+		t.Fatal("non-admin oversight", w.Code)
+	}
+	if _, e = p.Exec(ctx, "UPDATE users SET admin=true WHERE id=$1", uid); e != nil {
+		t.Fatal(e)
+	}
+	overview := request("GET", "/api/admin/accounts", "", true)
+	var accountRows []map[string]json.RawMessage
+	if overview.Code != 200 || json.Unmarshal(overview.Body.Bytes(), &accountRows) != nil || len(accountRows) < 2 {
+		t.Fatal("admin oversight unavailable", overview.Code)
+	}
+	for _, row := range accountRows {
+		if len(row) != 4 || row["id"] == nil || row["name"] == nil || row["admin"] == nil || row["created_at"] == nil {
+			t.Fatal("private fields leaked into account oversight", row)
+		}
+	}
+	if _, e = p.Exec(ctx, "UPDATE users SET admin=false WHERE id=$1", uid); e != nil {
+		t.Fatal(e)
+	}
+
 }
