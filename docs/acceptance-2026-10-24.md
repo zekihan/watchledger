@@ -59,6 +59,8 @@ Chrome on this Mac exercised the following against disposable local data:
 - Switched interface language to Turkish while metadata language remained independent; inspected settings and the library at 390×844.
 - Saved a separate current export for the real-login account, previewed and explicitly applied the synthetic portable export into that second identity, and verified the restored library.
 - Created a completed-title smart list, verified the preview count and saved result contents.
+- In the isolated follow-up database, created an On hold custom status, applied it to a cached movie and observed its used/base lock. Deletion required an explicit replacement; Escape cancelled and returned focus to Delete. Replacing it with Completed removed the custom status while retaining rating 8 and the movie’s unknown-date event.
+- Previewed the small synthetic SIMKL reimport: zero new titles, one existing app record retained and no unresolved records. Apply remained disabled without the backup acknowledgement. Navigating to Home and back to Settings discarded the preview and apply control; delayed in-flight replacement/navigation races remain separate.
 - Verified the live TV season earlier-episode prompt defaults to only the selected episode; Escape cancels and the fixed implementation returns focus to the initiating button. Explicit save recorded only the selected episode with unknown date while the earlier episode remained unwatched.
 - Inspected calendar controls, loaded statistics and credits. Statistics displayed one watched movie and its source runtime. The official TMDB logo and separate source notices were present.
 
