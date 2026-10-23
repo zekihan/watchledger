@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"slices"
 	"strings"
@@ -121,6 +122,17 @@ func (s *Service) Callback(w http.ResponseWriter, r *http.Request) {
 	exchangeCtx := context.WithValue(r.Context(), oauth2.HTTPClient, &http.Client{Timeout: 20 * time.Second})
 	tok, e := s.oauth.Exchange(exchangeCtx, r.URL.Query().Get("code"), oauth2.VerifierOption(f.verifier))
 	if e != nil {
+		var providerError *oauth2.RetrieveError
+		if errors.As(e, &providerError) && providerError.Response != nil {
+			code := "other"
+			switch providerError.ErrorCode {
+			case "invalid_client", "invalid_grant", "invalid_scope", "invalid_request", "unauthorized_client", "unsupported_grant_type", "server_error", "temporarily_unavailable":
+				code = providerError.ErrorCode
+			}
+			slog.Warn("OIDC login exchange failed", "http_status", providerError.Response.StatusCode, "oauth_error", code)
+		} else {
+			slog.Warn("OIDC login exchange failed", "error_type", fmt.Sprintf("%T", e))
+		}
 		http.Error(w, "login exchange failed", http.StatusUnauthorized)
 		return
 	}
