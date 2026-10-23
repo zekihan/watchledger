@@ -107,10 +107,11 @@ func (c *Cache) Detail(ctx context.Context, kind, id, language string, force boo
 	if translated == nil {
 		translated = map[string]json.RawMessage{}
 	}
+	var fallbackDefault json.RawMessage
 	if language != "" && meta.Overview == "" && kind != "person" {
 		defaults, err := c.Provider.Get(ctx, "/"+kind+"/"+id, url.Values{"append_to_response": {"credits,recommendations,videos,external_ids"}})
 		if err == nil {
-			translated[""] = defaults
+			fallbackDefault = defaults
 			var local, base map[string]interface{}
 			if json.Unmarshal(raw, &local) == nil && json.Unmarshal(defaults, &base) == nil {
 				for _, k := range []string{"overview", "title", "name"} {
@@ -127,8 +128,11 @@ func (c *Cache) Detail(ctx context.Context, kind, id, language string, force boo
 	if translated == nil {
 		translated = map[string]json.RawMessage{}
 	}
-	translated[language] = raw
-	stored, e := json.Marshal(translated)
+	updates := map[string]json.RawMessage{language: raw}
+	if fallbackDefault != nil {
+		updates[""] = fallbackDefault
+	}
+	stored, e := json.Marshal(updates)
 	if e != nil {
 		return d, e
 	}

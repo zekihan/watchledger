@@ -114,3 +114,65 @@ func TestBackgroundAvailabilityDoesNotExtendRecentUse(t *testing.T) {
 		t.Fatal("foreground use not recorded", e)
 	}
 }
+
+func TestConcurrentLanguageRefreshKeepsNewerVariant(t *testing.T) {
+	dsn := os.Getenv("TEST_DATABASE_URL")
+	if dsn == "" {
+		t.Skip("TEST_DATABASE_URL required")
+	}
+	ctx := context.Background()
+	p, e := store.Open(ctx, dsn)
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer p.Close()
+	if e = store.Migrate(ctx, p); e != nil {
+		t.Fatal(e)
+	}
+	id := fmt.Sprint(time.Now().UnixNano())
+	numeric, _ := strconv.ParseInt(id, 10, 64)
+	requested := make(chan struct{})
+	release := make(chan struct{})
+	var version atomic.Int32
+	version.Store(1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("language") == "tr" {
+			close(requested)
+			<-release
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"id": numeric, "title": fmt.Sprintf("Synthetic version %d", version.Load()), "overview": "Synthetic synopsis"})
+	}))
+	defer server.Close()
+	provider := New("fixture")
+	provider.BaseURL = server.URL
+	c := Cache{p, provider}
+	if _, e = c.Detail(ctx, "movie", id, "en", true); e != nil {
+		t.Fatal(e)
+	}
+	defer func() {
+		_, _ = p.Exec(ctx, "DELETE FROM catalog_localizations WHERE catalog_id=$1", "tmdb:movie:"+id)
+		_, _ = p.Exec(ctx, "DELETE FROM catalog WHERE id=$1", "tmdb:movie:"+id)
+	}()
+	done := make(chan error, 1)
+	go func() { _, err := c.Detail(ctx, "movie", id, "tr", true); done <- err }()
+	<-requested
+	version.Store(2)
+	_, e = c.Detail(ctx, "movie", id, "en", true)
+	close(release)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e = <-done; e != nil {
+		t.Fatal(e)
+	}
+	latest, e := c.Detail(ctx, "movie", id, "en", false)
+	if e != nil {
+		t.Fatal(e)
+	}
+	var meta struct {
+		Title string `json:"title"`
+	}
+	if e = json.Unmarshal(latest.Metadata, &meta); e != nil || meta.Title != "Synthetic version 2" {
+		t.Fatal("stale translation replaced newer metadata", meta.Title, e)
+	}
+}

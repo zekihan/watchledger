@@ -253,4 +253,8 @@ func TestPrivateTrackingAndStatusLocks(t *testing.T) {
 		t.Fatal("timezone month boundary", january.Body.String(), february.Body.String())
 	}
 
+	if w := request("POST", "/api/library/"+id+"/track", `{"whole":true,"date":{}}`, true); w.Code != 400 {
+		t.Fatal("missing watched flag accepted", w.Code)
+	}
+
 }

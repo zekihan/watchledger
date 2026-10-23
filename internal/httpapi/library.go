@@ -127,7 +127,7 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 		EpisodeID      *string       `json:"episode_id"`
 		Season         *int          `json:"season"`
 		Whole          bool          `json:"whole"`
-		Watched        bool          `json:"watched"`
+		Watched        *bool         `json:"watched"`
 		Date           tracking.Date `json:"date"`
 		Earlier        bool          `json:"earlier"`
 		ReturnWatching bool          `json:"return_watching"`
@@ -136,6 +136,11 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &in) {
 		return
 	}
+	if in.Watched == nil {
+		http.Error(w, "watched flag is required", http.StatusBadRequest)
+		return
+	}
+	watched := *in.Watched
 	if e := in.Date.Validate(); e != nil {
 		http.Error(w, "invalid date", http.StatusBadRequest)
 		return
@@ -194,7 +199,7 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 	}
 	location, _ := time.LoadLocation(timezone(r))
 	now := time.Now().In(location)
-	if in.Whole && kind != "movie" && in.Watched {
+	if in.Whole && kind != "movie" && watched {
 		var variants map[string]struct {
 			Count int `json:"number_of_episodes"`
 		}
@@ -234,12 +239,12 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 				v := ep.ID
 				targets = append(targets, &v)
 				earlier = tracking.Earlier(episodes, ep, now)
-			} else if (in.Whole || (in.Season != nil && *in.Season == ep.Season)) && (!in.Watched || ep.Aired(now)) {
+			} else if (in.Whole || (in.Season != nil && *in.Season == ep.Season)) && (!watched || ep.Aired(now)) {
 				v := ep.ID
 				targets = append(targets, &v)
 			}
 		}
-		if !in.Watched {
+		if !watched {
 			historyRows, err := tx.Query(r.Context(), "SELECT h.episode_id FROM history h LEFT JOIN episodes e ON e.id=h.episode_id WHERE h.user_id=$1 AND h.catalog_id=$2 AND ($3 OR ($4::text IS NOT NULL AND h.episode_id=$4) OR ($5::int IS NOT NULL AND e.season=$5))", uid, id, in.Whole, in.EpisodeID, in.Season)
 			if err != nil {
 				http.Error(w, "history unavailable", http.StatusServiceUnavailable)
@@ -273,7 +278,7 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "no eligible cached episodes; load seasons first", http.StatusConflict)
 			return
 		}
-		if in.Earlier && in.Watched {
+		if in.Earlier && watched {
 			for _, ep := range earlier {
 				v := ep.ID
 				targets = append(targets, &v)
@@ -281,7 +286,7 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if in.Preview {
-		writeJSON(w, map[string]interface{}{"earlier": earlier, "target_count": len(targets), "offer_return_watching": !in.Watched && base == "completed"})
+		writeJSON(w, map[string]interface{}{"earlier": earlier, "target_count": len(targets), "offer_return_watching": !watched && base == "completed"})
 		return
 	}
 	var day interface{}
@@ -293,7 +298,7 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 		if ep != nil {
 			episodeKey = *ep
 		}
-		if in.Watched {
+		if watched {
 			_, e = tx.Exec(r.Context(), "DELETE FROM history_tombstones WHERE user_id=$1 AND catalog_id=$2 AND episode_key=$3", uid, id, episodeKey)
 		} else {
 			_, e = tx.Exec(r.Context(), "INSERT INTO history_tombstones(user_id,catalog_id,episode_key) VALUES($1,$2,$3) ON CONFLICT(user_id,catalog_id,episode_key) DO UPDATE SET deleted_at=now()", uid, id, episodeKey)
@@ -303,7 +308,7 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if in.Watched {
+		if watched {
 			_, e = tx.Exec(r.Context(), `INSERT INTO history(user_id,catalog_id,episode_id,watched_date,watched_time,provenance) VALUES($1,$2,$3,$4,$5,'{"source":"app"}') ON CONFLICT(user_id,catalog_id,episode_id) DO NOTHING`, uid, id, ep, day, in.Date.Timestamp)
 		} else {
 			_, e = tx.Exec(r.Context(), "DELETE FROM history WHERE user_id=$1 AND catalog_id=$2 AND episode_id IS NOT DISTINCT FROM $3::text", uid, id, ep)
@@ -314,12 +319,12 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 		}
 		for i := range episodes {
 			if ep != nil && episodes[i].ID == *ep {
-				episodes[i].Watched = in.Watched
+				episodes[i].Watched = watched
 			}
 		}
 	}
 	dest := base
-	if in.Watched {
+	if watched {
 		dest = "completed"
 		if kind != "movie" {
 			var translations map[string]struct {
@@ -357,7 +362,7 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "tracking failed", http.StatusServiceUnavailable)
 		return
 	}
-	writeJSON(w, map[string]interface{}{"base": dest, "earlier": earlier, "offer_return_watching": !in.Watched && base == "completed" && !in.ReturnWatching})
+	writeJSON(w, map[string]interface{}{"base": dest, "earlier": earlier, "offer_return_watching": !watched && base == "completed" && !in.ReturnWatching})
 }
 func (a *API) statuses(w http.ResponseWriter, r *http.Request) {
 	rows, e := a.DB.Query(r.Context(), "SELECT to_jsonb(s)-'user_id' FROM statuses s WHERE user_id=$1 ORDER BY name", auth.Current(r.Context()).ID)
