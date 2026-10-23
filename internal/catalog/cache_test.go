@@ -66,3 +66,51 @@ func TestCachedDetailsSurviveProviderOutage(t *testing.T) {
 		t.Fatal("uncached outage silently succeeded")
 	}
 }
+
+func TestBackgroundAvailabilityDoesNotExtendRecentUse(t *testing.T) {
+	dsn := os.Getenv("TEST_DATABASE_URL")
+	if dsn == "" {
+		t.Skip("TEST_DATABASE_URL required")
+	}
+	ctx := context.Background()
+	p, e := store.Open(ctx, dsn)
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer p.Close()
+	if e = store.Migrate(ctx, p); e != nil {
+		t.Fatal(e)
+	}
+	id := fmt.Sprint(time.Now().UnixNano())
+	key := "tmdb:movie:" + id
+	if _, e = p.Exec(ctx, "INSERT INTO catalog(id,source,source_id,kind,title) VALUES($1,'tmdb',$2,'movie','Synthetic availability')", key, id); e != nil {
+		t.Fatal(e)
+	}
+	defer func() {
+		_, _ = p.Exec(ctx, "DELETE FROM availability WHERE catalog_id=$1", key)
+		_, _ = p.Exec(ctx, "DELETE FROM catalog WHERE id=$1", key)
+	}()
+	if _, e = p.Exec(ctx, `INSERT INTO availability(catalog_id,country,offers,fetched_at,used_at) VALUES($1,'TR','null',now()-interval '2 days',now()-interval '10 days')`, key); e != nil {
+		t.Fatal(e)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"results":{"TR":{"flatrate":[{"provider_id":8,"provider_name":"Synthetic provider"}]}}}`))
+	}))
+	defer server.Close()
+	provider := New("fixture")
+	provider.BaseURL = server.URL
+	c := Cache{p, provider}
+	if _, e = c.Availability(ctx, "movie", id, "TR", true); e != nil {
+		t.Fatal(e)
+	}
+	var old bool
+	if e = p.QueryRow(ctx, "SELECT used_at<now()-interval '9 days' FROM availability WHERE catalog_id=$1", key).Scan(&old); e != nil || !old {
+		t.Fatal("background refresh extended usage", e)
+	}
+	if _, e = c.Availability(ctx, "movie", id, "TR", false); e != nil {
+		t.Fatal(e)
+	}
+	if e = p.QueryRow(ctx, "SELECT used_at>now()-interval '1 minute' FROM availability WHERE catalog_id=$1", key).Scan(&old); e != nil || !old {
+		t.Fatal("foreground use not recorded", e)
+	}
+}

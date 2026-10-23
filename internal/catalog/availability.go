@@ -24,9 +24,12 @@ func (c *Cache) Availability(ctx context.Context, kind, id, country string, forc
 	e = c.DB.QueryRow(ctx, "SELECT offers,fetched_at FROM availability WHERE catalog_id=$1 AND country=$2", key, country).Scan(&out.Offers, &out.FetchedAt)
 	cached := e == nil
 	if cached {
-		_, e = c.DB.Exec(ctx, "UPDATE availability SET used_at=now() WHERE catalog_id=$1 AND country=$2", key, country)
-		if e != nil {
-			return out, e
+		if !force {
+			_, e = c.DB.Exec(ctx, "UPDATE availability SET used_at=now() WHERE catalog_id=$1 AND country=$2", key, country)
+			if e != nil {
+				return out, e
+			}
+
 		}
 		if !force && time.Since(out.FetchedAt) < 24*time.Hour {
 			return out, nil
@@ -60,6 +63,6 @@ func (c *Cache) Availability(ctx context.Context, kind, id, country string, forc
 			return out, e
 		}
 	}
-	e = c.DB.QueryRow(ctx, `INSERT INTO availability(catalog_id,country,offers) VALUES($1,$2,$3) ON CONFLICT(catalog_id,country) DO UPDATE SET offers=EXCLUDED.offers,fetched_at=now(),used_at=now() RETURNING fetched_at`, key, country, out.Offers).Scan(&out.FetchedAt)
+	e = c.DB.QueryRow(ctx, `INSERT INTO availability(catalog_id,country,offers) VALUES($1,$2,$3) ON CONFLICT(catalog_id,country) DO UPDATE SET offers=EXCLUDED.offers,fetched_at=now(),used_at=CASE WHEN $4 THEN availability.used_at ELSE now() END RETURNING fetched_at`, key, country, out.Offers, force).Scan(&out.FetchedAt)
 	return out, e
 }
