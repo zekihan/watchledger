@@ -52,7 +52,7 @@ The Go commands target `cmd` and `internal` explicitly so dependencies under `no
 
 `make lint` runs Go linting, type-aware frontend ESLint, Markdown linting, and formatting checks. `make test` runs Go tests and TypeScript checks; there are no behavioral test suites in this skeleton. Add real tests alongside product behavior. `make format` applies Go and Prettier formatting.
 
-The root `katex` override keeps markdownlint's transitive math renderer on a patched 0.18.x release. Review the override when upgrading markdownlint and remove it when the upstream dependency already enforces a patched version.
+The root `katex` override keeps markdownlint's transitive math renderer on a patched release. Review the override when upgrading markdownlint and remove it when the upstream dependency already enforces a patched version.
 
 If a restricted environment denies writes to your default caches, use writable task-local paths for `GOCACHE`, `GOLANGCI_LINT_CACHE`, and `npm_config_cache`; do not change ownership or permissions of unrelated directories to work around that.
 
