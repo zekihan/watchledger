@@ -969,8 +969,15 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
   });
   const trackingFocus = useTrackingDialogFocus(track.isPending || bulk.isPending);
   const refresh = useMutation({
-    mutationFn: () => api(`/catalog/${kind}/${id}/refresh?language=${language}`, "POST", {}),
-    onSuccess: () => client.invalidateQueries({ queryKey: ["detail", kind, id] }),
+    mutationFn: () =>
+      api<NonNullable<typeof q.data>>(
+        `/catalog/${kind}/${id}/refresh?language=${language}`,
+        "POST",
+        {},
+      ),
+    onSuccess: (data) => {
+      client.setQueryData(["detail", kind, id, language, user.Settings.anime_title], data);
+    },
   });
   useEffect(() => {
     if (selectedEpisode && q.data && (kind === "anime" || eps.data))
