@@ -82,3 +82,10 @@ func TestSourcePosterValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestMetadataPreservesNativeMovieType(t *testing.T) {
+	metadata := Metadata(Anime{ID: "1", Type: "Movie", EpisodeCount: 1}, "en", "romaji")
+	if metadata["anime_type"] != "Movie" {
+		t.Fatal("native movie type omitted", metadata)
+	}
+}

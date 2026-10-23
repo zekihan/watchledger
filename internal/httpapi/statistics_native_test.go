@@ -188,4 +188,13 @@ func TestStatisticsCanonicalNativeUnitsAndPartialProgress(t *testing.T) {
 		t.Fatal("combined show event did not count native units", got)
 	}
 
+	film := native + ":film"
+	exec(`INSERT INTO catalog(id,source,source_id,kind,title,metadata) VALUES($1,'anidb',$1,'anime','Native movie','{"":{"anime_type":"Movie","number_of_episodes":1}}')`, film)
+	exec(`INSERT INTO episodes(id,catalog_id,source,source_id,season,number,metadata) VALUES($1,$2,'anidb',$1,1,1,'{"runtime":80}')`, film+"1", film)
+	exec("INSERT INTO history(user_id,catalog_id,episode_id) VALUES($1,$2,$3)", uid, film, film+"1")
+	got = read()
+	if got.Movies != 1 || got.Episodes != 3 || got.EstimatedMinutes != 104 {
+		t.Fatal("explicit native movie counted as a TV episode", got)
+	}
+
 }

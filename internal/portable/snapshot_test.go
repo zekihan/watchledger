@@ -143,3 +143,11 @@ func TestAlternateHistoryViewsDoNotCreateLibraryRatings(t *testing.T) {
 		t.Fatal("show represented as movie event")
 	}
 }
+
+func TestRejectManufacturedMovieEpisodes(t *testing.T) {
+	s := snapshot()
+	s.Catalog[0].Kind = "movie"
+	if s.Validate() == nil {
+		t.Fatal("movie episode copy accepted")
+	}
+}

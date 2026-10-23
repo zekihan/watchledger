@@ -56,6 +56,14 @@ func (a *API) importDataset(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, summary)
 }
 func (a *API) resolveDataset(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Query().Get("kind") == "movie-aliases" {
+		a.resolveMovieDataset(w, r)
+		return
+	}
+	if kind := r.URL.Query().Get("kind"); kind != "" && kind != "episodes" {
+		http.Error(w, "invalid mapping kind", http.StatusBadRequest)
+		return
+	}
 	if !requireAdmin(w, r) {
 		return
 	}
@@ -65,7 +73,7 @@ func (a *API) resolveDataset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var localOverride bool
-	err = a.DB.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM mappings m CROSS JOIN LATERAL jsonb_array_elements(m.relationships) edge JOIN episodes ep ON ep.id=edge->>'from' OR ep.id=edge->>'to' WHERE m.reviewed AND m.provenance->>'source'='local-admin-override' AND ep.catalog_id=$1)`, "anidb:anime:"+strconv.Itoa(aid)).Scan(&localOverride)
+	err = a.DB.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM mappings m CROSS JOIN LATERAL jsonb_array_elements(m.relationships) edge JOIN episodes ep ON ep.id=edge->>'from' OR ep.id=edge->>'to' WHERE m.kind='episodes' AND m.reviewed AND m.provenance->>'source'='local-admin-override' AND ep.catalog_id=$1)`, "anidb:anime:"+strconv.Itoa(aid)).Scan(&localOverride)
 	if err != nil {
 		http.Error(w, "mapping lookup unavailable", http.StatusServiceUnavailable)
 		return
@@ -156,10 +164,10 @@ func (a *API) resolveDataset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var existingID, existingRevision string
-	err = a.DB.QueryRow(r.Context(), `SELECT coalesce((SELECT id::text FROM mappings WHERE provenance->>'source'='animap' AND provenance->>'anime_id'=$1 ORDER BY updated_at DESC LIMIT 1),''),coalesce((SELECT revision FROM mappings WHERE provenance->>'source'='animap' AND provenance->>'anime_id'=$1 ORDER BY updated_at DESC LIMIT 1),'')`, strconv.Itoa(aid)).Scan(&existingID, &existingRevision)
+	err = a.DB.QueryRow(r.Context(), `SELECT coalesce((SELECT id::text FROM mappings WHERE kind='episodes' AND provenance->>'source'='animap' AND provenance->>'anime_id'=$1 ORDER BY updated_at DESC LIMIT 1),''),coalesce((SELECT revision FROM mappings WHERE kind='episodes' AND provenance->>'source'='animap' AND provenance->>'anime_id'=$1 ORDER BY updated_at DESC LIMIT 1),'')`, strconv.Itoa(aid)).Scan(&existingID, &existingRevision)
 	if err != nil {
 		http.Error(w, "existing mapping lookup unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	writeJSON(w, map[string]interface{}{"existing_id": existingID, "existing_revision": existingRevision, "proposal_id": id, "relationships": edges, "unresolved": pending, "requires_consent": split, "revision": revision, "provenance": map[string]interface{}{"source": "animap", "version": version, "inferred": false, "note": fmt.Sprintf("Verified TVDB episode identities resolved through TMDB Find; %d unresolved source placements remain.", len(pending))}, "attribution": json.RawMessage(attribution)})
+	writeJSON(w, map[string]interface{}{"kind": "episodes", "existing_id": existingID, "existing_revision": existingRevision, "proposal_id": id, "relationships": edges, "unresolved": pending, "requires_consent": split, "revision": revision, "provenance": map[string]interface{}{"source": "animap", "version": version, "inferred": false, "note": fmt.Sprintf("Verified TVDB episode identities resolved through TMDB Find; %d unresolved source placements remain.", len(pending))}, "attribution": json.RawMessage(attribution)})
 }

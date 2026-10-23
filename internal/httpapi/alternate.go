@@ -26,7 +26,7 @@ func (a *API) alternateView(w http.ResponseWriter, r *http.Request) {
 	}
 	// Include overlapping definitions as well, so ambiguity never depends on
 	// which title happened to request the projection.
-	rows, err := tx.Query(r.Context(), `SELECT m.id,m.revision,m.relationships,(m.reviewed AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(m.relationships) edge LEFT JOIN episodes src ON src.id=edge->>'from' LEFT JOIN episodes dst ON dst.id=edge->>'to' WHERE src.id IS NULL OR dst.id IS NULL OR src.retired OR dst.retired)),m.requires_consent,coalesce(c.revision,''),m.provenance FROM mappings m LEFT JOIN mapping_consents c ON c.mapping_id=m.id AND c.user_id=$1 ORDER BY m.id`, uid)
+	rows, err := tx.Query(r.Context(), `SELECT m.id,m.revision,m.relationships,m.kind,(m.reviewed AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(m.relationships) edge LEFT JOIN mapping_nodes src ON src.id=edge->>'from' LEFT JOIN mapping_nodes dst ON dst.id=edge->>'to' WHERE src.id IS NULL OR dst.id IS NULL OR src.retired OR dst.retired)),m.requires_consent,coalesce(c.revision,''),m.provenance FROM mappings m LEFT JOIN mapping_consents c ON c.mapping_id=m.id AND c.user_id=$1 ORDER BY m.id`, uid)
 	if err != nil {
 		http.Error(w, "mappings unavailable", http.StatusServiceUnavailable)
 		return
@@ -36,7 +36,7 @@ func (a *API) alternateView(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var d mapping.Definition
 		var raw, provenance []byte
-		if err = rows.Scan(&d.ID, &d.Revision, &raw, &d.Reviewed, &d.RequiresConsent, &d.Consented, &provenance); err != nil {
+		if err = rows.Scan(&d.ID, &d.Revision, &raw, &d.Kind, &d.Reviewed, &d.RequiresConsent, &d.Consented, &provenance); err != nil {
 			rows.Close()
 			http.Error(w, "mappings unavailable", http.StatusServiceUnavailable)
 			return
@@ -65,9 +65,9 @@ func (a *API) alternateView(w http.ResponseWriter, r *http.Request) {
 	}
 	var sourceEpisodes, relatedCatalogs []string
 	err = tx.QueryRow(r.Context(), `WITH neighbors AS (
- SELECT DISTINCT e.catalog_id FROM mappings m CROSS JOIN LATERAL jsonb_array_elements(m.relationships) edge JOIN episodes e ON e.id=edge->>'from' OR e.id=edge->>'to'
- WHERE EXISTS(SELECT 1 FROM jsonb_array_elements(m.relationships) seed JOIN episodes root ON root.id=seed->>'from' OR root.id=seed->>'to' WHERE root.catalog_id=$1)
- ) SELECT coalesce(array_agg(id),'{}'::text[]),coalesce(array_agg(DISTINCT catalog_id),'{}'::text[]) FROM episodes WHERE catalog_id=$1 OR catalog_id IN(SELECT catalog_id FROM neighbors) OR catalog_id IN(SELECT catalog_id FROM alternate_history_views WHERE user_id=$2 AND anchor_id=$1)`, id, uid).Scan(&sourceEpisodes, &relatedCatalogs)
+ SELECT DISTINCT e.catalog_id FROM mappings m CROSS JOIN LATERAL jsonb_array_elements(m.relationships) edge JOIN mapping_nodes e ON e.id=edge->>'from' OR e.id=edge->>'to'
+ WHERE EXISTS(SELECT 1 FROM jsonb_array_elements(m.relationships) seed JOIN mapping_nodes root ON root.id=seed->>'from' OR root.id=seed->>'to' WHERE root.catalog_id=$1)
+ ) SELECT coalesce(array_agg(id),'{}'::text[]),coalesce(array_agg(DISTINCT catalog_id),'{}'::text[]) FROM mapping_nodes WHERE catalog_id=$1 OR catalog_id IN(SELECT catalog_id FROM neighbors) OR catalog_id IN(SELECT catalog_id FROM alternate_history_views WHERE user_id=$2 AND anchor_id=$1)`, id, uid).Scan(&sourceEpisodes, &relatedCatalogs)
 	if err != nil {
 		http.Error(w, "episodes unavailable", http.StatusServiceUnavailable)
 		return
@@ -108,7 +108,7 @@ func (a *API) alternateView(w http.ResponseWriter, r *http.Request) {
 	for eid := range linked {
 		ids = append(ids, eid)
 	}
-	rows, err = tx.Query(r.Context(), `SELECT c.id,catalog_display_title(c.kind,c.metadata,c.title,u.settings),c.kind,l.base,l.rating,e.id,e.season,e.number,e.kind,e.retired,coalesce(e.metadata->>'name','') FROM catalog c JOIN episodes e ON e.catalog_id=c.id JOIN users u ON u.id=$1 LEFT JOIN library l ON l.catalog_id=c.id AND l.user_id=$1 WHERE c.id=$2 OR c.id IN (SELECT catalog_id FROM episodes WHERE id=ANY($3::text[])) OR c.id IN(SELECT catalog_id FROM alternate_history_views WHERE user_id=$1 AND anchor_id=$2) ORDER BY c.id,e.season,e.number,e.id`, uid, id, ids)
+	rows, err = tx.Query(r.Context(), `SELECT c.id,catalog_display_title(c.kind,c.metadata,c.title,u.settings),c.kind,l.base,l.rating,e.id,e.season,e.number,e.kind,e.retired,coalesce(e.metadata->>'name','') FROM catalog c JOIN mapping_nodes e ON e.catalog_id=c.id JOIN users u ON u.id=$1 LEFT JOIN library l ON l.catalog_id=c.id AND l.user_id=$1 WHERE c.id=$2 OR c.id IN (SELECT catalog_id FROM mapping_nodes WHERE id=ANY($3::text[])) OR c.id IN(SELECT catalog_id FROM alternate_history_views WHERE user_id=$1 AND anchor_id=$2) ORDER BY c.id,e.season,e.number,e.id`, uid, id, ids)
 	if err != nil {
 		http.Error(w, "alternate episodes unavailable", http.StatusServiceUnavailable)
 		return
@@ -166,7 +166,7 @@ func (a *API) alternateView(w http.ResponseWriter, r *http.Request) {
 			t.Incomplete = true
 			incomplete = true
 		}
-		if !ep.Retired && ep.Kind == "regular" {
+		if !ep.Retired && (ep.Kind == "regular" || ep.Kind == "movie") {
 			t.Total++
 			if ep.State.Direct || ep.State.Derived {
 				t.Watched++

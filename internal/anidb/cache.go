@@ -46,7 +46,7 @@ func Metadata(a Anime, language, style string) map[string]interface{} {
 		episodes = append(episodes, map[string]interface{}{"id": numeric, "source_id": e.ID, "name": Choose(e.Titles, language, style), "season_number": season, "episode_number": n, "native_number": e.Number.Text, "native_type": e.Number.Type, "kind": k, "air_date": Day(e.AirDate), "runtime": e.Length})
 	}
 	numeric, _ := strconv.ParseInt(a.ID, 10, 64)
-	return map[string]interface{}{"id": numeric, "name": Choose(a.Titles, language, style), "titles": a.Titles, "overview": a.Description, "poster_path": PosterURL(a.Picture), "first_air_date": Day(a.StartDate), "end_date": Day(a.EndDate), "status": status, "number_of_episodes": a.EpisodeCount, "episodes": episodes, "seasons": []map[string]interface{}{{"season_number": 1, "name": "Regular", "episode_count": regular}, {"season_number": 0, "name": "Specials / extras", "episode_count": extras}}, "source": "anidb", "source_url": "https://anidb.net/anime/" + a.ID, "license": "CC-BY-NC-SA-4.0"}
+	return map[string]interface{}{"id": numeric, "anime_type": a.Type, "name": Choose(a.Titles, language, style), "titles": a.Titles, "overview": a.Description, "poster_path": PosterURL(a.Picture), "first_air_date": Day(a.StartDate), "end_date": Day(a.EndDate), "status": status, "number_of_episodes": a.EpisodeCount, "episodes": episodes, "seasons": []map[string]interface{}{{"season_number": 1, "name": "Regular", "episode_count": regular}, {"season_number": 0, "name": "Specials / extras", "episode_count": extras}}, "source": "anidb", "source_url": "https://anidb.net/anime/" + a.ID, "license": "CC-BY-NC-SA-4.0"}
 }
 
 // reserve persists both the two-second provider interval and one-day per-dataset

@@ -71,3 +71,29 @@ func Derived(edges []Edge, watched map[string]bool, requiresConsent bool, revisi
 	}
 	return out
 }
+
+// CanonicalForKind keeps existing episode revisions stable. Changing from
+// required episode parts to interchangeable movie aliases changes the revision.
+func CanonicalForKind(edges []Edge, kind string) ([]Edge, string, bool, error) {
+	canonical, revision, split, err := Canonical(edges)
+	if err != nil {
+		return nil, "", false, err
+	}
+	switch kind {
+	case "", "episodes":
+		return canonical, revision, split, nil
+	case "movie-aliases":
+		nodes := map[string]bool{}
+		for _, edge := range canonical {
+			nodes[edge.From] = true
+			nodes[edge.To] = true
+		}
+		if len(nodes) > 256 {
+			return nil, "", false, errors.New("movie alias proposal exceeds 256 identity limit")
+		}
+		sum := sha256.Sum256([]byte("movie-aliases:" + revision))
+		return canonical, hex.EncodeToString(sum[:]), true, nil
+	default:
+		return nil, "", false, errors.New("unsupported mapping kind")
+	}
+}

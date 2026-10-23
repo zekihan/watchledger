@@ -243,14 +243,19 @@ export const en = {
   keep: "Keep current status",
   yes: "Yes",
   seasonScope: "Season",
+  partialMovieStats: "Partially watched movies",
+  movieAliases: "Movie aliases",
+  mappingKind: "Mapping kind",
+  movieAliasSafety:
+    "These movie IDs are alternative records of one work. Watching any confirmed alias shares progress; you do not need to watch every alias. When recording native parts instead, every part is required.",
   canonicalAnimeStats:
-    "Confirmed anime links count native AniDB episodes, not extra show-view copies. Partial episodes are excluded from completed counts and runtime estimates.",
+    "Confirmed anime links count native AniDB episodes, not extra show-view copies. Confirmed movie aliases count one movie. Partial episodes are excluded from completed counts and runtime estimates.",
   partialNativeStats: "Partially watched native episodes",
   sourceRecords: "Recorded source parts",
   unresolvedStats:
     "Unconfirmed or ambiguous linked records remain separate until reviewed; totals may overlap",
   derivedStatsDates:
-    "Native completion months derived from the latest known source-part day, only when every required part has a date; original history is unchanged",
+    "Derived completion dates use the latest required-part day or earliest recorded movie-alias day, only when the relevant recorded dates are known; original history is unchanged",
   wholeScope: "Whole show",
   wholeShow: "Mark aired show episodes watched",
   wholeSeason: "Mark aired season watched",
@@ -554,14 +559,19 @@ export const tr: Record<Key, string> = {
   keep: "Durumu koru",
   yes: "Evet",
   seasonScope: "Sezon",
+  partialMovieStats: "Kısmen izlenen filmler",
+  movieAliases: "Film eş kimlikleri",
+  mappingKind: "Eşleştirme türü",
+  movieAliasSafety:
+    "Bu film kimlikleri aynı eserin alternatif kayıtlarıdır. Onaylı kimliklerden birini izlemek ilerlemeyi paylaşır; her kaydı ayrı izlemeniz gerekmez. Yerel parçaları kaydederken ise tüm parçalar gereklidir.",
   canonicalAnimeStats:
-    "Onaylı anime bağlantıları, ek dizi görünümü kopyaları yerine yerel AniDB bölümlerini sayar. Kısmen izlenen bölümler, tamamlanan bölüm ve tahmini süre toplamlarına katılmaz.",
+    "Onaylı anime bağlantıları, ek dizi görünümü kopyaları yerine yerel AniDB bölümlerini sayar. Onaylı film eş kimlikleri tek film sayılır. Kısmen izlenen bölümler, tamamlanan bölüm ve tahmini süre toplamlarına katılmaz.",
   partialNativeStats: "Kısmen izlenen yerel bölümler",
   sourceRecords: "Kaydedilen kaynak parçaları",
   unresolvedStats:
     "Onaylanmamış veya belirsiz bağlantılı kayıtlar incelenene kadar ayrı tutulur; toplamlar örtüşebilir",
   derivedStatsDates:
-    "Yerel tamamlanma ayları, gereken tüm parçaların tarihi biliniyorsa en son kaynak parçasının gününden türetilir; özgün geçmiş değişmez",
+    "Türetilen tarihler, ilgili kayıt tarihleri biliniyorsa gereken son parçanın veya ilk film eş kimliği kaydının gününü kullanır; özgün geçmiş değişmez",
   wholeScope: "Tüm dizi",
   wholeShow: "Yayımlanmış dizi bölümlerini izlendi işaretle",
   wholeSeason: "Yayımlanmış sezonu izlendi işaretle",

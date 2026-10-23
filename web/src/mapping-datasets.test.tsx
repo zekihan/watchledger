@@ -85,3 +85,80 @@ test("dataset proposals require explicit review and clear when the selected sour
   await userEvent.clear(screen.getByRole("spinbutton", { name: "AniDB ID" }));
   await waitFor(() => expect(screen.queryByRole("button", { name: en.reviewMapping })).toBeNull());
 });
+
+test("movie proposals retain alias semantics and expose missing movie identities", async () => {
+  const review = vi.fn();
+  const paths: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string) => {
+      paths.push(path);
+      return Promise.resolve(
+        new Response(
+          JSON.stringify(
+            path.includes("/resolve?")
+              ? {
+                  kind: "movie-aliases",
+                  proposal_id: "movie-proposal",
+                  existing_id: "",
+                  existing_revision: "",
+                  revision: "alias-revision",
+                  relationships: [{ from: "anidb:episode:1", to: "tmdb:movie:2" }],
+                  requires_consent: true,
+                  provenance: { source: "animap", version: "vsynthetic" },
+                  attribution: { notice: "Synthetic" },
+                  unresolved: [
+                    {
+                      candidate: {
+                        source_episode: "anidb:episode:1",
+                        native_number: 1,
+                        tmdb_movie_id: 3,
+                      },
+                      reason: "load_exact_native_episode_and_movie_metadata_first",
+                    },
+                  ],
+                }
+              : [
+                  {
+                    checksum: "a".repeat(64),
+                    version: "vsynthetic",
+                    source_revision: "r1",
+                    attribution: { notice: "Synthetic" },
+                  },
+                ],
+          ),
+          { status: 200 },
+        ),
+      );
+    }),
+  );
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+        })
+      }
+    >
+      <MappingDatasets t={(k) => en[k]} onReview={review} />
+    </QueryClientProvider>,
+  );
+  await screen.findByRole("option", { name: "vsynthetic · r1" });
+  await userEvent.selectOptions(
+    screen.getByRole("combobox", { name: en.datasetVersion }),
+    "a".repeat(64),
+  );
+  await userEvent.selectOptions(
+    screen.getByRole("combobox", { name: en.mappingKind }),
+    "movie-aliases",
+  );
+  await userEvent.type(screen.getByRole("spinbutton", { name: "AniDB ID" }), "42");
+  await userEvent.click(screen.getByRole("button", { name: en.resolveDataset }));
+  expect(await screen.findByText(en.movieAliasSafety)).toBeTruthy();
+  expect(screen.getByRole("link", { name: /TMDB 3/ }).getAttribute("href")).toBe("#detail/movie/3");
+  expect(paths.some((path) => path.endsWith("/resolve?kind=movie-aliases"))).toBe(true);
+  await userEvent.click(screen.getByRole("button", { name: en.reviewMapping }));
+  expect(review).toHaveBeenCalledWith(
+    expect.objectContaining({ kind: "movie-aliases", proposal_id: "movie-proposal" }),
+  );
+});

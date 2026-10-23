@@ -188,6 +188,7 @@ type Mapping struct {
 	RequiresConsent bool               `json:"requires_consent"`
 	Reviewed        bool               `json:"reviewed"`
 	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	Kind            string             `json:"kind"`
 }
 
 type MappingConsent struct {
@@ -213,6 +214,20 @@ type MappingDatasetAnime struct {
 	Data            []byte `json:"data"`
 }
 
+type MappingNode struct {
+	ID        string             `json:"id"`
+	CatalogID string             `json:"catalog_id"`
+	Source    string             `json:"source"`
+	SourceID  string             `json:"source_id"`
+	Season    int32              `json:"season"`
+	Number    int32              `json:"number"`
+	Kind      string             `json:"kind"`
+	Metadata  []byte             `json:"metadata"`
+	AirDate   pgtype.Date        `json:"air_date"`
+	AirTime   pgtype.Timestamptz `json:"air_time"`
+	Retired   bool               `json:"retired"`
+}
+
 type MappingProposal struct {
 	ID              pgtype.UUID        `json:"id"`
 	DatasetChecksum string             `json:"dataset_checksum"`
@@ -221,6 +236,7 @@ type MappingProposal struct {
 	Unresolved      []byte             `json:"unresolved"`
 	Revision        string             `json:"revision"`
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	Kind            string             `json:"kind"`
 }
 
 type MappingRevisionHistory struct {
@@ -230,6 +246,7 @@ type MappingRevisionHistory struct {
 	Provenance    []byte             `json:"provenance"`
 	Relationships []byte             `json:"relationships"`
 	RecordedAt    pgtype.Timestamptz `json:"recorded_at"`
+	Kind          string             `json:"kind"`
 }
 
 type Notice struct {

@@ -13,6 +13,7 @@ export function AnalyticsPage({ t }: { t: T }) {
         estimated_minutes: number;
         unknown_runtime: number;
         partial_native_episodes: number;
+        partial_movies: number;
         partial_source_records: number;
         unresolved_linked_records: number;
         derived_date_units: number;
@@ -57,6 +58,11 @@ export function AnalyticsPage({ t }: { t: T }) {
         </div>
       </div>
       <p className="muted">{t("canonicalAnimeStats")}</p>
+      {(d.partial_movies ?? 0) > 0 && (
+        <p>
+          {t("partialMovieStats")}: {d.partial_movies}
+        </p>
+      )}
       {(d.partial_native_episodes ?? 0) > 0 && (
         <p>
           {t("partialNativeStats")}: {d.partial_native_episodes} · {t("sourceRecords")}:{" "}

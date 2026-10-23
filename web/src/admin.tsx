@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import type { T } from "./App";
 export interface Mapping {
+  kind?: "episodes" | "movie-aliases";
   episodes?: Record<
     string,
     {
@@ -65,6 +66,7 @@ export function MappingPage({ t, admin }: { t: T; admin: boolean }) {
     mutationFn: (m: Mapping) =>
       api("/admin/mappings", "POST", {
         id: m.id,
+        kind: m.kind ?? "episodes",
         expected_revision: m.revision,
         proposal_id: m.proposal_id,
         relationships: m.relationships,
@@ -135,7 +137,23 @@ export function MappingPage({ t, admin }: { t: T; admin: boolean }) {
       {selected && admin && (
         <section className="panel">
           <h2>{t("reviewMapping")}</h2>
-          <p>{t("mappingSafety")}</p>
+          <label>
+            {t("mappingKind")}
+            <select
+              disabled={!!selected.proposal_id}
+              value={selected.kind ?? "episodes"}
+              onChange={(e) =>
+                setSelected({
+                  ...selected,
+                  kind: e.target.value === "movie-aliases" ? "movie-aliases" : "episodes",
+                })
+              }
+            >
+              <option value="episodes">{t("episodes")}</option>
+              <option value="movie-aliases">{t("movieAliases")}</option>
+            </select>
+          </label>
+          <p>{t(selected.kind === "movie-aliases" ? "movieAliasSafety" : "mappingSafety")}</p>
           <div className="toolbar">
             <input
               aria-label={t("sourceEpisode")}
@@ -238,7 +256,11 @@ export function MappingPage({ t, admin }: { t: T; admin: boolean }) {
               </span>
             </div>
           ))}
-          {m.requires_consent && <p className="notice">{t("mappingSafety")}</p>}
+          {m.requires_consent && (
+            <p className="notice">
+              {t(m.kind === "movie-aliases" ? "movieAliasSafety" : "mappingSafety")}
+            </p>
+          )}
           {admin && (
             <button onClick={() => setHistoryID(historyID === m.id ? "" : m.id)}>
               {t("mappingHistory")}
@@ -350,5 +372,9 @@ export function Notices({ t }: { t: T }) {
 
 function episodeLabel(m: Mapping, id: string) {
   const e = m.episodes?.[id];
-  return e ? `${e.title} · ${e.season}:${e.number}${e.name ? ` · ${e.name}` : ""}` : id;
+  return e
+    ? e.kind === "movie"
+      ? e.title
+      : `${e.title} · ${e.season}:${e.number}${e.name ? ` · ${e.name}` : ""}`
+    : id;
 }

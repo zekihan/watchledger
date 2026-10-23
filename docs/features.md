@@ -188,7 +188,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [x] Per-series structure override.
 - [ ] One shared underlying episode history across views.
   - [x] Confirmed episode-level alternate tracking without duplicate library entries, including native status updates and portable source history.
-  - [ ] Movie relationships and full cross-view/browser acceptance.
+  - [ ] Full mixed-relationship and cross-view/browser acceptance.
 - [ ] Stable source identities without merging entries solely on shared TMDB IDs.
 - [x] Mapping provenance and dataset versions.
 - [x] Native-entry statuses and ratings visible in aggregate show views.
@@ -200,7 +200,8 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Incomplete alternate-view indicators.
 - [ ] Admin mapping review and local override tools.
   - [x] Versioned episode proposals, local override protection, revision history and provenance validation.
-  - [ ] Movie relationships and full browser acceptance.
+  - [x] Explicit movie-alias proposals, local overrides, distinct consent and source-safe tracking.
+  - [ ] Full browser and broad mapping-coverage acceptance.
 - [x] Explicit versus inferred mapping distinction.
 - [ ] Per-user confirmation before split/combined cross-view progress linking.
 - [x] Explain connected episodes during mapping confirmation.
@@ -211,7 +212,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [x] Renew confirmation for materially changed split/combined relationships.
 - [ ] Avoid double-counting history across alternate views.
   - [x] Confirmed episode mappings use view-independent native units, separate partial progress, and labelled date/ambiguity handling.
-  - [ ] Movie relationships and final browser acceptance.
+  - [ ] Broad mixed-relationship and final browser acceptance.
 
 ## SIMKL migration
 

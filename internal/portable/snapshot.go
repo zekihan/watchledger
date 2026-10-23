@@ -166,6 +166,7 @@ func (s Snapshot) Validate() error {
 		}
 	}
 	catalog, episodes, statuses, library := map[string]bool{}, map[string]string{}, map[string]string{}, map[string]bool{}
+	catalogKinds := map[string]string{}
 	for _, c := range s.Catalog {
 		if c.ID == "" || c.Source == "" || c.SourceID == "" || c.Title == "" || catalog[c.ID] {
 			return errors.New("invalid or duplicate catalog identity")
@@ -184,8 +185,12 @@ func (s Snapshot) Validate() error {
 			}
 		}
 		catalog[c.ID] = true
+		catalogKinds[c.ID] = c.Kind
 	}
 	for _, e := range s.Episodes {
+		if catalogKinds[e.CatalogID] == "movie" || catalogKinds[e.CatalogID] == "person" {
+			return errors.New("movies and people do not have episode records")
+		}
 		if e.ID == "" || e.Source == "" || e.SourceID == "" || !catalog[e.CatalogID] || episodes[e.ID] != "" {
 			return errors.New("invalid episode reference")
 		}
@@ -221,10 +226,7 @@ func (s Snapshot) Validate() error {
 		library[l.CatalogID] = true
 	}
 	views := map[string]bool{}
-	kinds := map[string]string{}
-	for _, c := range s.Catalog {
-		kinds[c.ID] = c.Kind
-	}
+	kinds := catalogKinds
 	if len(s.AlternateViews) > 10000 {
 		return errors.New("too many alternate views")
 	}
@@ -233,7 +235,7 @@ func (s Snapshot) Validate() error {
 			return errors.New("invalid alternate history view")
 		}
 		anchorKind, targetKind := kinds[view.AnchorID], kinds[view.CatalogID]
-		if anchorKind != "anime" || targetKind != "tv" {
+		if anchorKind != "anime" || (targetKind != "tv" && targetKind != "movie") {
 			return errors.New("invalid alternate history kinds")
 		}
 		views[view.CatalogID] = true
@@ -251,7 +253,7 @@ func (s Snapshot) Validate() error {
 		if !library[h.CatalogID] && !views[h.CatalogID] {
 			return errors.New("history without library title")
 		}
-		if views[h.CatalogID] && h.EpisodeID == nil {
+		if views[h.CatalogID] && kinds[h.CatalogID] != "movie" && h.EpisodeID == nil {
 			return errors.New("alternate show history requires an episode")
 		}
 		key := h.CatalogID

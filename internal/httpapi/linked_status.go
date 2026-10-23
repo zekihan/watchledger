@@ -73,3 +73,81 @@ func updateNativeProgress(ctx context.Context, tx pgx.Tx, uid string, ids []stri
 	}
 	return nil
 }
+
+func derivedUnwatchNodes(targets []*string, catalogID string, changes []recordedLink, before effectiveSnapshot) []string {
+	removed := map[string]bool{}
+	for _, target := range targets {
+		if target == nil {
+			removed[catalogID] = true
+		} else {
+			removed[*target] = true
+		}
+	}
+	for _, change := range changes {
+		removed[change.EpisodeID] = true
+	}
+	out := []string{}
+	for id, state := range before.States {
+		if !state.Derived || state.Direct {
+			continue
+		}
+		groups := state.SourceGroups
+		if len(groups) == 0 {
+			groups = [][]string{state.Sources}
+		}
+		remains := false
+		for _, group := range groups {
+			complete := len(group) > 0
+			for _, source := range group {
+				_, recorded := before.Direct[source]
+				complete = complete && recorded && !removed[source]
+			}
+			remains = remains || complete
+		}
+		if !remains {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
+// Preserve the explicit edit in already-private derived views as well, so a
+// later import through another identity cannot resurrect an unwatched work.
+func persistDerivedUnwatch(ctx context.Context, tx pgx.Tx, uid string, nodes []string, returnWatching bool) error {
+	rows, err := tx.Query(ctx, `SELECT n.id,n.catalog_id,n.kind='movie' FROM mapping_nodes n WHERE n.id=ANY($2::text[]) AND (EXISTS(SELECT 1 FROM library l WHERE l.user_id=$1 AND l.catalog_id=n.catalog_id) OR EXISTS(SELECT 1 FROM alternate_history_views v WHERE v.user_id=$1 AND v.catalog_id=n.catalog_id))`, uid, nodes)
+	if err != nil {
+		return err
+	}
+	type node struct {
+		ID, Catalog string
+		Movie       bool
+	}
+	items := []node{}
+	for rows.Next() {
+		var n node
+		if err = rows.Scan(&n.ID, &n.Catalog, &n.Movie); err != nil {
+			rows.Close()
+			return err
+		}
+		items = append(items, n)
+	}
+	rows.Close()
+	if rows.Err() != nil {
+		return rows.Err()
+	}
+	for _, n := range items {
+		key := n.ID
+		if n.Movie {
+			key = ""
+		}
+		if _, err = tx.Exec(ctx, `INSERT INTO history_tombstones(user_id,catalog_id,episode_key) SELECT $1,$2,$3 WHERE NOT EXISTS(SELECT 1 FROM history WHERE user_id=$1 AND catalog_id=$2 AND coalesce(episode_id,'')=$3) ON CONFLICT(user_id,catalog_id,episode_key) DO UPDATE SET deleted_at=now()`, uid, n.Catalog, key); err != nil {
+			return err
+		}
+		if returnWatching {
+			if _, err = tx.Exec(ctx, "UPDATE library SET base='watching',status_id=NULL,updated_at=now() WHERE user_id=$1 AND catalog_id=$2 AND base='completed'", uid, n.Catalog); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}

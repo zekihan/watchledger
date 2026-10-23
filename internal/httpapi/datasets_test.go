@@ -122,7 +122,7 @@ func TestDatasetBridgeUsesExternalIDsAndRevisionBoundConsent(t *testing.T) {
 	mux := http.NewServeMux()
 	app.routes(mux)
 	handler = identity.Middleware(mux)
-	raw := `{"version":2,"generated_at":"2026-10-21T00:00:00Z","sources":{"mapping":{"revision":"synthetic"},"anidb":{"titles_dump":"2026-10-21"}},"attribution":{"license":"ODbL-1.0","license_url":"https://opendatacommons.org/licenses/odbl/1-0/","contents_license":"DbCL-1.0","contents_license_url":"https://opendatacommons.org/licenses/dbcl/1-0/","notice":"Synthetic"},"anime":[{"anidb_id":934000001,"type":"TV","tvdb_id":90,"last":{"regular":2},"episodes_listed":true,"episodes":[{"kind":"regular","start":1,"end":1,"anidb_episode_ids":[934000002],"tvdb":[{"season":9,"episode":20,"episode_ids":[934000004]}]},{"kind":"regular","start":2,"end":2,"anidb_episode_ids":[934000003],"tvdb":[{"season":9,"episode":20,"episode_ids":[934000004]}]}]}],"entries":[]}`
+	raw := `{"version":2,"generated_at":"2026-10-21T00:00:00Z","sources":{"mapping":{"revision":"synthetic"},"anidb":{"titles_dump":"2026-10-21"}},"attribution":{"license":"ODbL-1.0","license_url":"https://opendatacommons.org/licenses/odbl/1-0/","contents_license":"DbCL-1.0","contents_license_url":"https://opendatacommons.org/licenses/dbcl/1-0/","notice":"Synthetic"},"anime":[{"anidb_id":934000001,"type":"TV","tvdb_id":90,"last":{"regular":2},"episodes_listed":true,"episodes":[{"kind":"regular","start":1,"end":1,"anidb_episode_ids":[934000002],"tmdb_movies":[934000009,934000010],"tvdb":[{"season":9,"episode":20,"episode_ids":[934000004]}]},{"kind":"regular","start":2,"end":2,"anidb_episode_ids":[934000003],"tvdb":[{"season":9,"episode":20,"episode_ids":[934000004]}]}]}],"entries":[]}`
 	sha := fmt.Sprintf("%x", sha256.Sum256([]byte(raw)))
 	route := "/api/admin/mapping-datasets?version=vsynthetic&checksum=" + sha
 	if w := request("POST", route, raw, true); w.Code != 403 {
@@ -222,6 +222,44 @@ func TestDatasetBridgeUsesExternalIDsAndRevisionBoundConsent(t *testing.T) {
 	}
 	if _, e = p.Exec(ctx, "DELETE FROM mappings WHERE id=$1", saved.ID); e != nil {
 		t.Fatal(e)
+	}
+
+	for _, movie := range []string{"tmdb:movie:934000009", "tmdb:movie:934000010"} {
+		if _, err := p.Exec(ctx, "INSERT INTO catalog(id,source,source_id,kind,title) VALUES($1,'tmdb',$1,'movie','Synthetic movie alias') ON CONFLICT DO NOTHING", movie); err != nil {
+			t.Fatal(err)
+		}
+	}
+	movies := request("POST", "/api/admin/mapping-datasets/"+sha+"/anime/934000001/resolve?kind=movie-aliases", "{}", true)
+	if movies.Code != 200 {
+		t.Fatal("movie alias proposal", movies.Code, movies.Body.String())
+	}
+	var movieProposal struct {
+		Kind          string
+		ID            string `json:"proposal_id"`
+		Revision      string
+		Relationships []mapping.Edge
+		Requires      bool `json:"requires_consent"`
+	}
+	if err := json.Unmarshal(movies.Body.Bytes(), &movieProposal); err != nil {
+		t.Fatal(err)
+	}
+	if movieProposal.Kind != "movie-aliases" || len(movieProposal.Relationships) != 2 || !movieProposal.Requires {
+		t.Fatal("movie aliases missing distinct semantics", movieProposal)
+	}
+	movieBody, _ := json.Marshal(map[string]interface{}{"kind": "movie-aliases", "proposal_id": movieProposal.ID, "relationships": movieProposal.Relationships, "provenance": map[string]interface{}{"source": "animap", "version": "vsynthetic"}})
+	movieSaved := request("POST", "/api/admin/mappings", string(movieBody), true)
+	if movieSaved.Code != 200 {
+		t.Fatal(movieSaved.Code, movieSaved.Body.String())
+	}
+	var movieMapping struct{ ID string }
+	if err := json.Unmarshal(movieSaved.Body.Bytes(), &movieMapping); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.Exec(ctx, "DELETE FROM mapping_revision_history WHERE mapping_id=$1", movieMapping.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.Exec(ctx, "DELETE FROM mappings WHERE id=$1", movieMapping.ID); err != nil {
+		t.Fatal(err)
 	}
 	for _, checksum := range []string{sha, changedSHA} {
 		_, _ = p.Exec(ctx, "DELETE FROM mapping_proposals WHERE dataset_checksum=$1", checksum)

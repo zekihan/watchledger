@@ -7,6 +7,7 @@ import (
 	"github.com/zekihan/watchledger/internal/auth"
 	"github.com/zekihan/watchledger/internal/tracking"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -186,7 +187,7 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 	e = tx.QueryRow(r.Context(), `SELECT l.base,c.kind,c.metadata FROM library l JOIN catalog c ON c.id=l.catalog_id WHERE l.user_id=$1 AND l.catalog_id=$2 FOR UPDATE OF l`, uid, id).Scan(&base, &kind, &meta)
 	virtual := errors.Is(e, pgx.ErrNoRows) && in.ViewAnchor != ""
 	if virtual {
-		e = tx.QueryRow(r.Context(), `SELECT 'watching',c.kind,c.metadata FROM catalog c WHERE c.id=$2 AND c.kind='tv' AND EXISTS(SELECT 1 FROM library l JOIN catalog native ON native.id=l.catalog_id WHERE l.user_id=$1 AND l.catalog_id=$3 AND native.kind='anime')`, uid, id, in.ViewAnchor).Scan(&base, &kind, &meta)
+		e = tx.QueryRow(r.Context(), `SELECT 'watching',c.kind,c.metadata FROM catalog c WHERE c.id=$2 AND c.kind IN('tv','movie') AND EXISTS(SELECT 1 FROM library l JOIN catalog native ON native.id=l.catalog_id WHERE l.user_id=$1 AND l.catalog_id=$3 AND native.kind='anime')`, uid, id, in.ViewAnchor).Scan(&base, &kind, &meta)
 	}
 	if errors.Is(e, pgx.ErrNoRows) {
 		http.Error(w, "library title not found", http.StatusNotFound)
@@ -255,11 +256,15 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 	}
 	eligible := map[string]bool{}
 	anchored := false
-	for _, ep := range episodes {
+	nodes := append([]tracking.Episode{}, episodes...)
+	if kind == "movie" {
+		nodes = append(nodes, tracking.Episode{ID: id})
+	}
+	for _, ep := range nodes {
 		state := snapshot.States[ep.ID]
 		valid := !state.Blocked && len(state.Sources) > 0
 		for _, peer := range state.Sources {
-			valid = valid && nativeByEpisode[peer] != ""
+			valid = valid && (nativeByEpisode[peer] != "" || (state.AnySource && strings.HasPrefix(peer, "tmdb:movie:")))
 			anchored = anchored || (!state.Blocked && nativeByEpisode[peer] == in.ViewAnchor)
 		}
 		eligible[ep.ID] = valid
@@ -374,14 +379,15 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 	}
 	nativeSet := map[string]bool{}
 	for _, target := range targets {
-		if target == nil {
-			continue
+		nodeID := id
+		if target != nil {
+			nodeID = *target
 		}
-		if virtual && !eligible[*target] && (!retainedView || !snapshot.States[*target].Direct) {
+		if virtual && !eligible[nodeID] && (!retainedView || !snapshot.States[nodeID].Direct) {
 			http.Error(w, "all selected episodes need confirmed mappings and saved native entries", http.StatusConflict)
 			return
 		}
-		state := snapshot.States[*target]
+		state := snapshot.States[nodeID]
 		if !state.Blocked {
 			for _, peer := range state.Sources {
 				if cid := nativeByEpisode[peer]; cid != "" && cid != id {
@@ -394,9 +400,13 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 	for cid := range nativeSet {
 		nativeIDs = append(nativeIDs, cid)
 	}
-	linkedChanges, linkedPlan := linkedRemovalPlan(uid, targets, snapshot)
+	linkedChanges, linkedPlan := linkedRemovalPlan(uid, targets, snapshot, id)
 	if watched {
 		linkedChanges = nil
+	}
+	derivedChanges := []string{}
+	if !watched {
+		derivedChanges = derivedUnwatchNodes(targets, id, linkedChanges, snapshot)
 	}
 	offerReturn := !watched && base == "completed"
 	if !watched && len(linkedChanges) > 0 {
@@ -415,6 +425,14 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 		var completed bool
 		if e = tx.QueryRow(r.Context(), "SELECT EXISTS(SELECT 1 FROM library WHERE user_id=$1 AND catalog_id=ANY($2::text[]) AND base='completed')", uid, nativeIDs).Scan(&completed); e != nil {
 			http.Error(w, "native status unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		offerReturn = offerReturn || completed
+	}
+	if !watched && len(derivedChanges) > 0 {
+		var completed bool
+		if e = tx.QueryRow(r.Context(), "SELECT EXISTS(SELECT 1 FROM library l JOIN mapping_nodes n ON n.catalog_id=l.catalog_id WHERE l.user_id=$1 AND n.id=ANY($2::text[]) AND l.base='completed')", uid, derivedChanges).Scan(&completed); e != nil {
+			http.Error(w, "derived status unavailable", http.StatusServiceUnavailable)
 			return
 		}
 		offerReturn = offerReturn || completed
@@ -442,13 +460,17 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 		if ep != nil {
 			episodeKey = *ep
 		}
-		if watched && ep != nil && snapshot.RawStates[*ep].Derived {
-			if _, e = tx.Exec(r.Context(), "DELETE FROM history_tombstones WHERE user_id=$1 AND catalog_id=$2 AND episode_key=$3", uid, id, *ep); e != nil {
+		nodeID := id
+		if ep != nil {
+			nodeID = *ep
+		}
+		if watched && snapshot.RawStates[nodeID].Derived {
+			if _, e = tx.Exec(r.Context(), "DELETE FROM history_tombstones WHERE user_id=$1 AND catalog_id=$2 AND episode_key=$3", uid, id, episodeKey); e != nil {
 				http.Error(w, "tracking failed", http.StatusServiceUnavailable)
 				return
 			}
 			for i := range episodes {
-				if episodes[i].ID == *ep {
+				if episodes[i].ID == nodeID {
 					episodes[i].Watched = true
 				}
 			}
@@ -481,12 +503,18 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 	}
 	if !watched {
 		for _, change := range linkedChanges {
-			_, e = tx.Exec(r.Context(), "INSERT INTO history_tombstones(user_id,catalog_id,episode_key) VALUES($1,$2,$3) ON CONFLICT(user_id,catalog_id,episode_key) DO UPDATE SET deleted_at=now()", uid, change.CatalogID, change.EpisodeID)
+			episodeKey := change.EpisodeID
+			var episodeID interface{} = change.EpisodeID
+			if change.Movie {
+				episodeKey = ""
+				episodeID = nil
+			}
+			_, e = tx.Exec(r.Context(), "INSERT INTO history_tombstones(user_id,catalog_id,episode_key) VALUES($1,$2,$3) ON CONFLICT(user_id,catalog_id,episode_key) DO UPDATE SET deleted_at=now()", uid, change.CatalogID, episodeKey)
 			if e != nil {
 				http.Error(w, "linked unwatch failed", http.StatusServiceUnavailable)
 				return
 			}
-			if _, e = tx.Exec(r.Context(), "DELETE FROM history WHERE user_id=$1 AND catalog_id=$2 AND episode_id=$3", uid, change.CatalogID, change.EpisodeID); e != nil {
+			if _, e = tx.Exec(r.Context(), "DELETE FROM history WHERE user_id=$1 AND catalog_id=$2 AND episode_id IS NOT DISTINCT FROM $3::text", uid, change.CatalogID, episodeID); e != nil {
 				http.Error(w, "linked unwatch failed", http.StatusServiceUnavailable)
 				return
 			}
@@ -532,6 +560,12 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 	if e != nil {
 		http.Error(w, "status update failed", http.StatusServiceUnavailable)
 		return
+	}
+	if !watched {
+		if e = persistDerivedUnwatch(r.Context(), tx, uid, derivedChanges, in.ReturnWatching); e != nil {
+			http.Error(w, "derived unwatch failed", http.StatusServiceUnavailable)
+			return
+		}
 	}
 	if e = updateNativeProgress(r.Context(), tx, uid, nativeIDs, watched, in.ReturnWatching); e != nil {
 		http.Error(w, "native status update failed", http.StatusServiceUnavailable)

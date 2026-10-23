@@ -29,6 +29,7 @@ interface Alternate {
         blocked: boolean;
         sources: string[];
         mapping_id?: string;
+        any_source?: boolean;
       };
     }[];
   }[];
@@ -106,7 +107,8 @@ export function AlternateView({ id, t, timezone }: { id: string; t: T; timezone?
                   disabled={
                     tracking.pending ||
                     title.episodes.length === 0 ||
-                    (title.base === null && (title.kind !== "tv" || title.incomplete))
+                    (title.base === null &&
+                      ((title.kind !== "tv" && title.kind !== "movie") || title.incomplete))
                   }
                   onClick={() =>
                     tracking.run({
@@ -117,40 +119,43 @@ export function AlternateView({ id, t, timezone }: { id: string; t: T; timezone?
                     })
                   }
                 >
-                  {t("wholeScope")} · {watched ? t("watched") : t("unwatched")}
+                  {t(title.kind === "movie" ? "movie" : "wholeScope")} ·{" "}
+                  {watched ? t("watched") : t("unwatched")}
                 </button>
               ))}
             </div>
             <div className="toolbar">
-              {[...new Set(title.episodes.map((ep) => ep.season))].map((season) => (
-                <span key={season}>
-                  {[true, false].map((watched) => (
-                    <button
-                      key={String(watched)}
-                      disabled={
-                        tracking.pending ||
-                        (title.base === null && (title.kind !== "tv" || title.incomplete))
-                      }
-                      onClick={() =>
-                        tracking.run({
-                          catalog_id: title.id,
-                          season,
-                          watched,
-                          view_anchor: title.base === null ? id : undefined,
-                        })
-                      }
-                    >
-                      {t("seasonScope")} {season} · {watched ? t("watched") : t("unwatched")}
-                    </button>
-                  ))}
-                </span>
-              ))}
+              {title.kind !== "movie" &&
+                [...new Set(title.episodes.map((ep) => ep.season))].map((season) => (
+                  <span key={season}>
+                    {[true, false].map((watched) => (
+                      <button
+                        key={String(watched)}
+                        disabled={
+                          tracking.pending ||
+                          (title.base === null &&
+                            ((title.kind !== "tv" && title.kind !== "movie") || title.incomplete))
+                        }
+                        onClick={() =>
+                          tracking.run({
+                            catalog_id: title.id,
+                            season,
+                            watched,
+                            view_anchor: title.base === null ? id : undefined,
+                          })
+                        }
+                      >
+                        {t("seasonScope")} {season} · {watched ? t("watched") : t("unwatched")}
+                      </button>
+                    ))}
+                  </span>
+                ))}
             </div>
             <ul>
               {title.episodes.map((ep) => (
                 <li key={ep.id}>
                   <strong>
-                    {ep.season}:{ep.number} {ep.name}
+                    {title.kind === "movie" ? title.title : `${ep.season}:${ep.number} ${ep.name}`}
                   </strong>
                   {" · "}
                   <span>
@@ -162,16 +167,18 @@ export function AlternateView({ id, t, timezone }: { id: string; t: T; timezone?
                   </span>
                   {(title.base !== null ||
                     ep.state.direct ||
-                    (title.kind === "tv" &&
+                    ((title.kind === "tv" || title.kind === "movie") &&
                       !ep.state.blocked &&
                       ep.state.sources.length > 0 &&
-                      ep.state.sources.every((source) =>
-                        q.data?.titles.some(
-                          (native) =>
-                            native.kind === "anime" &&
-                            native.base !== null &&
-                            native.episodes.some((e) => e.id === source),
-                        ),
+                      ep.state.sources.every(
+                        (source) =>
+                          (ep.state.any_source && source.startsWith("tmdb:movie:")) ||
+                          q.data?.titles.some(
+                            (native) =>
+                              native.kind === "anime" &&
+                              native.base !== null &&
+                              native.episodes.some((e) => e.id === source),
+                          ),
                       ))) &&
                     (!ep.retired || ep.state.direct) && (
                       <button
@@ -179,7 +186,7 @@ export function AlternateView({ id, t, timezone }: { id: string; t: T; timezone?
                         onClick={() =>
                           tracking.run({
                             catalog_id: title.id,
-                            episode_id: ep.id,
+                            ...(title.kind === "movie" ? { whole: true } : { episode_id: ep.id }),
                             watched: !(ep.state.direct || ep.state.derived),
                             view_anchor: title.base === null ? id : undefined,
                           })
@@ -201,7 +208,9 @@ export function AlternateView({ id, t, timezone }: { id: string; t: T; timezone?
                           );
                           const e = title?.episodes.find((e) => e.id === id);
                           return title && e
-                            ? `${title.title} · ${e.season}:${e.number}${e.name ? ` · ${e.name}` : ""}`
+                            ? title.kind === "movie"
+                              ? title.title
+                              : `${title.title} · ${e.season}:${e.number}${e.name ? ` · ${e.name}` : ""}`
                             : id;
                         })
                         .join(", ")}

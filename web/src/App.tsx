@@ -1104,12 +1104,14 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
           {kind === "movie" && (
             <button
               data-watch-action="movie"
-              disabled={track.isPending}
+              disabled={track.isPending || effective.isPending || !!effective.error}
               onClick={() => {
-                track.mutate({ watched: !history.data?.length });
+                track.mutate({
+                  watched: !(history.data?.length || effective.data?.[key]?.derived),
+                });
               }}
             >
-              {t(history.data?.length ? "unwatched" : "watched")}
+              {t(history.data?.length || effective.data?.[key]?.derived ? "unwatched" : "watched")}
             </button>
           )}
         </div>

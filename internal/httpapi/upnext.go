@@ -30,7 +30,7 @@ func buildUpNext(ctx context.Context, db queryReader, uid, zone string) ([]nextC
 	if err != nil {
 		return nil, err
 	}
-	rows, err := db.Query(ctx, `SELECT l.catalog_id,catalog_display_title(c.kind,c.metadata,c.title,u.settings),c.kind,l.position,coalesce(l.anime_view,u.settings->>'anime_view','native'),e.id,e.season,e.number FROM library l JOIN users u ON u.id=l.user_id JOIN catalog c ON c.id=l.catalog_id JOIN episodes e ON e.catalog_id=l.catalog_id WHERE l.user_id=$1 AND l.base='watching' AND e.kind='regular' AND NOT e.retired AND (e.air_date<=(now() AT TIME ZONE $2)::date OR e.air_time<=now()) ORDER BY l.position,c.id,e.season,e.number,e.id`, uid, zone)
+	rows, err := db.Query(ctx, `SELECT l.catalog_id,catalog_display_title(c.kind,c.metadata,c.title,u.settings),c.kind,l.position,coalesce(l.anime_view,u.settings->>'anime_view','native'),e.id,e.season,e.number FROM library l JOIN users u ON u.id=l.user_id JOIN catalog c ON c.id=l.catalog_id JOIN episodes e ON e.catalog_id=l.catalog_id WHERE l.user_id=$1 AND l.base='watching' AND NOT(c.source='anidb' AND coalesce(catalog_metadata_variant(c.metadata,u.settings)->>'anime_type','')='Movie') AND e.kind='regular' AND NOT e.retired AND (e.air_date<=(now() AT TIME ZONE $2)::date OR e.air_time<=now()) ORDER BY l.position,c.id,e.season,e.number,e.id`, uid, zone)
 	if err != nil {
 		return nil, err
 	}

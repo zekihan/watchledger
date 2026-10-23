@@ -11,6 +11,7 @@ interface Dataset {
   attribution: { notice: string; license: string; contents_license: string };
 }
 interface Proposal {
+  kind?: "episodes" | "movie-aliases";
   proposal_id: string;
   existing_id: string;
   existing_revision: string;
@@ -20,7 +21,12 @@ interface Proposal {
   provenance: Mapping["provenance"];
   attribution: Dataset["attribution"];
   unresolved: {
-    candidate: { source_episode: string; native_number: number; inferred: boolean };
+    candidate: {
+      source_episode: string;
+      native_number: number;
+      inferred: boolean;
+      tmdb_movie_id?: number;
+    };
     reason: string;
   }[];
 }
@@ -30,6 +36,7 @@ export function MappingDatasets({ t, onReview }: { t: T; onReview: (m: Mapping) 
   const [checksum, setChecksum] = useState("");
   const [dataset, setDataset] = useState("");
   const [aid, setAid] = useState("");
+  const [kind, setKind] = useState<"episodes" | "movie-aliases">("episodes");
   const q = useQuery({
     queryKey: ["mapping-datasets"],
     queryFn: () => api<Dataset[]>("/admin/mapping-datasets"),
@@ -52,7 +59,11 @@ export function MappingDatasets({ t, onReview }: { t: T; onReview: (m: Mapping) 
   });
   const resolve = useMutation({
     mutationFn: () =>
-      api<Proposal>(`/admin/mapping-datasets/${dataset}/anime/${aid}/resolve`, "POST", {}),
+      api<Proposal>(
+        `/admin/mapping-datasets/${dataset}/anime/${aid}/resolve${kind === "movie-aliases" ? "?kind=movie-aliases" : ""}`,
+        "POST",
+        {},
+      ),
   });
   const busy = upload.isPending || resolve.isPending;
   return (
@@ -65,6 +76,19 @@ export function MappingDatasets({ t, onReview }: { t: T; onReview: (m: Mapping) 
         <a href="https://opendatacommons.org/licenses/dbcl/1-0/">DbCL 1.0</a>
       </p>
       <fieldset disabled={busy}>
+        <label>
+          {t("mappingKind")}
+          <select
+            value={kind}
+            onChange={(e) => {
+              setKind(e.target.value === "movie-aliases" ? "movie-aliases" : "episodes");
+              resolve.reset();
+            }}
+          >
+            <option value="episodes">{t("episodes")}</option>
+            <option value="movie-aliases">{t("movieAliases")}</option>
+          </select>
+        </label>
         <label>
           {t("datasetVersion")}
           <input value={version} onChange={(e) => setVersion(e.target.value)} />
@@ -136,7 +160,9 @@ export function MappingDatasets({ t, onReview }: { t: T; onReview: (m: Mapping) 
           <p>
             {t("unresolved")}: {resolve.data.unresolved.length}
           </p>
-          {resolve.data.requires_consent && <p>{t("mappingSafety")}</p>}
+          {resolve.data.requires_consent && (
+            <p>{t(resolve.data.kind === "movie-aliases" ? "movieAliasSafety" : "mappingSafety")}</p>
+          )}
           <ul>
             {resolve.data.relationships.slice(0, 50).map((e) => (
               <li key={e.from + e.to}>
@@ -148,6 +174,12 @@ export function MappingDatasets({ t, onReview }: { t: T; onReview: (m: Mapping) 
             {resolve.data.unresolved.slice(0, 50).map((x, i) => (
               <li key={i}>
                 {x.candidate.source_episode || x.candidate.native_number} · {x.reason}
+                {x.candidate.tmdb_movie_id && (
+                  <a href={`#detail/movie/${x.candidate.tmdb_movie_id}`}>
+                    {" "}
+                    · TMDB {x.candidate.tmdb_movie_id}
+                  </a>
+                )}
               </li>
             ))}
           </ul>
@@ -162,6 +194,7 @@ export function MappingDatasets({ t, onReview }: { t: T; onReview: (m: Mapping) 
                 relationships: p.relationships,
                 provenance: p.provenance,
                 requires_consent: p.requires_consent,
+                kind: p.kind ?? "episodes",
                 reviewed: false,
                 confirmed: false,
               });

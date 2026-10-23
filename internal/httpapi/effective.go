@@ -14,6 +14,7 @@ import (
 )
 
 type recordedLink struct {
+	Movie         bool       `json:"movie,omitempty"`
 	RecordID      string     `json:"record_id"`
 	LocalActionAt *time.Time `json:"-"`
 	EpisodeID     string     `json:"episode_id"`
@@ -31,12 +32,12 @@ type effectiveSnapshot struct {
 func loadEffective(ctx context.Context, db queryRows, uid, catalogID string, extraCatalogs ...string) (effectiveSnapshot, error) {
 	out := effectiveSnapshot{Direct: map[string]recordedLink{}}
 	query := `WITH related AS (
- SELECT DISTINCT m.id FROM mappings m CROSS JOIN LATERAL jsonb_array_elements(m.relationships) edge JOIN episodes e ON e.id=edge->>'from' OR e.id=edge->>'to' WHERE e.catalog_id=$2 OR e.catalog_id=ANY($3::text[]) OR ($2='' AND EXISTS(SELECT 1 FROM library l WHERE l.user_id=$1 AND l.catalog_id=e.catalog_id))
+ SELECT DISTINCT m.id FROM mappings m CROSS JOIN LATERAL jsonb_array_elements(m.relationships) edge JOIN mapping_nodes e ON e.id=edge->>'from' OR e.id=edge->>'to' WHERE e.catalog_id=$2 OR e.catalog_id=ANY($3::text[]) OR ($2='' AND EXISTS(SELECT 1 FROM library l WHERE l.user_id=$1 AND l.catalog_id=e.catalog_id))
  ), vertices AS (
  SELECT edge->>'from' AS id FROM mappings m JOIN related r ON r.id=m.id CROSS JOIN LATERAL jsonb_array_elements(m.relationships) edge
  UNION SELECT edge->>'to' FROM mappings m JOIN related r ON r.id=m.id CROSS JOIN LATERAL jsonb_array_elements(m.relationships) edge
  )
- SELECT m.id,m.revision,m.relationships,(m.reviewed AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(m.relationships) edge LEFT JOIN episodes src ON src.id=edge->>'from' LEFT JOIN episodes dst ON dst.id=edge->>'to' WHERE src.id IS NULL OR dst.id IS NULL OR src.retired OR dst.retired)),m.requires_consent,coalesce(c.revision,'') FROM mappings m LEFT JOIN mapping_consents c ON c.mapping_id=m.id AND c.user_id=$1 WHERE m.id IN(SELECT id FROM related) OR EXISTS(SELECT 1 FROM jsonb_array_elements(m.relationships) edge WHERE edge->>'from' IN(SELECT id FROM vertices) OR edge->>'to' IN(SELECT id FROM vertices)) ORDER BY m.id`
+ SELECT m.id,m.revision,m.relationships,m.kind,(m.reviewed AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(m.relationships) edge LEFT JOIN mapping_nodes src ON src.id=edge->>'from' LEFT JOIN mapping_nodes dst ON dst.id=edge->>'to' WHERE src.id IS NULL OR dst.id IS NULL OR src.retired OR dst.retired)),m.requires_consent,coalesce(c.revision,'') FROM mappings m LEFT JOIN mapping_consents c ON c.mapping_id=m.id AND c.user_id=$1 WHERE m.id IN(SELECT id FROM related) OR EXISTS(SELECT 1 FROM jsonb_array_elements(m.relationships) edge WHERE edge->>'from' IN(SELECT id FROM vertices) OR edge->>'to' IN(SELECT id FROM vertices)) ORDER BY m.id`
 	rows, err := db.Query(ctx, query, uid, catalogID, extraCatalogs)
 	if err != nil {
 		return out, err
@@ -45,7 +46,7 @@ func loadEffective(ctx context.Context, db queryRows, uid, catalogID string, ext
 	for rows.Next() {
 		var d mapping.Definition
 		var raw []byte
-		if err = rows.Scan(&d.ID, &d.Revision, &raw, &d.Reviewed, &d.RequiresConsent, &d.Consented); err != nil {
+		if err = rows.Scan(&d.ID, &d.Revision, &raw, &d.Kind, &d.Reviewed, &d.RequiresConsent, &d.Consented); err != nil {
 			rows.Close()
 			return out, err
 		}
@@ -65,14 +66,14 @@ func loadEffective(ctx context.Context, db queryRows, uid, catalogID string, ext
 			needed = append(needed, edge.From, edge.To)
 		}
 	}
-	rows, err = db.Query(ctx, "SELECT h.id::text,h.episode_id,h.catalog_id,c.title,h.local_action_at FROM history h JOIN catalog c ON c.id=h.catalog_id WHERE h.user_id=$1 AND h.episode_id IS NOT NULL AND ($2='' OR h.catalog_id=$2 OR h.episode_id=ANY($3::text[]) OR h.catalog_id=ANY($4::text[]))", uid, catalogID, needed, extraCatalogs)
+	rows, err = db.Query(ctx, "SELECT h.id::text,coalesce(h.episode_id,h.catalog_id),h.catalog_id,c.title,h.local_action_at,(h.episode_id IS NULL) FROM history h JOIN catalog c ON c.id=h.catalog_id WHERE h.user_id=$1 AND (h.episode_id IS NOT NULL OR c.kind='movie') AND ($2='' OR h.catalog_id=$2 OR coalesce(h.episode_id,h.catalog_id)=ANY($3::text[]) OR h.catalog_id=ANY($4::text[]))", uid, catalogID, needed, extraCatalogs)
 	if err != nil {
 		return out, err
 	}
 	watched := map[string]bool{}
 	for rows.Next() {
 		var link recordedLink
-		if err = rows.Scan(&link.RecordID, &link.EpisodeID, &link.CatalogID, &link.Title, &link.LocalActionAt); err != nil {
+		if err = rows.Scan(&link.RecordID, &link.EpisodeID, &link.CatalogID, &link.Title, &link.LocalActionAt, &link.Movie); err != nil {
 			rows.Close()
 			return out, err
 		}
@@ -88,7 +89,7 @@ func loadEffective(ctx context.Context, db queryRows, uid, catalogID string, ext
 	for id, state := range out.RawStates {
 		out.States[id] = state
 	}
-	rows, err = db.Query(ctx, "SELECT episode_key,deleted_at FROM history_tombstones WHERE user_id=$1 AND episode_key<>'' AND ($2='' OR catalog_id=$2 OR episode_key=ANY($3::text[]) OR catalog_id=ANY($4::text[]))", uid, catalogID, needed, extraCatalogs)
+	rows, err = db.Query(ctx, "SELECT coalesce(nullif(episode_key,''),catalog_id),deleted_at FROM history_tombstones WHERE user_id=$1 AND ($2='' OR catalog_id=$2 OR coalesce(nullif(episode_key,''),catalog_id)=ANY($3::text[]) OR catalog_id=ANY($4::text[]))", uid, catalogID, needed, extraCatalogs)
 	if err != nil {
 		return out, err
 	}
@@ -101,10 +102,18 @@ func loadEffective(ctx context.Context, db queryRows, uid, catalogID string, ext
 		}
 		state := out.States[id]
 		if !state.Direct {
-			newerLocalWatch := state.Derived
-			for _, source := range state.Sources {
-				record := out.Direct[source]
-				newerLocalWatch = newerLocalWatch && record.LocalActionAt != nil && record.LocalActionAt.After(deletedAt)
+			groups := state.SourceGroups
+			if len(groups) == 0 {
+				groups = [][]string{state.Sources}
+			}
+			newerLocalWatch := false
+			for _, group := range groups {
+				newer := state.Derived && len(group) > 0
+				for _, source := range group {
+					record := out.Direct[source]
+					newer = newer && record.LocalActionAt != nil && record.LocalActionAt.After(deletedAt)
+				}
+				newerLocalWatch = newerLocalWatch || newer
 			}
 			if !newerLocalWatch {
 				state.Derived = false
@@ -116,7 +125,16 @@ func loadEffective(ctx context.Context, db queryRows, uid, catalogID string, ext
 	rows.Close()
 	return out, rows.Err()
 }
-func linkedRemovalPlan(uid string, targets []*string, snapshot effectiveSnapshot) ([]recordedLink, string) {
+func linkedRemovalPlan(uid string, targets []*string, snapshot effectiveSnapshot, movieID ...string) ([]recordedLink, string) {
+	targets = append([]*string(nil), targets...)
+	if len(movieID) > 0 {
+		for i, target := range targets {
+			if target == nil {
+				value := movieID[0]
+				targets[i] = &value
+			}
+		}
+	}
 	selected := map[string]bool{}
 	for _, target := range targets {
 		if target != nil {
@@ -180,7 +198,7 @@ func (a *API) effectiveHistory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "effective history unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	rows, err := a.DB.Query(r.Context(), "SELECT id FROM episodes WHERE catalog_id=$1", r.PathValue("id"))
+	rows, err := a.DB.Query(r.Context(), "SELECT id FROM mapping_nodes WHERE catalog_id=$1", r.PathValue("id"))
 	if err != nil {
 		http.Error(w, "effective history unavailable", http.StatusServiceUnavailable)
 		return
