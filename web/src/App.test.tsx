@@ -292,3 +292,47 @@ test("Up next links aggregate views to their native anchor and reorders displaye
   await userEvent.click(screen.getByRole("button", { name: "↑ Unmapped native" }));
   await waitFor(() => expect(writes).toEqual([{ ids: ["anidb:anime:2", "tmdb:tv:1"] }]));
 });
+
+test("skip navigation preserves the route and arrow keys do not steal focus from controls", async () => {
+  location.hash = "library";
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string) =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify(
+            path === "/api/me"
+              ? { ID: "fixture", Name: "Fixture", Admin: false, Settings: { language: "en" } }
+              : path === "/api/library"
+                ? [
+                    {
+                      id: "tmdb:movie:1",
+                      title: "Focus fixture",
+                      kind: "movie",
+                      base: "watching",
+                      metadata: { en: { title: "Focus fixture" } },
+                    },
+                  ]
+                : [],
+          ),
+        ),
+      ),
+    ),
+  );
+  mount();
+  await screen.findAllByText("Focus fixture");
+  const skip = screen.getByRole("link", { name: "Skip to content" });
+  fireEvent.click(skip);
+  expect(document.activeElement).toBe(screen.getByRole("main"));
+  expect(location.hash).toBe("#library");
+  const table = screen.getByRole("button", { name: "Table" });
+  table.focus();
+  fireEvent.keyDown(table, { key: "ArrowRight" });
+  expect(document.activeElement).toBe(table);
+  expect(
+    screen
+      .getByRole("navigation", { name: "Main navigation" })
+      .querySelector('[aria-current="page"]')
+      ?.getAttribute("href"),
+  ).toBe("#library");
+});

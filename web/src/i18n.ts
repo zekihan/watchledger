@@ -1,4 +1,13 @@
 export const en = {
+  skipContent: "Skip to content",
+  navigation: "Main navigation",
+  installTitle: "Install Watchledger",
+  installApp: "Install app",
+  installHint:
+    "Use your browser's Install app, Add to Home Screen or Add to Dock action. Availability depends on your browser and device. An internet connection is still required; offline editing is not supported.",
+  installedApp: "Watchledger is running as an installed app.",
+  installFailed:
+    "The installation prompt could not open. Try your browser's installation menu instead.",
   sourceCredits: "Credits and data sources",
   sourceRights:
     "Watchledger's MIT license covers its original code, not third-party metadata, artwork, trademarks or datasets. Source rights and notices remain separate.",
@@ -339,6 +348,14 @@ export const en = {
 };
 export type Key = keyof typeof en;
 export const tr: Record<Key, string> = {
+  skipContent: "İçeriğe geç",
+  navigation: "Ana gezinme",
+  installTitle: "Watchledger’ı yükle",
+  installApp: "Uygulamayı yükle",
+  installHint:
+    "Tarayıcınızın Uygulamayı yükle, Ana Ekrana Ekle veya Dock’a Ekle seçeneğini kullanın. Kullanılabilirlik tarayıcınıza ve cihazınıza bağlıdır. İnternet bağlantısı gerekir; çevrimdışı düzenleme desteklenmez.",
+  installedApp: "Watchledger yüklü uygulama olarak çalışıyor.",
+  installFailed: "Yükleme istemi açılamadı. Tarayıcınızın yükleme menüsünü deneyin.",
   sourceCredits: "Katkılar ve veri kaynakları",
   sourceRights:
     "Watchledger'ın MIT lisansı özgün kodunu kapsar; üçüncü taraf bilgileri, görselleri, markaları veya veri kümelerini kapsamaz. Kaynak hakları ve bildirimleri ayrı kalır.",

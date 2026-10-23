@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 export function ChoiceDialog({
   title,
   yes,
@@ -14,14 +14,20 @@ export function ChoiceDialog({
   cancel: string;
   onClose: (value: boolean | null) => void;
 }) {
+  const titleID = useId();
   const ref = useRef<HTMLDialogElement>(null);
   const [value, setValue] = useState(false);
   useEffect(() => {
+    const previous = document.activeElement;
     ref.current?.showModal();
+    return () => {
+      if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
+    };
   }, []);
   return (
     <dialog
       ref={ref}
+      aria-labelledby={titleID}
       onCancel={(e) => {
         e.preventDefault();
         onClose(null);
@@ -34,7 +40,7 @@ export function ChoiceDialog({
           onClose(value);
         }}
       >
-        <h2>{title}</h2>
+        <h2 id={titleID}>{title}</h2>
         <label className="check-label">
           <input
             autoFocus

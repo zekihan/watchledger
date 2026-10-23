@@ -1,3 +1,5 @@
+import { InstallPanel } from "./install";
+import type { useInstall } from "./use-install";
 import { CustomListImport } from "./custom-list-import";
 import { SimklPanel } from "./imports";
 import { useRef, useState } from "react";
@@ -606,7 +608,15 @@ function ListContents({
     </section>
   );
 }
-export function SettingsPage({ user, t }: { user: User; t: T }) {
+export function SettingsPage({
+  user,
+  t,
+  installation,
+}: {
+  user: User;
+  t: T;
+  installation: ReturnType<typeof useInstall>;
+}) {
   const client = useQueryClient();
   const [settings, setSettings] = useState<Settings>({
     language: "en",
@@ -873,6 +883,7 @@ export function SettingsPage({ user, t }: { user: User; t: T }) {
         </h2>
         <PortabilityPanel t={t} />
       </section>
+      <InstallPanel t={t} state={installation} />
       <button
         onClick={() => {
           void api("/logout", "POST", {})

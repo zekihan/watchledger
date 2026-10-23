@@ -1,3 +1,4 @@
+import { useInstall } from "./use-install";
 import { CreditsPage } from "./credits";
 import { ChoiceDialog } from "./tracking-ui";
 import { localDay } from "./dates";
@@ -97,6 +98,7 @@ function Cards({ results, kind, t }: { results: Title[]; kind?: string; t: T }) 
   );
 }
 export function App() {
+  const installation = useInstall();
   const page = useSyncExternalStore(subscribe, route);
   const [fallbackLang, setFallbackLang] = useState(() =>
     navigator.language.startsWith("tr") ? "tr" : "en",
@@ -130,7 +132,7 @@ export function App() {
       }
       if (!editing && (e.key === "ArrowRight" || e.key === "ArrowLeft")) {
         const cards = Array.from(document.querySelectorAll<HTMLAnchorElement>(".poster-card"));
-        if (cards.length) {
+        if (cards.length && document.activeElement?.classList.contains("poster-card")) {
           const active = cards.findIndex((card) => card === document.activeElement);
           const next =
             e.key === "ArrowRight"
@@ -200,19 +202,38 @@ export function App() {
   const root = page.split("/")[0];
   return (
     <div className="app-shell">
+      <a
+        className="skip-link"
+        href="#content"
+        onClick={(event) => {
+          event.preventDefault();
+          document.getElementById("content")?.focus();
+        }}
+      >
+        {t("skipContent")}
+      </a>
       <aside>
         <a className="wordmark" href="#home">
           <span>W</span> watchledger
         </a>
         <p className="nav-label">{t("collection")}</p>
-        <nav>
+        <nav aria-label={t("navigation")}>
           {nav.map((item, i) => (
-            <a key={item} className={root === item ? "active" : ""} href={`#${item}`}>
+            <a
+              key={item}
+              aria-current={root === item ? "page" : undefined}
+              className={root === item ? "active" : ""}
+              href={`#${item}`}
+            >
               <span aria-hidden="true">{icons[i]}</span>
               {t(item === "credits" ? "sourceCredits" : item)}
             </a>
           ))}
-          {user.Admin && <a href="#admin">◇ {t("admin")}</a>}
+          {user.Admin && (
+            <a href="#admin" aria-current={root === "admin" ? "page" : undefined}>
+              ◇ {t("admin")}
+            </a>
+          )}
         </nav>
         <div className="sidebar-foot">
           <div className="avatar">{user.Name.slice(0, 1) || "W"}</div>
@@ -246,7 +267,7 @@ export function App() {
             {user.Name.slice(0, 1) || "W"}
           </a>
         </header>
-        <main className="content">
+        <main id="content" tabIndex={-1} className="content">
           <Notices t={t} />
           {root === "detail" ? (
             <DetailPage key={page} parts={page.split("/")} user={user} t={t} />
@@ -273,7 +294,7 @@ export function App() {
           ) : root === "calendar" ? (
             <CalendarPage t={t} user={user} />
           ) : root === "settings" ? (
-            <SettingsPage user={user} t={t} />
+            <SettingsPage user={user} t={t} installation={installation} />
           ) : root === "credits" ? (
             <CreditsPage t={t} />
           ) : root === "admin" || root === "mappings" ? (

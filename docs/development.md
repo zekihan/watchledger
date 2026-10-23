@@ -20,7 +20,7 @@ make dev-api
 make dev-web
 ```
 
-The Go server listens on `127.0.0.1:8080`; Vite normally serves `http://127.0.0.1:5173` and proxies `/healthz` and future `/api` requests to Go.
+The Go server listens on `127.0.0.1:8080`; Vite normally serves `http://127.0.0.1:5173` and proxies `/api`, `/auth`, `/healthz` and `/readyz` requests to Go. For this two-terminal setup, set `PUBLIC_URL=http://127.0.0.1:5173` and register that origin’s `/auth/callback` at your test identity provider so login returns to Vite and write-origin checks match. Use the same host spelling in your browser; `localhost` and `127.0.0.1` are different origins. For the built single-process app, keep `PUBLIC_URL` on the Go server’s external origin instead.
 
 `GET /healthz` reports process liveness only. It does not validate a database or authenticate users.
 

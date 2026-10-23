@@ -1051,3 +1051,17 @@ footer a {
   border-radius: 7px;
   margin: 12px 0;
 }
+
+.skip-link {
+  position: fixed;
+  top: -5rem;
+  left: 1rem;
+  z-index: 100;
+  padding: 0.8rem 1rem;
+  background: #b9eb9c;
+  color: #13210c;
+  border-radius: 0.5rem;
+}
+.skip-link:focus {
+  top: 1rem;
+}
