@@ -4,7 +4,7 @@
 
 - Go matching `go.mod`.
 - Node matching `.node-version`, with npm.
-- golangci-lint v2.14.0.
+- golangci-lint matching the version in `.github/workflows/ci.yml`.
 
 Run `make install` once to install the locked frontend and lint dependencies. No database or identity provider is needed for the current bootstrap.
 
@@ -34,6 +34,12 @@ WATCHLEDGER_WEB_DIR=web/dist ./build/watchledger
 The second command is long-running and serves the built frontend at `http://127.0.0.1:8080`. Client-side routing and production deployment are not implemented yet.
 
 `WATCHLEDGER_ADDR` overrides the Go listening address. `WATCHLEDGER_WEB_DIR` enables static file serving from a directory. The process does not automatically load `.env`; export settings in your shell when needed. Commented provider settings in `.env.example` are reserved and are not read yet.
+
+## TypeScript compiler and lint API
+
+Type checking and production builds use the TypeScript 7 native `tsc` executable, installed through the `@typescript/native` npm alias. ESLint retains type-aware rules using `typescript`, which aliases the official `@typescript/typescript6` compatibility package. TypeScript 7 does not yet expose the compiler API required by typescript-eslint.
+
+This follows [Microsoft's side-by-side setup](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-60). Keep both aliases until typescript-eslint supports the native compiler API. Do not bypass peer checks or disable type-aware linting to upgrade the compiler.
 
 ## Checks
 
