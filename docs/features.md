@@ -207,8 +207,8 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Up next cards follow the selected structure.
   - [x] Effective-progress native-to-show cards, incomplete source fallback, and private displayed-card ordering.
   - [ ] Full alternate-view tracking and browser acceptance.
-- [ ] Missing/ambiguous mappings retain usable source entries.
-- [ ] Incomplete alternate-view indicators.
+- [x] Missing/ambiguous mappings retain usable source entries. See the Frieren correction exercise in [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Incomplete alternate-view indicators. See the Frieren correction exercise in [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [ ] Admin mapping review and local override tools.
   - [x] Versioned episode proposals, local override protection, revision history and provenance validation.
   - [x] Explicit movie-alias proposals, local overrides, distinct consent and source-safe tracking.
@@ -217,8 +217,8 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Per-user confirmation before split/combined cross-view progress linking.
 - [x] Explain connected episodes during mapping confirmation.
 - [x] Prevent unconfirmed mapping propagation.
-- [ ] Preserve recorded events when mappings change.
-- [ ] Recompute derived progress after corrections.
+- [x] Preserve recorded events when mappings change. See the Frieren correction exercise in [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] Recompute derived progress after corrections. See the Frieren correction exercise in [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] Notify affected users about mapping corrections.
 - [x] Renew confirmation for materially changed split/combined relationships.
 - [ ] Avoid double-counting history across alternate views.
