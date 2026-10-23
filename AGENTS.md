@@ -14,11 +14,11 @@
 
 - `cmd/watchledger/`: process entrypoint and lifecycle.
 - `internal/httpapi/`: HTTP routing and transport concerns.
-- `internal/`: future private domain, provider, store, and job packages, created as implemented.
+- `internal/`: private domain, provider, authentication, store, and job packages.
 - `web/src/`: React UI and client-side state.
 - `db/migrations/`: ordered PostgreSQL migrations.
-- `db/queries/`: source queries for future sqlc generation.
-- `deploy/`: future Compose and Helm packaging.
+- `db/queries/`: source queries for sqlc generation.
+- `deploy/`: Compose and Helm packaging.
 - `docs/`: specification, feature status, sources, and development guidance.
 - `.github/workflows/`: validation automation; no automatic publishing.
 

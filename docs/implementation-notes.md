@@ -23,7 +23,7 @@ Real TMDB adapters cover search, discovery, details, seasons and watch-provider 
 
 The React UI uses these APIs, with English/Turkish strings, responsive styles and semantic controls. Browser acceptance is blocked: the cloud browser cannot reach the command environment's loopback server and rejects local-file navigation. Frontend jsdom tests are not browser or visual acceptance. No screenshots or desktop/mobile visual acceptance are claimed.
 
-Remaining work includes live providers/OIDC, complete discovery filters and TV person candidates, full calendar/statistics, anime source integration and alternate views, real SIMKL backup coverage/migration, background refresh, deployment smoke checks, and full browser/accessibility review. Partial workflows remain unchecked.
+Subsequent increments add TV person-credit candidates, calendar/statistics, background refresh, and packaging. Their implementation and regression checks do not substitute for live-provider, full browser/accessibility, or deployment-smoke acceptance. Anime source integration/alternate views and real SIMKL backup coverage/migration remain incomplete. Partial and unverified workflows remain unchecked.
 
 ## Extended verification
 
@@ -37,3 +37,9 @@ Remaining work includes live providers/OIDC, complete discovery filters and TV p
 - Packaging commit `aec7354cffa5244ec1a357dc104bfad8be9f9855` passed hosted CI run [39891809489](https://github.com/zekihan/watchledger/actions/runs/39891809489), including the actual application-container build and Helm lint/template validation. This does not establish Compose startup or Kubernetes deployment acceptance.
 
 Current source gates remain AniDB API-policy/client access, an actual SIMKL JSON backup, and live TMDB/OIDC deployment configuration. The approved specification is unchanged. Anime-native integration, versioned mapping ingestion and linked alternate views, and faithful SIMKL migration remain incomplete rather than being replaced with a different source or guessed data. Browser acceptance remains blocked by cloud-browser/command-network separation; local-file browser navigation is not allowed. No local-user-computer or external-agent fallback was used.
+
+## Final checkpoint before source-dependent continuation
+
+Feature branch: `feat/first-release`. No merge or homelab deployment was performed. Local `make lint test build test-race` passes with a disposable PostgreSQL instance. The frontend suite has three behavioral tests. Commits through `64fbb8b603a5d726b44c69cdb73141c439d0a830` include the checked implementation and two focused data-safety fixes: background availability refresh does not extend a country's foreground-use window, and concurrent language refreshes do not overwrite a newer cached translation. Missing tracking intent is rejected rather than interpreted as an unwatch.
+
+The application is not first-release complete. Required next inputs are current AniDB API/client/policy documentation, a real private or redacted SIMKL JSON backup to establish field coverage, and securely configured live TMDB/OIDC test credentials/settings. Real browser acceptance remains unavailable in the current isolated environment. Container build and Helm rendering are verified; Compose startup and a Kubernetes deployment smoke test are not. Required provider-branding verification also remains open. All of these remain release blockers rather than silently waived checks.
