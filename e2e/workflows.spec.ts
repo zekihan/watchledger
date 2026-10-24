@@ -320,6 +320,90 @@ for (const [index, scenario] of cases.entries()) {
     });
     await noOverflow(page);
 
+    // Bulk watching must not reinterpret an existing unknown-date event.
+    await page.getByRole("combobox", { name: t.watchDate }).selectOption("chosen");
+    await page.locator('input[type="date"]').fill("2026-01-03");
+    await page.getByRole("button", { name: t.wholeSeason, exact: true }).click();
+    await expect
+      .poll(async () => {
+        const response = await context.request.get(`${origin}/api/library/${catalogID}/history`);
+        return ((await response.json()) as unknown[]).length;
+      })
+      .toBe(2);
+    const bulkHistory = (await (
+      await context.request.get(`${origin}/api/library/${catalogID}/history`)
+    ).json()) as { episode_id: string; watched_date: string | null; watched_time: null }[];
+    expect(
+      bulkHistory.find((item) => item.episode_id === `tmdb:episode:${base + 1}`),
+    ).toMatchObject({ watched_date: "2026-01-03", watched_time: null });
+    expect(
+      bulkHistory.find((item) => item.episode_id === `tmdb:episode:${base + 2}`),
+    ).toMatchObject({ watched_date: null, watched_time: null });
+    // A repeated bulk action must preserve original dates and not duplicate history.
+    await page.getByRole("combobox", { name: t.watchDate }).selectOption("unknown");
+    const repeated = page.waitForResponse(
+      (response) =>
+        response.url().endsWith(`/api/library/${catalogID}/track`) &&
+        response.request().method() === "POST" &&
+        (response.request().postDataJSON() as { preview?: boolean }).preview !== true,
+    );
+    await page.getByRole("button", { name: t.wholeSeason, exact: true }).click();
+    expect((await repeated).ok()).toBe(true);
+    expect(
+      await (await context.request.get(`${origin}/api/library/${catalogID}/history`)).json(),
+    ).toEqual(bulkHistory);
+
+    await page.goto("/#settings");
+    const statusSection = page.locator("section").filter({
+      has: page.getByRole("heading", { name: t.customStatuses, exact: true }),
+    });
+    const statusName = `Synthetic custom ${index}`;
+    await statusSection.getByRole("textbox", { name: t.name, exact: true }).fill(statusName);
+    await statusSection.getByRole("button", { name: t.save, exact: true }).click();
+    await expect(statusSection.getByText(statusName, { exact: true })).toBeVisible();
+    const statuses = (await (await context.request.get(origin + "/api/statuses")).json()) as {
+      id: string;
+      name: string;
+    }[];
+    const statusID = statuses.find((item) => item.name === statusName)!.id;
+    await page.goto(`/#detail/anime/${base + 5}`);
+    await page.getByRole("combobox", { name: t.status, exact: true }).selectOption(statusID);
+    await expect
+      .poll(async () => {
+        const library = (await (await context.request.get(origin + "/api/library")).json()) as {
+          id: string;
+          status_id: string | null;
+        }[];
+        return library.find((item) => item.id === nativeID)?.status_id;
+      })
+      .toBe(statusID);
+    await page.goto("/#settings");
+    const statusRow = page.locator(".activity-row").filter({ hasText: statusName });
+    const removeStatus = statusRow.getByRole("button", { name: t.remove, exact: true });
+    await removeStatus.click();
+    const replacement = page.getByRole("dialog", { name: t.replaceStatusTitle });
+    await expect(replacement.getByRole("button", { name: t.remove, exact: true })).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await expect(replacement).not.toBeVisible();
+    await expect(removeStatus).toBeFocused();
+    await expect(statusRow).toBeVisible();
+    await removeStatus.click();
+    await replacement.getByRole("combobox", { name: t.replacement }).selectOption("hold");
+    await replacement.getByRole("button", { name: t.remove, exact: true }).click();
+    await expect(replacement).not.toBeVisible();
+    await expect(statusRow).toHaveCount(0);
+    const afterReplacement = (await (
+      await context.request.get(origin + "/api/library")
+    ).json()) as { id: string; status_id: string | null; base: string; rating: number }[];
+    expect(afterReplacement.find((item) => item.id === nativeID)).toMatchObject({
+      status_id: null,
+      base: "hold",
+      rating: 9,
+    });
+    expect(
+      await (await context.request.get(`${origin}/api/library/${nativeID}/history`)).json(),
+    ).toEqual(nativeHistory);
+
     await page.goto("/#lists");
     await page.getByRole("button", { name: `＋ ${t.newList}`, exact: true }).click();
     const listName = `Browser list ${index}`;
@@ -335,6 +419,8 @@ for (const [index, scenario] of cases.entries()) {
     await page.getByRole("button", { name: `＋ ${t.newList}`, exact: true }).click();
     await page.getByRole("textbox", { name: t.name, exact: true }).fill(`Browser smart ${index}`);
     await page.getByRole("combobox", { name: t.kind, exact: true }).selectOption("smart");
+    await page.getByRole("combobox", { name: t.field, exact: true }).selectOption("kind");
+    await page.getByRole("combobox", { name: t.value, exact: true }).selectOption("tv");
     await expect(page.getByRole("link", { name: title, exact: true })).toBeVisible();
     await page.getByRole("button", { name: t.save, exact: true }).click();
     await expect(

@@ -120,3 +120,22 @@ At `96067fd`, [CI 40049102769](https://github.com/zekihan/watchledger/actions/ru
 - Exact translation of source automatic rules is conditional on a verified schema/equivalence. No such schema was present in the inspected source; manual snapshots and preserved raw rules are deliberate, not inferred smart rules.
 - Daily live refresh and real-provider Compose acceptance require the intended running environment and its issuer connectivity. Scheduling logic, retry behavior and synthetic Compose execution are tested independently.
 - Final branch acceptance requires successful exact-head CI, including the remaining SIMKL repeat-import case and refreshed screenshots. A failed or unrun browser assertion remains independent work until fixed; it is never an operator blocker.
+
+## Acceptance hardening continuation (2026-10-24)
+
+The merged first audit passed all eleven Chromium browser cases in
+[main CI 40053686370](https://github.com/zekihan/watchledger/actions/runs/40053686370)
+at `01584df`. Earlier pending statements above are chronological records, not
+current failures. This does not exhaust independently actionable verification.
+
+The next increment adds isolated Chromium, Firefox and WebKit CI jobs, bulk
+tracking/date-preservation and custom-status replacement/cancellation checks in
+all four language/viewport scenarios, and real application browser callbacks with
+synthetic denied/revoked identities. The short-lived synthetic identities change
+claims only on refresh; there is no provider management endpoint or database role
+edit. The ephemeral issuer CA remains verified. These new checks are pending
+exact-head CI and must not be counted as passed yet.
+
+Still independent: expand split/combined and alternate-view browser tracking,
+review cross-browser findings and reconcile final evidence. Real accounts,
+physical devices and deployment remain separate boundaries.

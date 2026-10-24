@@ -1,5 +1,9 @@
 import { defineConfig } from "@playwright/test";
 
+const browser = process.env.WATCHLEDGER_TEST_BROWSER ?? "chromium";
+if (!["chromium", "firefox", "webkit"].includes(browser))
+  throw new Error("Unknown synthetic test browser");
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
@@ -10,7 +14,7 @@ export default defineConfig({
   reporter: "list",
   use: {
     baseURL: "http://127.0.0.1:8080",
-    browserName: "chromium",
+    browserName: browser as "chromium" | "firefox" | "webkit",
     trace: "off",
     video: "off",
     screenshot: "only-on-failure",

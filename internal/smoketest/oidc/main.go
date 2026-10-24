@@ -139,6 +139,8 @@ func newHandler(issuer, authorize string, key *rsa.PrivateKey) (http.Handler, er
 			subject = "synthetic-ci-second"
 		} else if q.Get("fixture_user") == "admin" {
 			subject = "synthetic-ci-admin"
+		} else if q.Get("fixture_user") == "denied" || q.Get("fixture_user") == "revoke-member" || q.Get("fixture_user") == "revoke-admin" {
+			subject = "synthetic-ci-" + q.Get("fixture_user")
 		} else if q.Get("fixture_user") != "" {
 			http.Error(w, "unknown synthetic identity", http.StatusBadRequest)
 			return
@@ -194,6 +196,10 @@ func newHandler(issuer, authorize string, key *rsa.PrivateKey) (http.Handler, er
 				subject = "synthetic-ci-second"
 			case "synthetic-ci-refresh:synthetic-ci-admin":
 				subject = "synthetic-ci-admin"
+			case "synthetic-ci-refresh:synthetic-ci-revoke-member":
+				subject = "synthetic-ci-revoke-member"
+			case "synthetic-ci-refresh:synthetic-ci-revoke-admin":
+				subject = "synthetic-ci-revoke-admin"
 			default:
 				http.Error(w, "invalid refresh", http.StatusUnauthorized)
 				return
@@ -203,15 +209,25 @@ func newHandler(issuer, authorize string, key *rsa.PrivateKey) (http.Handler, er
 			return
 		}
 		roles := []string{"member"}
-		if subject == "synthetic-ci-admin" {
+		refresh := r.Form.Get("grant_type") == "refresh_token"
+		if subject == "synthetic-ci-denied" || (subject == "synthetic-ci-revoke-member" && refresh) {
+			roles = []string{}
+		}
+		if subject == "synthetic-ci-admin" || (subject == "synthetic-ci-revoke-admin" && !refresh) {
 			roles = append(roles, "admin")
 		}
-		signed, err := jwt.Signed(signer).Claims(map[string]interface{}{"iss": issuer, "sub": subject, "aud": clientID, "exp": time.Now().Add(5 * time.Minute).Unix(), "iat": time.Now().Unix(), "nonce": nonce, "name": "Synthetic CI User", "roles": roles}).Serialize()
+		// Fixed synthetic subjects lose their specified claim on the first refresh.
+		// No management endpoint, operator identity, or database role mutation is involved.
+		expiresIn := 300
+		if !refresh && (subject == "synthetic-ci-revoke-member" || subject == "synthetic-ci-revoke-admin") {
+			expiresIn = 20
+		}
+		signed, err := jwt.Signed(signer).Claims(map[string]interface{}{"iss": issuer, "sub": subject, "aud": clientID, "exp": time.Now().Add(time.Duration(expiresIn) * time.Second).Unix(), "iat": time.Now().Unix(), "nonce": nonce, "name": "Synthetic CI User", "roles": roles}).Serialize()
 		if err != nil {
 			http.Error(w, "fixture signing failed", http.StatusInternalServerError)
 			return
 		}
-		write(w, map[string]interface{}{"access_token": "synthetic-ci-access", "refresh_token": "synthetic-ci-refresh:" + subject, "token_type": "Bearer", "expires_in": 300, "id_token": signed})
+		write(w, map[string]interface{}{"access_token": "synthetic-ci-access", "refresh_token": "synthetic-ci-refresh:" + subject, "token_type": "Bearer", "expires_in": expiresIn, "id_token": signed})
 	})
 	return mux, nil
 }
