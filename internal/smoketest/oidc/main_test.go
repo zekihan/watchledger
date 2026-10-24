@@ -191,3 +191,77 @@ func TestSyntheticAdminClaimsAreExplicitAndSubjectBound(t *testing.T) {
 		}
 	}
 }
+
+func TestSyntheticClaimRevocationIsFixedAndSubjectPreserving(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := newHandler("https://oidc:8443", "https://localhost:8443/authorize", key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct{ user, initial, refreshed string }{
+		{"denied", "", ""},
+		{"revoke-member", "member", ""},
+		{"revoke-admin", "member,admin", "member"},
+	} {
+		t.Run(tc.user, func(t *testing.T) {
+			verifier := "synthetic-revocation-pkce"
+			sum := sha256.Sum256([]byte(verifier))
+			q := url.Values{"client_id": {clientID}, "redirect_uri": {"http://127.0.0.1:8080/auth/callback"},
+				"nonce": {"synthetic"}, "state": {"synthetic"}, "code_challenge_method": {"S256"},
+				"code_challenge": {base64.RawURLEncoding.EncodeToString(sum[:])}, "fixture_user": {tc.user}}
+			start := httptest.NewRecorder()
+			h.ServeHTTP(start, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/authorize?"+q.Encode(), nil))
+			if start.Code != http.StatusFound {
+				t.Fatal(start.Code)
+			}
+			target, err := url.Parse(start.Header().Get("Location"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			exchange := func(form url.Values, expected string) string {
+				t.Helper()
+				r := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/token", strings.NewReader(form.Encode()))
+				r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+				r.SetBasicAuth(clientID, "synthetic")
+				w := httptest.NewRecorder()
+				h.ServeHTTP(w, r)
+				if w.Code != http.StatusOK {
+					t.Fatal(w.Code)
+				}
+				var token struct {
+					ID      string `json:"id_token"`
+					Refresh string `json:"refresh_token"`
+					Expires int    `json:"expires_in"`
+				}
+				if err := json.Unmarshal(w.Body.Bytes(), &token); err != nil {
+					t.Fatal(err)
+				}
+				signed, err := jwt.ParseSigned(token.ID, []jose.SignatureAlgorithm{jose.RS256})
+				if err != nil {
+					t.Fatal(err)
+				}
+				var claims struct {
+					Subject string   `json:"sub"`
+					Roles   []string `json:"roles"`
+				}
+				if err := signed.Claims(&key.PublicKey, &claims); err != nil {
+					t.Fatal(err)
+				}
+				if claims.Subject != "synthetic-ci-"+tc.user || strings.Join(claims.Roles, ",") != expected {
+					t.Fatal("unexpected synthetic subject/claims", claims)
+				}
+				if form.Get("grant_type") == "authorization_code" && tc.user != "denied" && token.Expires != 20 {
+					t.Fatal("revocation fixture must expire promptly", token.Expires)
+				}
+				return token.Refresh
+			}
+			refresh := exchange(url.Values{"grant_type": {"authorization_code"}, "code": {target.Query().Get("code")}, "code_verifier": {verifier}}, tc.initial)
+			if tc.user != "denied" {
+				exchange(url.Values{"grant_type": {"refresh_token"}, "refresh_token": {refresh}}, tc.refreshed)
+			}
+		})
+	}
+}

@@ -139,3 +139,13 @@ exact-head CI and must not be counted as passed yet.
 Still independent: expand split/combined and alternate-view browser tracking,
 review cross-browser findings and reconcile final evidence. Real accounts,
 physical devices and deployment remain separate boundaries.
+
+The first three-browser run (`40122621208`) passed catalog presentation,
+synthetic admin mapping, denied admission and admission removal, but exposed test
+setup defects: the new bulk-action selector matched both direct and alternate
+date controls, and the new admin-refresh settings request omitted required
+`anime_view`. The direct control is now explicitly scoped and settings remain
+subject to normal validation. SIMKL acceptance now saves its own current backup
+rather than depending on the preceding cross-account test. No product safeguard
+or assertion is removed. Combined native-parts/alternate tracking and signed
+fixture claim-transition tests are included in the next run.

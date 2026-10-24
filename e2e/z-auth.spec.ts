@@ -74,7 +74,7 @@ test("refresh removes admin but preserves admitted identity and private settings
     (
       await page.request.put(origin + "/api/settings", {
         headers: { Origin: origin },
-        data: { language: "en", country: "TR", timezone: "UTC" },
+        data: { language: "en", country: "TR", timezone: "UTC", anime_view: "native" },
       })
     ).ok(),
   ).toBe(true);
