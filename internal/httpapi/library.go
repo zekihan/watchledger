@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/jackc/pgx/v5"
 	"github.com/zekihan/watchledger/internal/auth"
+	"github.com/zekihan/watchledger/internal/preferences"
 	"github.com/zekihan/watchledger/internal/smart"
 	"github.com/zekihan/watchledger/internal/tracking"
 	"net/http"
@@ -734,7 +735,7 @@ func (a *API) settings(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid settings", http.StatusBadRequest)
 		return
 	}
-	if _, e := time.LoadLocation(in.Timezone); e != nil {
+	if !preferences.ValidTimezone(in.Timezone) {
 		http.Error(w, "invalid timezone", http.StatusBadRequest)
 		return
 	}

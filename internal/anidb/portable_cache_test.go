@@ -35,7 +35,7 @@ func TestPortableNativeCatalogWorksWithoutProviderDocumentOrCredentials(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = p.Exec(ctx, `INSERT INTO episodes(id,catalog_id,source,source_id,season,number,metadata) VALUES($1,$2,'anidb',$1,1,1,'{"id":501,"name":"Restored episode","episode_number":1,"season_number":1}')`, "portable-episode:"+aid, id); err != nil {
+	if _, err = p.Exec(ctx, `INSERT INTO episodes(id,catalog_id,source,source_id,season,number,metadata) VALUES($1,$2,'anidb',$3,1,1,'{"name":"Restored episode","runtime":24,"native_number":"1","native_type":"1"}')`, "portable-episode:"+aid, id, aid); err != nil {
 		t.Fatal(err)
 	}
 	cache := Cache{DB: p, Provider: New(Config{})}
@@ -48,10 +48,10 @@ func TestPortableNativeCatalogWorksWithoutProviderDocumentOrCredentials(t *testi
 		t.Fatal(err)
 	}
 	var episodes []struct {
-		ID   int
+		ID   int64
 		Name string
 	}
-	if err = json.Unmarshal(raw, &episodes); err != nil || len(episodes) != 1 || episodes[0].ID != 501 {
+	if err = json.Unmarshal(raw, &episodes); err != nil || len(episodes) != 1 || fmt.Sprint(episodes[0].ID) != aid {
 		t.Fatal("restored source episodes lost", string(raw), err)
 	}
 	var original time.Time

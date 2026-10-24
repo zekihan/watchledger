@@ -1,6 +1,7 @@
 package anidb
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -250,7 +251,7 @@ func (c *Cache) catalogFallback(ctx context.Context, id, language, style string)
 	var raw, episodes []byte
 	var name string
 	err = c.DB.QueryRow(ctx, `SELECT catalog_metadata_variant(c.metadata,$2::jsonb),catalog_display_title(c.kind,c.metadata,c.title,$2::jsonb),c.fetched_at,
- coalesce((SELECT jsonb_agg(e.metadata ORDER BY e.season,e.number,e.id) FROM episodes e WHERE e.catalog_id=c.id AND NOT e.retired),'[]'::jsonb)
+ coalesce((SELECT jsonb_agg(e.metadata || jsonb_build_object('id',e.source_id::bigint,'source_id',e.source_id,'season_number',e.season,'episode_number',e.number,'kind',e.kind,'air_date',e.air_date) ORDER BY e.season,e.number,e.id) FROM episodes e WHERE e.catalog_id=c.id AND NOT e.retired),'[]'::jsonb)
  FROM catalog c WHERE c.id=$1 AND c.source='anidb' AND c.kind='anime'`, result.ID, settings).Scan(&raw, &name, &result.FetchedAt, &episodes)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return result, false, nil
@@ -265,7 +266,9 @@ func (c *Cache) catalogFallback(ctx context.Context, id, language, style string)
 		result.Metadata = map[string]interface{}{}
 	}
 	var restoredEpisodes []map[string]interface{}
-	if err = json.Unmarshal(episodes, &restoredEpisodes); err != nil {
+	decoder := json.NewDecoder(bytes.NewReader(episodes))
+	decoder.UseNumber()
+	if err = decoder.Decode(&restoredEpisodes); err != nil {
 		return result, false, err
 	}
 	result.Metadata["id"] = json.Number(id)

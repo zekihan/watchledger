@@ -66,6 +66,17 @@ func (c *Cache) Detail(ctx context.Context, kind, id, language string, force boo
 			}
 		}
 	}
+	fallback := func(err error) (Detail, error) {
+		if cached {
+			d.Stale = true
+			d.Warning = err.Error()
+			if d.Language != language {
+				d.Warning += "; requested translation unavailable, showing cached language " + d.Language
+			}
+			return d, nil
+		}
+		return d, err
+	}
 	if requestedCached && !force && time.Since(d.FetchedAt) < 24*time.Hour {
 		return d, nil
 	}
@@ -78,16 +89,9 @@ func (c *Cache) Detail(ctx context.Context, kind, id, language string, force boo
 	}
 	raw, e := c.Provider.Get(ctx, "/"+kind+"/"+id, params)
 	if e != nil {
-		if cached {
-			d.Stale = true
-			d.Warning = e.Error()
-			if d.Language != language {
-				d.Warning += "; requested translation unavailable, showing cached language " + d.Language
-			}
-			return d, nil
-		}
-		return d, e
+		return fallback(e)
 	}
+
 	var meta struct {
 		ID       int64  `json:"id"`
 		Title    string `json:"title"`
@@ -95,11 +99,11 @@ func (c *Cache) Detail(ctx context.Context, kind, id, language string, force boo
 		Overview string `json:"overview"`
 	}
 	if e = json.Unmarshal(raw, &meta); e != nil {
-		return d, e
+		return fallback(e)
 	}
 	expectedID, _ := strconv.ParseInt(id, 10, 64)
 	if meta.ID != expectedID {
-		return d, errors.New("provider returned a different source identity")
+		return fallback(errors.New("provider returned a different source identity"))
 	}
 	if meta.Title == "" {
 		meta.Title = meta.Name
@@ -137,6 +141,7 @@ func (c *Cache) Detail(ctx context.Context, kind, id, language string, force boo
 		return d, e
 	}
 	d.Metadata = raw
+	d.Language = language
 	d.FetchedAt = time.Now().UTC()
 	_, e = c.DB.Exec(ctx, `INSERT INTO catalog(id,source,source_id,kind,title,metadata,fetched_at) VALUES($1,'tmdb',$2,$3,$4,$5,$6) ON CONFLICT(id) DO UPDATE SET title=EXCLUDED.title,metadata=catalog.metadata || EXCLUDED.metadata,fetched_at=EXCLUDED.fetched_at`, key, id, kind, meta.Title, stored, d.FetchedAt)
 	if e == nil {

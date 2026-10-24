@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -18,6 +19,16 @@ func (c *Cache) PeopleTV(ctx context.Context, person string, in url.Values) (jso
 	genres, e := parseDiscoverySet(in.Get("with_genres"), positiveID)
 	if e != nil {
 		return nil, e
+	}
+	excluded, e := parseDiscoverySet(in.Get("without_genres"), positiveID)
+	if e != nil {
+		return nil, e
+	}
+	order := in.Get("sort_by")
+	switch order {
+	case "", "popularity.asc", "popularity.desc", "vote_average.asc", "vote_average.desc", "vote_count.asc", "vote_count.desc", "first_air_date.asc", "first_air_date.desc", "name.asc", "name.desc", "original_name.asc", "original_name.desc":
+	default:
+		return nil, errors.New("unsupported TV people sorting")
 	}
 	providers, e := parseDiscoverySet(in.Get("with_watch_providers"), positiveID)
 	if e != nil {
@@ -41,7 +52,13 @@ func (c *Cache) PeopleTV(ctx context.Context, person string, in url.Values) (jso
 		return nil, e
 	}
 	type creditEntry struct {
-		ID int `json:"id"`
+		ID           int     `json:"id"`
+		Popularity   float64 `json:"popularity"`
+		Score        float64 `json:"vote_average"`
+		Votes        int     `json:"vote_count"`
+		Date         string  `json:"first_air_date"`
+		Name         string  `json:"name"`
+		OriginalName string  `json:"original_name"`
 	}
 	var data struct {
 		Cast []creditEntry `json:"cast"`
@@ -55,6 +72,41 @@ func (c *Cache) PeopleTV(ctx context.Context, person string, in url.Values) (jso
 	entries := data.Cast
 	if credit == "crew" {
 		entries = data.Crew
+	}
+	if order != "" {
+		sort.SliceStable(entries, func(i, j int) bool {
+			a, b := entries[i], entries[j]
+			if strings.HasSuffix(order, ".desc") {
+				a, b = b, a
+			}
+			switch strings.Split(order, ".")[0] {
+			case "popularity":
+				if a.Popularity != b.Popularity {
+					return a.Popularity < b.Popularity
+				}
+			case "vote_average":
+				if a.Score != b.Score {
+					return a.Score < b.Score
+				}
+			case "vote_count":
+				if a.Votes != b.Votes {
+					return a.Votes < b.Votes
+				}
+			case "first_air_date":
+				if a.Date != b.Date {
+					return a.Date < b.Date
+				}
+			case "name":
+				if a.Name != b.Name {
+					return a.Name < b.Name
+				}
+			case "original_name":
+				if a.OriginalName != b.OriginalName {
+					return a.OriginalName < b.OriginalName
+				}
+			}
+			return entries[i].ID < entries[j].ID
+		})
 	}
 	for _, item := range entries {
 		if !seen[item.ID] {
@@ -113,6 +165,13 @@ func (c *Cache) PeopleTV(ctx context.Context, person string, in url.Values) (jso
 		availableGenres := map[string]bool{}
 		for _, g := range m.Genres {
 			availableGenres[strconv.Itoa(g.ID)] = true
+		}
+		excludedGenre := false
+		for _, genre := range excluded.values {
+			excludedGenre = excludedGenre || availableGenres[genre]
+		}
+		if excludedGenre {
+			continue
 		}
 		if !genres.matches(availableGenres) {
 			continue

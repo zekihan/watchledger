@@ -110,8 +110,13 @@ func (r *Runner) one(ctx context.Context) error {
 					} `json:"seasons"`
 				}
 				e = json.Unmarshal(d.Metadata, &meta)
+				if e == nil && meta.Seasons == nil {
+					e = errors.New("provider omitted season inventory")
+				}
+				seasons := []int{}
 				if e == nil {
 					for _, season := range meta.Seasons {
+						seasons = append(seasons, season.Number)
 						var raw json.RawMessage
 						raw, e = r.Cache.Season(jobctx, in.ID, season.Number, "")
 						if e == nil {
@@ -126,6 +131,9 @@ func (r *Runner) one(ctx context.Context) error {
 						if e != nil {
 							break
 						}
+					}
+					if e == nil {
+						e = r.Cache.ReconcileSeasons(jobctx, in.ID, seasons, d.Metadata)
 					}
 				}
 			}
