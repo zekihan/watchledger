@@ -1092,3 +1092,17 @@ footer a {
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
+
+.next-item {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.next-item .next-card {
+  flex: 1;
+}
+.quick-watch {
+  min-height: 44px;
+  width: 100%;
+}

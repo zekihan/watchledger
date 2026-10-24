@@ -65,7 +65,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Polished loading, empty, error, and retry states.
 - [ ] Complete English UI translation.
 - [ ] Complete Turkish UI translation.
-- [ ] Browser-language initialization with English fallback.
+- [x] Browser-language initialization with English fallback. See [independent audit evidence](remaining-feature-audit.md).
 - [ ] Independent interface language, metadata language, anime title style, country, and timezone settings.
 - [ ] Metadata language fallback to available source content.
 
@@ -84,14 +84,14 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Season details and episode lists.
 - [ ] Episode titles, summaries, air dates, and available runtime information.
 - [ ] Separate specials from regular episode progression.
-- [ ] Navigable cast credits.
-- [ ] Extended crew browsing.
+- [x] Navigable cast credits. See [independent audit evidence](remaining-feature-audit.md).
+- [x] Extended crew browsing. See [independent audit evidence](remaining-feature-audit.md).
 - [ ] Related titles.
 - [ ] On-demand trailers without autoplay.
 - [ ] Person biography and image.
 - [ ] Person acting and crew filmography across supported content types.
-- [ ] Person-credit filters by content type.
-- [ ] Person-credit sorting by release date or popularity.
+- [x] Person-credit filters by content type. See [independent audit evidence](remaining-feature-audit.md).
+- [x] Person-credit sorting by release date or popularity. See [independent audit evidence](remaining-feature-audit.md).
 
 ## Discovery
 
@@ -105,7 +105,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Community score threshold.
 - [ ] Configurable minimum vote count.
 - [ ] Country and provider filters.
-- [ ] Exclude watched titles without inventing unknown tracking data.
+- [x] Exclude watched titles without inventing unknown tracking data. See [independent audit evidence](remaining-feature-audit.md).
 - [ ] Paginated results and progressive enrichment without an exhaustive external catalog mirror.
 
 ## Where to watch
@@ -132,7 +132,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Use the default destination status when automatic transitions change base.
 - [x] Personal whole-number ratings from 1 to 10 for movies and whole shows.
 - [ ] Anime-native entry ratings and statuses.
-- [ ] Personal library searching, sorting, and filtering.
+- [x] Personal library searching, sorting, and filtering. See [independent audit evidence](remaining-feature-audit.md).
 
 ## Viewing history and progress
 
@@ -156,15 +156,15 @@ Checked behaviors below are supported by the named regression tests in [implemen
 
 - [ ] Up next uses the earliest unwatched aired regular episode of actively watched shows.
 - [ ] Up next excludes unaired episodes and separates specials.
-- [ ] Manual Up next ordering.
-- [ ] Recent activity on the dashboard.
-- [ ] Upcoming episodes on the dashboard.
+- [x] Manual Up next ordering. See [independent audit evidence](remaining-feature-audit.md).
+- [x] Recent activity on the dashboard. See [independent audit evidence](remaining-feature-audit.md).
+- [x] Upcoming episodes on the dashboard. See [independent audit evidence](remaining-feature-audit.md).
 - [ ] Calendar month view.
   - [x] Date-only preservation, timestamp timezone placement, source episode links and day-list semantics in UI regression tests.
   - [ ] Desktop/phone visual and assistive-technology acceptance.
 - [ ] Calendar list view.
-- [ ] Preserve date-only release precision.
-- [ ] Display known release timestamps in each user's timezone.
+- [x] Preserve date-only release precision. See [independent audit evidence](remaining-feature-audit.md).
+- [x] Display known release timestamps in each user's timezone. See [independent audit evidence](remaining-feature-audit.md).
 - [ ] Per-user spoiler preference hiding unwatched episode summaries and images.
 - [ ] Explicit spoiler reveal controls.
 - [x] Private in-app notices with explicit, idempotent acknowledgement and retryable errors.
@@ -174,12 +174,12 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [x] Private named manual lists.
 - [x] Manual-list drag ordering, visible keyboard/touch move controls, and localized position announcements. Verified by `web/src/lists.test.tsx`; physical-device acceptance remains separate.
 - [x] Smart lists over personal-library titles only.
-- [ ] Visual nested AND/OR rule groups.
-- [ ] NOT exclusions.
-- [ ] Live matching count and title preview before saving.
+- [x] Visual nested AND/OR rule groups. See [independent audit evidence](remaining-feature-audit.md).
+- [x] NOT exclusions. See [independent audit evidence](remaining-feature-audit.md).
+- [x] Live matching count and title preview before saving. See [independent audit evidence](remaining-feature-audit.md).
 - [ ] Content type, exact/base status, genre, year, and personal-rating conditions.
 - [ ] Country availability and streaming-service conditions.
-- [ ] Explicit unknown/unset conditions.
+- [x] Explicit unknown/unset conditions. See [independent audit evidence](remaining-feature-audit.md).
 - [x] Negative filters do not silently match unknown values.
 - [ ] Manual-list membership conditions.
 - [ ] Smart-list membership conditions.
@@ -227,7 +227,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
 
 ## SIMKL migration
 
-Current support is partial: explicit TMDB movie/show IDs can be loaded on demand, and supported records/history can be applied after confirmation; source episode mappings and uncached/native identities require review. The private queue now supports explicit one-to-one episode resolution and keeping existing app edits; split/combined identities and malformed source records remain unresolved. A separate documented custom-list API-response file can be imported as a manual snapshot when all members resolve; ordinary backup custom-list coverage and live API access remain unverified. See `implementation-notes.md`.
+Current source resolution remains conservative: explicit TMDB movie/show IDs can be loaded on demand, and supported records/history can be applied after confirmation; source episode mappings and uncached/native identities require review. The private queue now supports explicit one-to-one episode resolution and keeping existing app edits; split/combined identities and malformed source records remain unresolved. A separate documented custom-list API-response file can be imported as a manual snapshot when all members resolve; the inspected ordinary backup has no custom-list section, and representative live API acceptance is recorded in `acceptance-2026-10-24.md`. Remaining account/source edge cases stay distinct. See `implementation-notes.md`.
 
 - [x] JSON-backup ingestion and validation.
 - [ ] Read-only API import when verified JSON coverage is insufficient.
@@ -289,8 +289,8 @@ Backend regressions verify private counts, runtime unknowns, metadata-language s
 - [ ] Daily refresh of active shows.
   - [x] Queue saved TMDB and native AniDB metadata with provider-aware retry/cooldown handling.
   - [ ] Live deployment refresh acceptance.
-- [ ] Weekly refresh of other saved titles.
-- [ ] Daily availability refresh for recently used countries.
+- [x] Weekly refresh of other saved titles. See [independent audit evidence](remaining-feature-audit.md).
+- [x] Daily availability refresh for recently used countries. See [independent audit evidence](remaining-feature-audit.md).
 - [x] Manual refresh. Verified in the [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] Visible metadata freshness. Verified in the [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] Retryable background jobs and visible failures. Verified in the [2026-10-24 acceptance](acceptance-2026-10-24.md).

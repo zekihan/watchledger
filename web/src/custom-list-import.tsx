@@ -1,3 +1,5 @@
+import { displayDate } from "./dates";
+import type { Settings } from "./api";
 import { useState } from "react";
 import { usePreviewRequest } from "./use-preview-request";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -18,7 +20,15 @@ interface ListPreview {
   unresolved: number;
   existing_list_id: string;
 }
-export function CustomListImport({ t, backed }: { t: T; backed: boolean }) {
+export function CustomListImport({
+  t,
+  backed,
+  settings = {},
+}: {
+  t: T;
+  backed: boolean;
+  settings?: Settings;
+}) {
   const client = useQueryClient();
   const beginPreview = usePreviewRequest();
   const [apiClientID, setAPIClientID] = useState(""),
@@ -190,7 +200,8 @@ export function CustomListImport({ t, backed }: { t: T; backed: boolean }) {
           </p>
           {preview.api_fetched_at && (
             <p>
-              {t("freshness")}: {new Date(preview.api_fetched_at).toLocaleString()}
+              {t("freshness")}:{" "}
+              {displayDate(null, preview.api_fetched_at, settings, t("unknown"), true)}
             </p>
           )}
           <p>

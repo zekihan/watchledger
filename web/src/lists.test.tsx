@@ -220,3 +220,54 @@ test("smart preview failures have explicit retry and cannot be saved until recov
   );
   expect(screen.getByRole("link", { name: "Alpha" })).toBeTruthy();
 });
+
+test("visual nested rules preserve OR, NOT and explicit unknown semantics when saved", async () => {
+  const writes: unknown[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string, init?: RequestInit) => {
+      if (path === "/api/lists" && init?.method === "POST" && typeof init.body === "string")
+        writes.push(JSON.parse(init.body));
+      return Promise.resolve(new Response(JSON.stringify(fixtures(path)), { status: 200 }));
+    }),
+  );
+  mount();
+  await screen.findByText("Favorites");
+  await userEvent.click(screen.getByRole("button", { name: `＋ ${en.newList}` }));
+  await userEvent.type(screen.getByRole("textbox", { name: en.name }), "Unknown or not watching");
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: en.kind }), "smart");
+  const root = screen.getByRole("button", { name: `＋ ${en.addGroup}` }).closest("fieldset");
+  if (!root) throw new Error("Missing rule group");
+  await userEvent.selectOptions(
+    within(root).getAllByRole("combobox", { name: en.condition })[0]!,
+    "or",
+  );
+  await userEvent.selectOptions(within(root).getByRole("combobox", { name: en.field }), "rating");
+  await userEvent.selectOptions(
+    within(root).getAllByRole("combobox", { name: en.condition })[1]!,
+    "unknown",
+  );
+  expect(within(root).queryByRole("spinbutton", { name: en.value })).toBeNull();
+  await userEvent.click(within(root).getByRole("button", { name: `＋ ${en.addGroup}` }));
+  const groups = within(root).getAllByRole("group");
+  const nested = groups[0];
+  if (!nested) throw new Error("Missing nested group");
+  await userEvent.selectOptions(
+    within(nested).getAllByRole("combobox", { name: en.condition })[0]!,
+    "not",
+  );
+  await waitFor(() =>
+    expect(screen.getByRole<HTMLButtonElement>("button", { name: en.save }).disabled).toBe(false),
+  );
+  await userEvent.click(screen.getByRole("button", { name: en.save }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]).toMatchObject({
+    rule: {
+      op: "or",
+      children: [
+        { op: "unknown", field: "rating" },
+        { op: "not", children: [{ op: "eq", field: "base", value: "watching" }] },
+      ],
+    },
+  });
+});

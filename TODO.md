@@ -8,6 +8,8 @@ Current results are in [the 2026-10-24 acceptance evidence](docs/acceptance-2026
 
 ## Remaining involvement, after independent implementation
 
+**Independent implementation is active.** The [full remaining-feature audit](docs/remaining-feature-audit.md) is not complete; the successful narrow increments below must not be read as exhaustion of work that can be done without the operator.
+
 Latest continuation: `feat/remaining-features`, based on accepted-work merge `fcdee95`. List reordering and abandoned/replaced import preview safety were completed in `a203033`; [exact-head CI](https://github.com/zekihan/watchledger/actions/runs/40040300015) passed, including the synthetic Compose smoke test. These are implementation/regression results, not new physical-device acceptance. Completed provider setup and local checks below must not be repeated simply because this workspace does not contain the operator's configuration.
 
 Work through these remaining owner-dependent items only after the independent feature work is ready:

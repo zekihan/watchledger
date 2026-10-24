@@ -74,6 +74,9 @@ func TestPrivateTrackingAndStatusLocks(t *testing.T) {
 		handler.ServeHTTP(w, r)
 		return w
 	}
+	if w := request("GET", "/api/library/watched", "", false); w.Code != 401 {
+		t.Fatal("unauthenticated watched history", w.Code)
+	}
 	if w := request("GET", "/api/library", "", false); w.Code != 401 {
 		t.Fatal("unauthenticated read", w.Code)
 	}

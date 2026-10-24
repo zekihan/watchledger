@@ -968,7 +968,7 @@ export function SettingsPage({
         <h2>
           {t("export")} / {t("restore")}
         </h2>
-        <PortabilityPanel t={t} />
+        <PortabilityPanel t={t} settings={user.Settings} />
       </section>
       <InstallPanel t={t} state={installation} />
       <button
@@ -983,7 +983,7 @@ export function SettingsPage({
   );
 }
 
-export function PortabilityPanel({ t }: { t: T }) {
+export function PortabilityPanel({ t, settings = {} }: { t: T; settings?: Settings }) {
   const client = useQueryClient();
   const [backed, setBacked] = useState(false);
   const [localError, setLocalError] = useState("");
@@ -1090,7 +1090,7 @@ export function PortabilityPanel({ t }: { t: T }) {
       )}
       {apply.isSuccess && <p role="status">{t("restoreDone")}</p>}
       <SimklPanel t={t} backed={backed} />
-      <CustomListImport t={t} backed={backed} />
+      <CustomListImport t={t} backed={backed} settings={settings} />
     </div>
   );
 }

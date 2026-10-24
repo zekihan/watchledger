@@ -371,7 +371,11 @@ export const en = {
   select: "Select",
   originalLanguage: "Original language",
   runtime: "Runtime (minutes)",
+  excludeWatchedHint:
+    "Only confirmed complete viewing history is excluded. A Completed status alone or an incomplete episode cache is not treated as proof.",
   excludeWatched: "Exclude watched titles",
+  showMore: "Show more",
+  showLess: "Show less",
   nextPage: "Next page",
   previousPage: "Previous page",
   incomplete: "Preview release: provider, browser and source-coverage acceptance remains open.",
@@ -746,7 +750,11 @@ export const tr: Record<Key, string> = {
   select: "Seç",
   originalLanguage: "Orijinal dil",
   runtime: "Süre (dakika)",
+  excludeWatchedHint:
+    "Yalnızca doğrulanmış tam izleme geçmişi dışlanır. Tek başına Tamamlandı durumu veya eksik bölüm önbelleği kanıt sayılmaz.",
   excludeWatched: "İzlenenleri hariç tut",
+  showMore: "Daha fazla göster",
+  showLess: "Daha az göster",
   nextPage: "Sonraki sayfa",
   previousPage: "Önceki sayfa",
   incomplete: "Önizleme sürümü: sağlayıcı, tarayıcı ve kaynak kapsamı kabul kontrolleri sürüyor.",

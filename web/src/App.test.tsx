@@ -292,7 +292,7 @@ test("Up next links aggregate views to their native anchor and reorders displaye
   expect(screen.getByRole("link", { name: /Unmapped native/ }).getAttribute("href")).toBe(
     "#detail/anime/2/season/1/episode/22",
   );
-  await userEvent.click(screen.getByRole("button", { name: "↑ Unmapped native" }));
+  await userEvent.click(screen.getByRole("button", { name: "Move up: Unmapped native" }));
   await waitFor(() => expect(writes).toEqual([{ ids: ["anidb:anime:2", "tmdb:tv:1"] }]));
 });
 

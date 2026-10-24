@@ -92,6 +92,7 @@ export function useAlternateTracking(t: T, timezone?: string) {
         "library",
         "dashboard",
         "statistics",
+        "watched-titles",
       ]) {
         await client.invalidateQueries({ queryKey: [key] });
       }
