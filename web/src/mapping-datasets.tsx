@@ -71,7 +71,7 @@ export function MappingDatasets({ t, onReview }: { t: T; onReview: (m: Mapping) 
       <h2>{t("mappingDatasets")}</h2>
       <p>{t("mappingDatasetHint")}</p>
       <p>
-        <a href="https://github.com/cplieger/animap/releases">animap releases</a> ·{" "}
+        <a href="https://github.com/cplieger/animap/releases">{t("mappingReleases")}</a> ·{" "}
         <a href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL 1.0</a> /{" "}
         <a href="https://opendatacommons.org/licenses/dbcl/1-0/">DbCL 1.0</a>
       </p>
@@ -128,7 +128,7 @@ export function MappingDatasets({ t, onReview }: { t: T; onReview: (m: Mapping) 
           </select>
         </label>
         <label>
-          AniDB ID
+          {t("anidbID")}
           <input
             type="number"
             min="1"

@@ -1,5 +1,9 @@
+import { PageControls } from "./page-controls";
+import { importMessage } from "./import-messages";
+import { QueryFeedback } from "./query-feedback";
 import { ImportReview } from "./import-review";
-import { useRef, useState } from "react";
+import { useState } from "react";
+import { usePreviewRequest } from "./use-preview-request";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import type { T } from "./App";
@@ -25,8 +29,10 @@ interface Review {
 }
 export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
   const client = useQueryClient();
+  const [previewPage, setPreviewPage] = useState(0);
+  const [reviewPage, setReviewPage] = useState(0);
   const [activeReview, setActiveReview] = useState<string | null>(null);
-  const generation = useRef(0);
+  const beginPreview = usePreviewRequest();
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -38,6 +44,10 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
     queryKey: ["import-reviews"],
     queryFn: () => api<Review[]>("/import-reviews"),
   });
+  const visibleReviewPage = Math.min(
+    reviewPage,
+    Math.max(0, Math.ceil((reviews.data?.length ?? 0) / 50) - 1),
+  );
   const apply = useMutation({
     mutationFn: (id: string) =>
       api<{ reviews: number; status: string }>(`/simkl/${id}/apply`, "POST", {}),
@@ -47,8 +57,9 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
     },
   });
   async function read(file: File | undefined) {
-    const current = ++generation.current;
+    const request = beginPreview();
     setPreview(null);
+    setPreviewPage(0);
     setBusy(false);
     setError("");
     apply.reset();
@@ -60,12 +71,13 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
     setBusy(true);
     try {
       const value: unknown = JSON.parse(await file.text());
-      const result = await api<Preview>("/simkl/preview", "POST", value);
-      if (current === generation.current) setPreview(result);
+      if (!request.current()) return;
+      const result = await api<Preview>("/simkl/preview", "POST", value, request.signal);
+      if (request.current()) setPreview(result);
     } catch (e) {
-      if (current === generation.current) setError(e instanceof Error ? e.message : t("error"));
+      if (request.current()) setError(e instanceof Error ? e.message : t("error"));
     } finally {
-      if (current === generation.current) setBusy(false);
+      if (request.current()) setBusy(false);
     }
   }
   return (
@@ -84,13 +96,11 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
         />
       </label>
       {busy && <p role="status">{t("loading")}</p>}
-      {[error, apply.error?.message, imports.error?.message, reviews.error?.message]
-        .filter(Boolean)
-        .map((message, i) => (
-          <p role="alert" key={i}>
-            {message}
-          </p>
-        ))}
+      {[error, apply.error?.message].filter(Boolean).map((message, i) => (
+        <p role="alert" key={i}>
+          {message}
+        </p>
+      ))}
       {preview && !busy && (
         <div className="preview">
           <h4>{t("previewReady")}</h4>
@@ -100,7 +110,7 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
           </p>
           <ul>
             {preview.warnings.map((warning) => (
-              <li key={warning}>{warning}</li>
+              <li key={warning}>{importMessage(warning, t)}</li>
             ))}
           </ul>
           <details>
@@ -108,18 +118,27 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
               {t("sourceItems")} ({preview.items.length})
             </summary>
             <ul>
-              {preview.items.map((item, index) => (
+              {preview.items.slice(previewPage * 50, (previewPage + 1) * 50).map((item, index) => (
                 <li key={`${item.key}:${index}`}>
-                  {item.title || item.key} · {item.action}
+                  {item.title || item.key} · {importMessage(item.action, t)}
                   <ul>
                     {[...item.issues, ...item.warnings].map((issue, i) => (
-                      <li key={i}>{issue}</li>
+                      <li key={i}>{importMessage(issue, t)}</li>
                     ))}
                   </ul>
                 </li>
               ))}
             </ul>
+            <PageControls
+              page={previewPage}
+              count={preview.items.length}
+              size={50}
+              label={t("sourceItems")}
+              change={setPreviewPage}
+              t={t}
+            />
           </details>
+          {preview.items.length > 50 && <p>{t("importAllPages")}</p>}
           <button
             disabled={!backed || apply.isPending}
             onClick={() => {
@@ -132,6 +151,10 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
       )}
       {apply.isSuccess && <p role="status">{t("simklApplied")}</p>}
       <h4>{t("sourceArchives")}</h4>
+      <QueryFeedback query={imports} t={t} />
+      {imports.isSuccess && !imports.data.some((row) => row.kind === "simkl") && (
+        <p className="muted">{t("empty")}</p>
+      )}
       <ul>
         {imports.data
           ?.filter((row) => row.kind === "simkl")
@@ -140,11 +163,13 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
               <a href={`/api/imports/${row.id}/archive`} download>
                 {t("export")} · {row.id}
               </a>{" "}
-              · {row.state}
+              · {importMessage(row.state, t)}
             </li>
           ))}
       </ul>
       <h4>{t("unresolved")}</h4>
+      <QueryFeedback query={reviews} t={t} />
+      {reviews.isSuccess && reviews.data.length === 0 && <p className="muted">{t("empty")}</p>}
       <p>{t("reviewInstructions")}</p>
       {activeReview && (
         <ImportReview
@@ -158,9 +183,9 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
         />
       )}
       <ul>
-        {reviews.data?.map((row) => (
+        {reviews.data?.slice(visibleReviewPage * 50, (visibleReviewPage + 1) * 50).map((row) => (
           <li key={row.id}>
-            {row.item.source?.title ?? row.item.source?.name ?? row.reason}
+            {row.item.source?.title ?? row.item.source?.name ?? importMessage(row.reason, t)}
             {row.reason === "simkl_source_review" && (
               <button
                 onClick={() => {
@@ -172,12 +197,20 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
             )}
             <ul>
               {row.item.reasons?.map((reason, i) => (
-                <li key={i}>{reason}</li>
+                <li key={i}>{importMessage(reason, t)}</li>
               ))}
             </ul>
           </li>
         ))}
       </ul>
+      <PageControls
+        page={visibleReviewPage}
+        count={reviews.data?.length ?? 0}
+        size={50}
+        label={t("unresolved")}
+        change={setReviewPage}
+        t={t}
+      />
     </section>
   );
 }

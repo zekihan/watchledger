@@ -157,4 +157,52 @@ func TestStatisticsPrecisionAndLocale(t *testing.T) {
 	if w = request("GET", "/api/statistics", "", false); w.Code != 401 {
 		t.Fatal("anonymous statistics", w.Code)
 	}
+	// Date-only releases group by local day; timestamped releases retain their
+	// actual chronological order, rather than sorting after every date-only row.
+	rows := []struct {
+		key        string
+		day, stamp interface{}
+	}{
+		{"late-day", "2099-01-03", nil},
+		{"later-time", nil, "2099-01-02T00:30:00Z"},
+		{"earlier-time", nil, "2099-01-01T23:30:00Z"},
+		{"date-only", "2099-01-02", nil},
+	}
+	for n, row := range rows {
+		if _, e = p.Exec(ctx, `INSERT INTO episodes(id,catalog_id,source,source_id,season,number,air_date,air_time) VALUES($1,$2,'fixture',$1,2,$3,$4,$5)`, id+":"+row.key, id, n+1, row.day, row.stamp); e != nil {
+			t.Fatal(e)
+		}
+	}
+	expected := []string{id + ":date-only", id + ":earlier-time", id + ":later-time", id + ":late-day"}
+	for _, path := range []string{"/api/calendar?month=2099-01", "/api/dashboard"} {
+		w = request("GET", path, "", true)
+		if w.Code != 200 {
+			t.Fatal(path, w.Code, w.Body.String())
+		}
+		var releases []struct {
+			ID      string
+			AirDate *string    `json:"air_date"`
+			AirTime *time.Time `json:"air_time"`
+		}
+		raw := w.Body.Bytes()
+		if path == "/api/dashboard" {
+			var data map[string]json.RawMessage
+			if e = json.Unmarshal(raw, &data); e != nil {
+				t.Fatal(e)
+			}
+			raw = data["upcoming"]
+		}
+		if e = json.Unmarshal(raw, &releases); e != nil || len(releases) != 4 {
+			t.Fatal(path, string(raw), e)
+		}
+		for n, row := range releases {
+			if row.ID != expected[n] {
+				t.Fatal("releases not in local chronological order", path, releases)
+			}
+		}
+		if releases[0].AirDate == nil || releases[0].AirTime != nil || releases[1].AirDate != nil || releases[1].AirTime == nil {
+			t.Fatal("ordering fabricated release precision", releases)
+		}
+	}
+
 }

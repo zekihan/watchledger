@@ -48,6 +48,7 @@ typecheck:
 	npm run typecheck
 
 test:
+	npm run typecheck:browser
 	go test ./cmd/... ./internal/...
 	npm run typecheck
 	npm run test:web

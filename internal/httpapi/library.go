@@ -23,6 +23,7 @@ func decode(w http.ResponseWriter, r *http.Request, v interface{}) bool {
 }
 func (a *API) libraryRoutes(m *http.ServeMux) {
 	m.HandleFunc("GET /api/library", a.library)
+	m.HandleFunc("GET /api/library/watched", a.watchedTitles)
 	m.HandleFunc("PUT /api/library/{id}", a.saveLibrary)
 	m.HandleFunc("GET /api/library/{id}/history", a.history)
 	m.HandleFunc("GET /api/library/{id}/effective", a.effectiveHistory)

@@ -1,4 +1,47 @@
 export const en = {
+  importAllPages: "Apply processes the entire preview, not just the visible page.",
+  importMessageAdd: "Add title",
+  importMessageReview: "Needs review",
+  importMessagePreserveExisting: "Keep existing app values",
+  importMessagePreview: "Awaiting application",
+  importMessageApplied: "Applied",
+  importMessageInvalidItem: "Invalid source record",
+  importMessageDuplicateSourceIdentity: "Duplicate source identity",
+  importMessageMissingSimklIdentity: "SIMKL identity is missing",
+  importMessageMissingTitle: "Source title is missing",
+  importMessageUnknownStatus: "Unrecognized source status",
+  importMessageInvalidRating: "Invalid source rating",
+  importMessageSourceAddedDateRetainedInArchive: "Source added date is retained in the archive",
+  importMessageRewatchRetainedInArchive: "Rewatch information is retained in the archive",
+  importMessageInvalidMovieWatchDate: "Invalid movie watch date",
+  importMessageInvalidEpisodeNumber: "Invalid source episode number",
+  importMessageDuplicateEpisodeRecord: "Duplicate episode record",
+  importMessageInvalidEpisodeWatchDate: "Invalid episode watch date",
+  importMessageSummaryCountDiffersFromExplicitHistory:
+    "Source summary differs from explicit episode history",
+  importMessageCompletedWithoutEpisodeRecords:
+    "Marked complete at the source, but no episode records are supplied; missing history will not be invented",
+  importMessageEpisodeIdentityReviewRequired:
+    "Review the actual episode identities; equal numbers do not prove a match",
+  importMessageCustomListsAbsentFromBackup:
+    "This backup contains no custom lists; import their separate response files if needed",
+  importMessageCatalogNotCached: "Load the explicit source title before resolving this item",
+  importMessageUnresolvedCatalogIdentity: "Catalog identity requires review",
+  importMessageExistingAppLibraryPreserved: "Existing app status and rating are preserved",
+  importMessageExistingAppWatchDecisionPreserved:
+    "Existing app watch or unwatch decision is preserved",
+  importMessageExistingAppListPreserved: "Existing app list edits are preserved",
+  importMessageExistingAppListDeletionPreserved: "The app list deletion is preserved",
+  importMessageConflictingSourceIdentity: "Source identities conflict; no title was chosen",
+  importMessageSourceIdentityUnresolved: "Source identity has not been resolved",
+  importMessageAddSourceTitleToPrivateLibraryFirst:
+    "Add this exact source title to your private library first",
+  importMessageMultipleSourceMembersShareTarget:
+    "Several source members point to one title; review is required",
+  importMessageSimklSourceReview: "SIMKL source review",
+  importUnsupportedSection: "Unsupported source section retained in archive",
+  importUnrecognizedMessage: "Source diagnostic",
+
   replaceStatusTitle: "Replace and remove custom status",
   replaceStatusHint:
     "Choose the destination for titles using this status. History and ratings will not change.",
@@ -59,6 +102,9 @@ export const en = {
   mappingDatasetHint:
     "Upload an official animap JSON release and its published SHA-256. A proposal uses explicit episode identities only. TVDB numbering is never treated as TMDB numbering. Review before saving; inferred targets remain unresolved.",
   datasetVersion: "Dataset release version",
+  mappingReleases: "animap releases",
+  anidbID: "AniDB ID",
+  englishTitle: "English",
   datasetFile: "animap JSON file",
   resolveDataset: "Resolve episode identities for review",
 
@@ -107,6 +153,7 @@ export const en = {
 
   viewList: "View list",
   editList: "Edit list",
+  position: "Position",
   moveUp: "Move up",
   moveDown: "Move down",
   unavailableChoice: "Unavailable choice",
@@ -316,6 +363,7 @@ export const en = {
   wholeScope: "Whole show",
   wholeShow: "Mark aired show episodes watched",
   wholeSeason: "Mark aired season watched",
+  chooseWatchDate: "Choose a date, or explicitly select Unknown date.",
   watchDate: "Watched date",
   manual: "Manual list",
   smart: "Smart list",
@@ -353,14 +401,14 @@ export const en = {
   activity: "Monthly activity",
   attribution: "This product uses the TMDB API but is not endorsed or certified by TMDB.",
   mappingGated:
-    "Anime source verification is pending. No alternate mapping is inferred automatically.",
+    "Mappings use explicit source identities. Review connected entries before linking progress; uncertain matches remain unresolved.",
   mapping: "Mapping review",
   accounts: "Accounts",
   noCredentials:
     "A provider credential or source prerequisite is missing. Retry after configuration.",
   back: "Back",
   noSynopsis: "No synopsis available",
-  memberHint: "Select library titles. Drag to reorder after adding.",
+  memberHint: "Select library titles. Drag or use the move buttons to reorder after adding.",
   deleteBlocked: "Referenced lists cannot be deleted until dependents are updated.",
   confirmDelete: "Delete this list?",
   keyboard: "Press / to search",
@@ -370,13 +418,58 @@ export const en = {
   select: "Select",
   originalLanguage: "Original language",
   runtime: "Runtime (minutes)",
+  excludeWatchedHint:
+    "Only confirmed complete viewing history is excluded. A Completed status alone or an incomplete episode cache is not treated as proof.",
   excludeWatched: "Exclude watched titles",
+  showMore: "Show more",
+  showLess: "Show less",
   nextPage: "Next page",
   previousPage: "Previous page",
   incomplete: "Preview release: provider, browser and source-coverage acceptance remains open.",
 };
 export type Key = keyof typeof en;
 export const tr: Record<Key, string> = {
+  importAllPages: "Uygula işlemi yalnızca görünen sayfayı değil, önizlemenin tamamını işler.",
+  importMessageAdd: "Yapımı ekle",
+  importMessageReview: "İnceleme gerekli",
+  importMessagePreserveExisting: "Mevcut uygulama değerlerini koru",
+  importMessagePreview: "Uygulama bekleniyor",
+  importMessageApplied: "Uygulandı",
+  importMessageInvalidItem: "Geçersiz kaynak kaydı",
+  importMessageDuplicateSourceIdentity: "Yinelenen kaynak kimliği",
+  importMessageMissingSimklIdentity: "SIMKL kimliği eksik",
+  importMessageMissingTitle: "Kaynak yapım adı eksik",
+  importMessageUnknownStatus: "Tanınmayan kaynak durumu",
+  importMessageInvalidRating: "Geçersiz kaynak puanı",
+  importMessageSourceAddedDateRetainedInArchive: "Kaynağa eklenme tarihi arşivde korunuyor",
+  importMessageRewatchRetainedInArchive: "Yeniden izleme bilgisi arşivde korunuyor",
+  importMessageInvalidMovieWatchDate: "Geçersiz film izleme tarihi",
+  importMessageInvalidEpisodeNumber: "Geçersiz kaynak bölüm numarası",
+  importMessageDuplicateEpisodeRecord: "Yinelenen bölüm kaydı",
+  importMessageInvalidEpisodeWatchDate: "Geçersiz bölüm izleme tarihi",
+  importMessageSummaryCountDiffersFromExplicitHistory: "Kaynak özeti açık bölüm geçmişinden farklı",
+  importMessageCompletedWithoutEpisodeRecords:
+    "Kaynakta tamamlanmış, ancak bölüm kayıtları yok; eksik geçmiş uydurulmayacak",
+  importMessageEpisodeIdentityReviewRequired:
+    "Gerçek bölüm kimliklerini inceleyin; aynı numaralar eşleşmeyi kanıtlamaz",
+  importMessageCustomListsAbsentFromBackup:
+    "Bu yedek özel liste içermiyor; gerekirse ayrı liste yanıt dosyalarını içe aktarın",
+  importMessageCatalogNotCached: "Bu kaydı çözmeden önce açık kaynak kimliğine ait yapımı yükleyin",
+  importMessageUnresolvedCatalogIdentity: "Katalog kimliği inceleme gerektiriyor",
+  importMessageExistingAppLibraryPreserved: "Mevcut uygulama durumu ve puanı korunuyor",
+  importMessageExistingAppWatchDecisionPreserved: "Mevcut izlendi veya izlenmedi kararı korunuyor",
+  importMessageExistingAppListPreserved: "Mevcut uygulama liste düzenlemeleri korunuyor",
+  importMessageExistingAppListDeletionPreserved: "Uygulamadaki liste silme kararı korunuyor",
+  importMessageConflictingSourceIdentity: "Kaynak kimlikleri çelişiyor; yapım seçilmedi",
+  importMessageSourceIdentityUnresolved: "Kaynak kimliği henüz çözülmedi",
+  importMessageAddSourceTitleToPrivateLibraryFirst:
+    "Önce bu kaynak kimliğine ait yapımı özel kütüphanenize ekleyin",
+  importMessageMultipleSourceMembersShareTarget:
+    "Birden fazla kaynak öğesi tek yapımı gösteriyor; inceleme gerekli",
+  importMessageSimklSourceReview: "SIMKL kaynak incelemesi",
+  importUnsupportedSection: "Desteklenmeyen kaynak bölümü arşivde korundu",
+  importUnrecognizedMessage: "Kaynak tanı bilgisi",
+
   replaceStatusTitle: "Özel durumu değiştir ve kaldır",
   replaceStatusHint:
     "Bu durumu kullanan yapımlar için yeni durumu seçin. Geçmiş ve puanlar değişmez.",
@@ -437,6 +530,9 @@ export const tr: Record<Key, string> = {
   mappingDatasets: "Sürümlü anime eşleme veri kümeleri",
   mappingDatasetHint:
     "Resmî animap JSON sürümünü ve yayımlanmış SHA-256 değerini yükleyin. Öneri yalnızca açık bölüm kimliklerini kullanır. TVDB numaraları TMDB numaraları sayılmaz. Kaydetmeden önce inceleyin; tahminî hedefler çözümsüz kalır.",
+  mappingReleases: "animap sürümleri",
+  anidbID: "AniDB kimliği",
+  englishTitle: "İngilizce",
   datasetVersion: "Veri kümesi sürümü",
   datasetFile: "animap JSON dosyası",
   resolveDataset: "İnceleme için bölüm kimliklerini çöz",
@@ -504,6 +600,7 @@ export const tr: Record<Key, string> = {
   sourceWatchDate: "Kaynakta kayıtlı izleme tarihi",
   viewList: "Listeyi görüntüle",
   editList: "Listeyi düzenle",
+  position: "Sıra",
   moveUp: "Yukarı taşı",
   moveDown: "Aşağı taşı",
   unavailableChoice: "Kullanılamayan seçim",
@@ -689,6 +786,7 @@ export const tr: Record<Key, string> = {
   wholeScope: "Tüm dizi",
   wholeShow: "Yayımlanmış dizi bölümlerini izlendi işaretle",
   wholeSeason: "Yayımlanmış sezonu izlendi işaretle",
+  chooseWatchDate: "Bir tarih seçin veya açıkça Bilinmeyen tarih seçeneğini kullanın.",
   watchDate: "İzleme tarihi",
   manual: "Elle düzenlenen liste",
   smart: "Akıllı liste",
@@ -726,14 +824,16 @@ export const tr: Record<Key, string> = {
   activity: "Aylık etkinlik",
   attribution:
     "Bu ürün TMDB API'sini kullanır ancak TMDB tarafından onaylanmamış veya sertifikalandırılmamıştır.",
-  mappingGated: "Anime kaynağı doğrulaması bekleniyor. Alternatif eşlemeler otomatik varsayılmaz.",
+  mappingGated:
+    "Eşlemeler açık kaynak kimliklerini kullanır. İlerlemeyi bağlamadan önce ilişkili kayıtları inceleyin; belirsiz eşleşmeler çözümlenmeden kalır.",
   mapping: "Eşleme incelemesi",
   accounts: "Hesaplar",
   noCredentials:
     "Sağlayıcı kimlik bilgisi veya kaynak önkoşulu eksik. Yapılandırma sonrası tekrar deneyin.",
   back: "Geri",
   noSynopsis: "Özet bulunamadı",
-  memberHint: "Kütüphane yapımlarını seçin. Ekledikten sonra sürükleyerek sıralayın.",
+  memberHint:
+    "Kütüphane yapımlarını seçin. Ekledikten sonra sürükleyerek veya taşıma düğmeleriyle sıralayın.",
   deleteBlocked: "Bağımlı listeler güncellenmeden başvurulan listeler silinemez.",
   confirmDelete: "Bu liste silinsin mi?",
   keyboard: "Arama için / tuşuna basın",
@@ -743,7 +843,11 @@ export const tr: Record<Key, string> = {
   select: "Seç",
   originalLanguage: "Orijinal dil",
   runtime: "Süre (dakika)",
+  excludeWatchedHint:
+    "Yalnızca doğrulanmış tam izleme geçmişi dışlanır. Tek başına Tamamlandı durumu veya eksik bölüm önbelleği kanıt sayılmaz.",
   excludeWatched: "İzlenenleri hariç tut",
+  showMore: "Daha fazla göster",
+  showLess: "Daha az göster",
   nextPage: "Sonraki sayfa",
   previousPage: "Önceki sayfa",
   incomplete: "Önizleme sürümü: sağlayıcı, tarayıcı ve kaynak kapsamı kabul kontrolleri sürüyor.",

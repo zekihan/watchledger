@@ -1,7 +1,9 @@
+import { displayDate } from "./dates";
+import type { Settings } from "./api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import type { T } from "./App";
-export function AnimeIndex({ t }: { t: T }) {
+export function AnimeIndex({ t, settings = {} }: { t: T; settings?: Settings }) {
   const client = useQueryClient();
   const q = useQuery({
     queryKey: ["anime-index"],
@@ -51,7 +53,8 @@ export function AnimeIndex({ t }: { t: T }) {
           {q.data.imported_at && (
             <>
               {" "}
-              · {t("indexImported")}: {new Date(q.data.imported_at).toLocaleString()}
+              · {t("indexImported")}:{" "}
+              {displayDate(null, q.data.imported_at, settings, t("unknown"), true)}
             </>
           )}
         </p>

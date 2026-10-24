@@ -1,4 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { importMessage } from "./import-messages";
+import { displayDate } from "./dates";
+import type { Settings } from "./api";
+import { useState } from "react";
+import { usePreviewRequest } from "./use-preview-request";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import type { T } from "./App";
@@ -17,17 +21,17 @@ interface ListPreview {
   unresolved: number;
   existing_list_id: string;
 }
-export function CustomListImport({ t, backed }: { t: T; backed: boolean }) {
+export function CustomListImport({
+  t,
+  backed,
+  settings = {},
+}: {
+  t: T;
+  backed: boolean;
+  settings?: Settings;
+}) {
   const client = useQueryClient();
-  const generation = useRef(0);
-  const abort = useRef<AbortController | null>(null);
-  useEffect(
-    () => () => {
-      generation.current++;
-      abort.current?.abort();
-    },
-    [],
-  );
+  const beginPreview = usePreviewRequest();
   const [apiClientID, setAPIClientID] = useState(""),
     [apiToken, setAPIToken] = useState(""),
     [apiListID, setAPIListID] = useState("");
@@ -44,9 +48,7 @@ export function CustomListImport({ t, backed }: { t: T; backed: boolean }) {
     },
   });
   async function read(files: FileList | null) {
-    const current = ++generation.current;
-    abort.current?.abort();
-    abort.current = null;
+    const request = beginPreview();
     setPreview(null);
     setError("");
     setBusy(false);
@@ -63,6 +65,7 @@ export function CustomListImport({ t, backed }: { t: T; backed: boolean }) {
       const pages: unknown[] = [];
       for (const file of selected) {
         const value: unknown = JSON.parse(await file.text());
+        if (!request.current()) return;
         if (Array.isArray(value)) pages.push(...(value as unknown[]));
         else pages.push(value);
       }
@@ -70,22 +73,20 @@ export function CustomListImport({ t, backed }: { t: T; backed: boolean }) {
         "/simkl/custom-lists/preview",
         "POST",
         pages.length === 1 ? pages[0] : pages,
+        request.signal,
       );
-      if (current === generation.current) {
+      if (request.current()) {
         setPreview(result);
         await client.invalidateQueries({ queryKey: ["imports"] });
       }
     } catch (e) {
-      if (current === generation.current) setError(e instanceof Error ? e.message : t("error"));
+      if (request.current()) setError(e instanceof Error ? e.message : t("error"));
     } finally {
-      if (current === generation.current) setBusy(false);
+      if (request.current()) setBusy(false);
     }
   }
   async function fetchSource() {
-    const current = ++generation.current;
-    abort.current?.abort();
-    const controller = new AbortController();
-    abort.current = controller;
+    const request = beginPreview();
     setPreview(null);
     setError("");
     setBusy(true);
@@ -98,25 +99,19 @@ export function CustomListImport({ t, backed }: { t: T; backed: boolean }) {
     };
     setAPIToken("");
     try {
-      const pending = api<ListPreview>(
-        "/simkl/custom-lists/fetch",
-        "POST",
-        body,
-        controller.signal,
-      );
+      const pending = api<ListPreview>("/simkl/custom-lists/fetch", "POST", body, request.signal);
       body.access_token = "";
       const result = await pending;
-      if (current === generation.current) {
+      if (request.current()) {
         setPreview(result);
         await client.invalidateQueries({ queryKey: ["imports"] });
       }
     } catch (e) {
-      if (current === generation.current) setError(e instanceof Error ? e.message : t("error"));
+      if (request.current()) setError(e instanceof Error ? e.message : t("error"));
     } finally {
       body.access_token = "";
-      if (current === generation.current) {
+      if (request.current()) {
         setBusy(false);
-        abort.current = null;
       }
     }
   }
@@ -206,7 +201,8 @@ export function CustomListImport({ t, backed }: { t: T; backed: boolean }) {
           </p>
           {preview.api_fetched_at && (
             <p>
-              {t("freshness")}: {new Date(preview.api_fetched_at).toLocaleString()}
+              {t("freshness")}:{" "}
+              {displayDate(null, preview.api_fetched_at, settings, t("unknown"), true)}
             </p>
           )}
           <p>
@@ -218,7 +214,9 @@ export function CustomListImport({ t, backed }: { t: T; backed: boolean }) {
           <ol>
             {preview.members.slice(page * 50, page * 50 + 50).map((member) => (
               <li key={member.key}>
-                {member.title} · {member.catalog_id || member.reason}
+                {member.title} ·{" "}
+                {member.catalog_id ||
+                  importMessage(member.reason ?? "source_identity_unresolved", t)}
                 {member.source_url && (
                   <a href={member.source_url} target="_blank" rel="noreferrer">
                     {" "}

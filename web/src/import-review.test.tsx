@@ -171,3 +171,28 @@ test("metadata loading is separate from importing and target seasons have no inf
     ),
   ).toBe(true);
 });
+
+test("failed source review can be retried without resolving or applying it", async () => {
+  let attempts = 0;
+  const paths: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string) => {
+      paths.push(path);
+      attempts++;
+      return Promise.resolve(
+        attempts === 1
+          ? new Response("Synthetic source outage", { status: 503 })
+          : new Response(JSON.stringify(data), { status: 200 }),
+      );
+    }),
+  );
+  mount();
+  expect(await screen.findByRole("alert")).toBeTruthy();
+  await userEvent.click(screen.getByRole("button", { name: en.retry }));
+  expect(await screen.findByText("Synthetic gaps")).toBeTruthy();
+  expect(paths).toEqual([
+    "/api/import-reviews/review/candidates",
+    "/api/import-reviews/review/candidates",
+  ]);
+});

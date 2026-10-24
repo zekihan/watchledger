@@ -1,3 +1,6 @@
+import { QueryFeedback } from "./query-feedback";
+import { displayDate } from "./dates";
+import type { Settings } from "./api";
 import { MappingDatasets } from "./mapping-datasets";
 import { AnimeIndex } from "./anime-index";
 import { useState } from "react";
@@ -33,7 +36,15 @@ export interface Mapping {
   confirmed: boolean;
   reviewed: boolean;
 }
-export function MappingPage({ t, admin }: { t: T; admin: boolean }) {
+export function MappingPage({
+  t,
+  admin,
+  settings = {},
+}: {
+  t: T;
+  admin: boolean;
+  settings?: Settings;
+}) {
   const client = useQueryClient();
   const q = useQuery({ queryKey: ["mappings"], queryFn: () => api<Mapping[]>("/mappings") });
   const [historyID, setHistoryID] = useState("");
@@ -57,7 +68,14 @@ export function MappingPage({ t, admin }: { t: T; admin: boolean }) {
   const confirm = useMutation({
     mutationFn: (m: Mapping) => api(`/mappings/${m.id}/confirm`, "POST", { revision: m.revision }),
     onSuccess: async () => {
-      for (const key of ["mappings", "alternate", "effective", "dashboard", "statistics"]) {
+      for (const key of [
+        "mappings",
+        "alternate",
+        "effective",
+        "dashboard",
+        "statistics",
+        "watched-titles",
+      ]) {
         await client.invalidateQueries({ queryKey: [key] });
       }
     },
@@ -102,8 +120,8 @@ export function MappingPage({ t, admin }: { t: T; admin: boolean }) {
     <>
       <h1>{t("mapping")}</h1>
       <p className="notice">{t("mappingGated")}</p>
-      {q.isPending && <p>{t("loading")}</p>}
-      {[q.error, save.error, confirm.error].filter(Boolean).map((e, i) => (
+      <QueryFeedback query={q} t={t} />
+      {[save.error, confirm.error].filter(Boolean).map((e, i) => (
         <p className="error" role="alert" key={i}>
           {e?.message}
         </p>
@@ -268,12 +286,12 @@ export function MappingPage({ t, admin }: { t: T; admin: boolean }) {
           )}
           {admin && historyID === m.id && (
             <div>
-              {history.isPending && <p>{t("loading")}</p>}
-              {history.error && <p role="alert">{history.error.message}</p>}
+              <QueryFeedback query={history} t={t} />
               {history.data?.map((h, i) => (
                 <details key={i}>
                   <summary>
-                    {h.provenance.version} · {new Date(h.recorded_at).toLocaleString()}
+                    {h.provenance.version} ·{" "}
+                    {displayDate(null, h.recorded_at, settings, t("unknown"), true)}
                   </summary>
                   <p>{h.provenance.note}</p>
                   <p>{h.provenance.attribution?.notice}</p>
@@ -316,10 +334,10 @@ export function MappingPage({ t, admin }: { t: T; admin: boolean }) {
       ))}
       {admin && (
         <>
-          <AnimeIndex t={t} />
+          <AnimeIndex t={t} settings={settings} />
           <h2>{t("accounts")}</h2>
           <p>{t("accountsPrivacy")}</p>
-          {accounts.error && <p className="error">{accounts.error.message}</p>}
+          <QueryFeedback query={accounts} t={t} />
           {accounts.data?.map((a) => (
             <div className="activity-row" key={a.id}>
               <strong>{a.name}</strong>
@@ -327,13 +345,14 @@ export function MappingPage({ t, admin }: { t: T; admin: boolean }) {
             </div>
           ))}
           <h2>{t("refreshFailures")}</h2>
-          {jobs.error && <p className="error">{jobs.error.message}</p>}
+          <QueryFeedback query={jobs} t={t} />
           {jobs.data?.map((j) => (
             <div className="error" key={j.id}>
               <strong>{j.id}</strong>
               <p>{j.last_error}</p>
               <small>
-                {t("retry")}: {new Date(j.run_at).toLocaleString()} ({j.attempts})
+                {t("retry")}: {displayDate(null, j.run_at, settings, t("unknown"), true)} (
+                {j.attempts})
               </small>
             </div>
           ))}

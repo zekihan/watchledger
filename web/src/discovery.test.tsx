@@ -16,7 +16,7 @@ function mount(failedLibrary = false) {
     "fetch",
     vi.fn((path: string) => {
       paths.push(path);
-      if (path === "/api/library" && failedLibrary)
+      if (path === "/api/library/watched" && failedLibrary)
         return Promise.resolve(new Response("Library unavailable", { status: 503 }));
       const data =
         path === "/api/me"
@@ -26,8 +26,8 @@ function mount(failedLibrary = false) {
               Admin: false,
               Settings: { language: "en", services: [] },
             }
-          : path === "/api/library"
-            ? [{ id: "tmdb:movie:1", base: "completed" }]
+          : path === "/api/library/watched"
+            ? ["tmdb:movie:1"]
             : path.startsWith("/api/discover/")
               ? {
                   results: [{ id: 1, title: "Already watched", media_type: "movie" }],

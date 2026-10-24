@@ -14,7 +14,7 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:17.11
@@ -46,10 +46,20 @@ jobs:
           args: ./cmd/... ./internal/...
       - run: make lint-web lint-docs format-check test test-race build
       - run: git diff --exit-code
+      - name: Install Chromium for synthetic browser acceptance
+        run: npx playwright install --with-deps chromium
       - name: Build application container
         run: docker build -t watchledger:ci .
       - name: Smoke test Compose startup, OIDC and restart persistence
         run: bash scripts/compose-smoke.sh
+      - name: Preserve synthetic browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: synthetic-browser-screenshots
+          path: test-results/**/*.png
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Validate Helm chart
         run: |
           curl -fsSL https://get.helm.sh/helm-v3.19.0-linux-amd64.tar.gz -o /tmp/helm.tar.gz

@@ -106,7 +106,10 @@ test("episode deep link loads the actual source identity and reveals no synopsis
   expect(image.getAttribute("src")).toBe("https://image.tmdb.org/t/p/w780/synthetic.jpg");
   fireEvent.error(image);
   expect(screen.queryByRole("img", { name: "Chosen episode" })).toBeNull();
-  await userEvent.click(screen.getByRole("button", { name: `＋ ${en.watched}` }));
+  const watchButton = screen.getByRole("button", { name: `＋ ${en.watched}` });
+  const description = watchButton.getAttribute("aria-describedby");
+  expect(description && document.getElementById(description)?.textContent).toBe("Chosen episode");
+  await userEvent.click(watchButton);
   await waitFor(() => {
     expect(writes.some((write) => !write.preview && write.episode_id === "tmdb:episode:702")).toBe(
       true,
@@ -133,4 +136,15 @@ test("episode links preserve specials and native identity instead of treating nu
     "#detail/tv/42/season/3/episode/801",
   );
   expect(episodeLink("anidb:anime:42", 0, "tmdb:episode:501")).toBe("#detail/anime/42");
+});
+
+test("clearing a chosen watch date cannot silently record an unknown date", async () => {
+  const { writes } = mount();
+  await screen.findByRole("heading", { name: "Chosen episode" });
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: en.watchDate }), "chosen");
+  const date = screen.getByLabelText(en.watchDate, { selector: "input" });
+  fireEvent.change(date, { target: { value: "" } });
+  await userEvent.click(screen.getByRole("button", { name: `＋ ${en.watched}` }));
+  expect(await screen.findByText(en.chooseWatchDate)).toBeTruthy();
+  expect(writes).toHaveLength(0);
 });

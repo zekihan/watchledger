@@ -1,3 +1,4 @@
+import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -96,4 +97,54 @@ test("native creator credits are explicitly cached-only with source-safe anime l
   expect(screen.getByRole("option", { name: en.anime })).toBeTruthy();
   expect(paths).toContain("/api/anidb/creators/9");
   expect(paths.some((path) => path.includes("/catalog/person/"))).toBe(false);
+});
+
+test("detail cast browsing reaches all supplied roles instead of silently truncating at twenty", async () => {
+  location.hash = "detail/movie/1";
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string) =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify(
+            path === "/api/me"
+              ? { ID: "fixture", Name: "Fixture", Admin: false, Settings: { language: "en" } }
+              : path.startsWith("/api/catalog/movie/")
+                ? {
+                    metadata: {
+                      id: 1,
+                      title: "Cast fixture",
+                      credits: {
+                        cast: Array.from({ length: 23 }, (_, index) => ({
+                          id: index + 1,
+                          name: `Actor ${index + 1}`,
+                          character: `Role ${index + 1}`,
+                        })),
+                        crew: [],
+                      },
+                    },
+                    fetched_at: "2026-01-01T00:00:00Z",
+                  }
+                : [],
+          ),
+          { status: 200 },
+        ),
+      ),
+    ),
+  );
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <App />
+    </QueryClientProvider>,
+  );
+  await screen.findByRole("heading", { name: "Cast fixture" });
+  expect(screen.queryByRole("link", { name: /Actor 23/ })).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: en.showMore }));
+  expect(screen.getByRole("link", { name: /Actor 23/ }).getAttribute("href")).toBe(
+    "#detail/person/23",
+  );
+  await userEvent.click(screen.getByRole("button", { name: en.showLess }));
+  expect(screen.queryByRole("link", { name: /Actor 23/ })).toBeNull();
 });

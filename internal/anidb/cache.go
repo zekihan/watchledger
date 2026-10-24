@@ -110,6 +110,17 @@ func (c *Cache) Detail(ctx context.Context, id, language, style string) (Result,
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return result, err
 	}
+	catalogCached := false
+	if !cached {
+		var readErr error
+		result, catalogCached, readErr = c.catalogFallback(ctx, id, language, style)
+		if readErr != nil {
+			return result, readErr
+		}
+		if catalogCached && time.Since(result.FetchedAt) < 24*time.Hour {
+			return result, nil
+		}
+	}
 	var a Anime
 	if cached {
 		a, err = Parse(raw, id)
@@ -129,7 +140,7 @@ func (c *Cache) Detail(ctx context.Context, id, language, style string) (Result,
 		}
 	}
 	fallback := func(e error) (Result, error) {
-		if cached {
+		if cached || catalogCached {
 			result.Stale = true
 			result.Warning = e.Error()
 			return result, nil
@@ -226,4 +237,39 @@ func (c *Cache) Detail(ctx context.Context, id, language, style string) (Result,
 	}
 	result.Metadata = Metadata(a, language, style)
 	return result, nil
+}
+
+// Portable exports preserve catalog/episode metadata, not provider XML documents.
+// Restored native entries must remain usable without making a fresh source call.
+func (c *Cache) catalogFallback(ctx context.Context, id, language, style string) (Result, bool, error) {
+	result := Result{ID: "anidb:anime:" + id}
+	settings, err := json.Marshal(map[string]string{"metadata_language": language, "anime_title": style})
+	if err != nil {
+		return result, false, err
+	}
+	var raw, episodes []byte
+	var name string
+	err = c.DB.QueryRow(ctx, `SELECT catalog_metadata_variant(c.metadata,$2::jsonb),catalog_display_title(c.kind,c.metadata,c.title,$2::jsonb),c.fetched_at,
+ coalesce((SELECT jsonb_agg(e.metadata ORDER BY e.season,e.number,e.id) FROM episodes e WHERE e.catalog_id=c.id AND NOT e.retired),'[]'::jsonb)
+ FROM catalog c WHERE c.id=$1 AND c.source='anidb' AND c.kind='anime'`, result.ID, settings).Scan(&raw, &name, &result.FetchedAt, &episodes)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return result, false, nil
+	}
+	if err != nil {
+		return result, false, err
+	}
+	if err = json.Unmarshal(raw, &result.Metadata); err != nil {
+		return result, false, err
+	}
+	if result.Metadata == nil {
+		result.Metadata = map[string]interface{}{}
+	}
+	var restoredEpisodes []map[string]interface{}
+	if err = json.Unmarshal(episodes, &restoredEpisodes); err != nil {
+		return result, false, err
+	}
+	result.Metadata["id"] = json.Number(id)
+	result.Metadata["name"] = name
+	result.Metadata["episodes"] = restoredEpisodes
+	return result, true, nil
 }

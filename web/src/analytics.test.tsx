@@ -113,3 +113,51 @@ test("calendar preserves date-only releases and places timestamp releases in the
     ),
   ).toBeTruthy();
 });
+
+test("phone calendars start with readable agenda links and retain an explicit month view", async () => {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => ({ matches: true })),
+  );
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify([
+            {
+              id: "tmdb:episode:3",
+              catalog_id: "tmdb:tv:1",
+              title: "A readable phone release title",
+              season: 1,
+              number: 3,
+              air_date: "2026-10-01",
+              air_time: null,
+            },
+          ]),
+          { status: 200 },
+        ),
+      ),
+    ),
+  );
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <CalendarPage
+        t={(key) => en[key]}
+        user={{ ID: "fixture", Name: "Fixture", Admin: false, Settings: {} }}
+      />
+    </QueryClientProvider>,
+  );
+  expect(await screen.findByRole("link", { name: /A readable phone release title/ })).toBeTruthy();
+  expect(screen.getByRole<HTMLSelectElement>("combobox", { name: en.calendar }).value).toBe("list");
+  fireEvent.change(screen.getByRole("combobox", { name: en.calendar }), {
+    target: { value: "month" },
+  });
+  expect(screen.getByRole("region", { name: new RegExp(en.calendar) }).tabIndex).toBe(0);
+  fireEvent.change(screen.getByRole("combobox", { name: en.calendar }), {
+    target: { value: "list" },
+  });
+  expect(screen.getByRole("link", { name: /A readable phone release title/ })).toBeTruthy();
+});

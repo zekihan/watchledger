@@ -1,15 +1,18 @@
+import { Filmography } from "./filmography";
+import { Cards, Poster } from "./catalog-cards";
+import { DashboardPage } from "./dashboard";
 import { EpisodeSummary } from "./episode-details";
 import { episodeLink } from "./episode-links";
 import { useInstall } from "./use-install";
 import { CreditsPage } from "./credits";
 import { ChoiceDialog } from "./tracking-ui";
 import { useTrackingDialogFocus } from "./use-tracking-dialog-focus";
-import { localDay } from "./dates";
+import { displayDate, localDay } from "./dates";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { imageURL as image } from "./images";
 import { api, APIError } from "./api";
-import type { Dashboard, Episode, History, LibraryItem, Status, Title, User } from "./api";
+import type { Episode, History, LibraryItem, Status, Title, User } from "./api";
 import { en, tr } from "./i18n";
 import type { Key } from "./i18n";
 import { ListsPage, SettingsPage } from "./pages";
@@ -47,59 +50,6 @@ function ErrorBox({ error, retry, t }: { error: Error; retry?: () => void; t: T 
     </div>
   );
 }
-function Poster({ title, path }: { title: string; path?: string }) {
-  const [failedPath, setFailedPath] = useState<string | undefined>();
-  const url = image(path);
-  return url && url !== failedPath ? (
-    <img
-      loading="lazy"
-      src={url}
-      alt={title}
-      onError={() => {
-        setFailedPath(url);
-      }}
-    />
-  ) : (
-    <div className="poster-placeholder" aria-label={title}>
-      W<span>{title}</span>
-    </div>
-  );
-}
-function Cards({ results, kind, t }: { results: Title[]; kind?: string; t: T }) {
-  return (
-    <div className="poster-grid">
-      {results
-        .filter(
-          (item, i, all) =>
-            all.findIndex(
-              (other) =>
-                other.id === item.id && (other.media_type ?? kind) === (item.media_type ?? kind),
-            ) === i,
-        )
-        .map((item) => (
-          <a
-            className="poster-card"
-            key={`${item.media_type ?? kind}:${String(item.id)}`}
-            href={`#detail/${item.media_type ?? kind ?? "movie"}/${String(item.id)}`}
-          >
-            <div className="poster">
-              <Poster
-                title={item.title ?? item.name ?? t("unknown")}
-                path={item.poster_path ?? item.profile_path}
-              />
-              {item.vote_average !== undefined && (
-                <span className="score">★ {item.vote_average.toFixed(1)}</span>
-              )}
-            </div>
-            <strong>{item.title ?? item.name}</strong>
-            <small>
-              {(item.release_date ?? item.first_air_date)?.slice(0, 4)} · {item.media_type ?? kind}
-            </small>
-          </a>
-        ))}
-    </div>
-  );
-}
 export function App() {
   const installation = useInstall();
   const page = useSyncExternalStore(subscribe, route);
@@ -107,7 +57,7 @@ export function App() {
     navigator.language.startsWith("tr") ? "tr" : "en",
   );
   const me = useQuery({ queryKey: ["me"], queryFn: () => api<User>("/me"), retry: false });
-  const language = me.data?.Settings.language ?? fallbackLang;
+  const language = (me.data?.Settings.language ?? fallbackLang) === "tr" ? "tr" : "en";
   const t: T = (key) => (language === "tr" ? tr : en)[key];
   const [search, setSearch] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -201,7 +151,7 @@ export function App() {
     );
   }
   if (!me.data) return null;
-  const user = me.data;
+  const user = { ...me.data, Settings: { ...me.data.Settings, language } };
   const root = page.split("/")[0];
   return (
     <div className="app-shell">
@@ -284,7 +234,7 @@ export function App() {
               timezone={user.Settings.timezone}
             />
           ) : root === "library" ? (
-            <LibraryPage t={t} />
+            <LibraryPage t={t} user={user} />
           ) : root === "search" || root === "discover" ? (
             <DiscoveryPage
               key={page}
@@ -303,9 +253,9 @@ export function App() {
           ) : root === "credits" ? (
             <CreditsPage t={t} />
           ) : root === "admin" || root === "mappings" ? (
-            <MappingPage t={t} admin={user.Admin} />
+            <MappingPage t={t} admin={user.Admin} settings={user.Settings} />
           ) : (
-            <DashboardPage page={root} user={user} t={t} />
+            <DashboardPage user={user} t={t} />
           )}
           <footer>
             {t("attribution")}{" "}
@@ -316,6 +266,7 @@ export function App() {
             <a href="https://www.justwatch.com" target="_blank" rel="noreferrer">
               JustWatch
             </a>
+            {" · "}
             <a href="#credits">{t("sourceCredits")}</a>
             <p>{t("incomplete")}</p>
           </footer>
@@ -324,7 +275,7 @@ export function App() {
     </div>
   );
 }
-function LibraryPage({ t }: { t: T }) {
+function LibraryPage({ t, user }: { t: T; user: User }) {
   const q = useQuery({ queryKey: ["library"], queryFn: () => api<LibraryItem[]>("/library") });
   const [filter, setFilter] = useState("all"),
     [term, setTerm] = useState(""),
@@ -346,13 +297,15 @@ function LibraryPage({ t }: { t: T }) {
   const entries = (q.data ?? []).filter(
     (x) =>
       (contentType === "all" || contentType === x.kind) &&
-      (filter === "all" || x.base === filter) &&
-      x.title.toLocaleLowerCase().includes(term.toLocaleLowerCase()),
+      (filter === "all" || x.base === filter || `custom:${x.status_id ?? ""}` === filter) &&
+      x.title
+        .toLocaleLowerCase(user.Settings.language)
+        .includes(term.trim().toLocaleLowerCase(user.Settings.language)),
   );
   entries.sort((a, b) => {
     if (order === "rating") return (b.rating ?? 0) - (a.rating ?? 0);
     if (order === "added") return b.added_at.localeCompare(a.added_at);
-    return a.title.localeCompare(b.title);
+    return a.title.localeCompare(b.title, user.Settings.language);
   });
   return (
     <>
@@ -389,6 +342,17 @@ function LibraryPage({ t }: { t: T }) {
           {bases.map((b) => (
             <option key={b} value={b}>
               {t(b)}
+            </option>
+          ))}
+          {[
+            ...new Map(
+              (q.data ?? [])
+                .filter((item) => item.status_id && item.status_name)
+                .map((item) => [item.status_id, item.status_name]),
+            ).entries(),
+          ].map(([id, name]) => (
+            <option key={id} value={`custom:${id ?? ""}`}>
+              {name}
             </option>
           ))}
         </select>
@@ -490,8 +454,10 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
   const [browse, setBrowse] = useState("popular");
   const [exclude, setExclude] = useState(false);
   const library = useQuery({
-    queryKey: ["library"],
-    queryFn: () => api<LibraryItem[]>("/library"),
+    queryKey: ["watched-titles"],
+    queryFn: () => api<string[]>("/library/watched"),
+    enabled: exclude,
+    retry: false,
   });
   const [kind, setKind] = useState(search ? "multi" : "movie"),
     [page, setPage] = useState(1),
@@ -542,11 +508,8 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
   const visibleResults = (q.data?.results ?? []).filter(
     (item) =>
       !exclude ||
-      !library.data?.some(
-        (entry) =>
-          entry.id ===
-            `${(item.media_type ?? kind) === "anime" ? "anidb" : "tmdb"}:${item.media_type ?? kind}:${String(item.id)}` &&
-          entry.base === "completed",
+      !library.data?.includes(
+        `${(item.media_type ?? kind) === "anime" ? "anidb" : "tmdb"}:${item.media_type ?? kind}:${String(item.id)}`,
       ),
   );
   return (
@@ -720,6 +683,7 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
         />
         {t("excludeWatched")}
       </label>
+      {exclude && <p className="muted">{t("excludeWatchedHint")}</p>}
       {q.data?.exhaustive === false && (
         <p className="notice">
           {t(
@@ -737,7 +701,7 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
       {kind === "anime" && q.data?.fetched_at && (
         <p>
           {q.data.stale ? t("stale") : t("freshness")}:{" "}
-          {new Date(q.data.fetched_at).toLocaleString()}
+          {displayDate(null, q.data.fetched_at, user.Settings, t("unknown"), true)}
         </p>
       )}
       {q.isPending || (exclude && library.isPending) ? (
@@ -825,6 +789,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
   const selectedEpisode =
     parts[5] === "episode" && /^[1-9]\d*$/.test(parts[6] ?? "") ? parts[6] : undefined;
   const season = Number.isSafeInteger(requestedSeason) ? requestedSeason : 1;
+  const [castLimit, setCastLimit] = useState(20);
   const [dateMode, setDateMode] = useState("today"),
     [day, setDay] = useState(() => localDay(user.Settings.timezone)),
     [reveal, setReveal] = useState<string[]>([]);
@@ -897,6 +862,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
       whole?: boolean;
       watched: boolean;
     }) => {
+      if (scope.watched && dateMode === "chosen" && !day) throw new Error(t("chooseWatchDate"));
       const date =
         dateMode === "unknown"
           ? {}
@@ -953,6 +919,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
     },
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ["history", key] });
+      await client.invalidateQueries({ queryKey: ["watched-titles"] });
       await client.invalidateQueries({ queryKey: ["library"] });
       await client.invalidateQueries({ queryKey: ["dashboard"] });
       await client.invalidateQueries({ queryKey: ["alternate"] });
@@ -1036,7 +1003,10 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
         </div>
         <div>
           <p className="eyebrow">
-            {kind.toUpperCase()} · {(m.release_date ?? m.first_air_date)?.slice(0, 4)}
+            {t(
+              (["movie", "tv", "anime", "person"].includes(kind) ? kind : "unknown") as Key,
+            ).toLocaleUpperCase(user.Settings.language)}{" "}
+            · {(m.release_date ?? m.first_air_date)?.slice(0, 4)}
           </p>
           <h1>{m.title ?? m.name}</h1>
           <div className="tags">
@@ -1135,7 +1105,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
           )}
           <small>
             {q.data.stale ? t("stale") : t("freshness")}:{" "}
-            {new Date(q.data.fetched_at).toLocaleString(language)}
+            {displayDate(null, q.data.fetched_at, user.Settings, t("unknown"), true)}
           </small>{" "}
           <button
             className="text-button"
@@ -1194,7 +1164,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
               ))}
               <small>
                 JustWatch · {offers.data.stale ? t("stale") : t("freshness")}:{" "}
-                {new Date(offers.data.fetched_at).toLocaleDateString(language)}
+                {displayDate(null, offers.data.fetched_at, user.Settings, t("unknown"))}
               </small>
             </div>
           ) : (
@@ -1208,6 +1178,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
             {t("watchDate")}{" "}
             <select
               value={dateMode}
+              disabled={track.isPending}
               onChange={(e) => {
                 setDateMode(e.target.value);
               }}
@@ -1221,6 +1192,8 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
             <input
               aria-label={t("watchDate")}
               type="date"
+              disabled={track.isPending}
+              required
               value={day}
               onChange={(e) => {
                 setDay(e.target.value);
@@ -1346,15 +1319,19 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
                 );
               const show = seen || user.Settings.spoilers || reveal.includes(eid);
               return (
-                <article className="episode" key={ep.id}>
+                <article
+                  className="episode"
+                  key={ep.id}
+                  aria-labelledby={`episode-heading-${kind}-${String(ep.id)}`}
+                >
                   <span className="episode-number">
                     {ep.native_number ?? String(ep.episode_number).padStart(2, "0")}
                   </span>
                   <div>
                     {selectedEpisode ? (
-                      <h3>{ep.name}</h3>
+                      <h3 id={`episode-heading-${kind}-${String(ep.id)}`}>{ep.name}</h3>
                     ) : (
-                      <h3>
+                      <h3 id={`episode-heading-${kind}-${String(ep.id)}`}>
                         <a href={episodeLink(key, season, eid)}>{ep.name}</a>
                       </h3>
                     )}
@@ -1374,6 +1351,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
                   {entry && (
                     <button
                       data-watch-action="episode"
+                      aria-describedby={`episode-heading-${kind}-${String(ep.id)}`}
                       className={seen ? "checked" : ""}
                       disabled={track.isPending || effective.isPending || !!effective.error}
                       onClick={() => {
@@ -1438,9 +1416,9 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
         <section>
           <h2>{t("cast")}</h2>
           <div className="people">
-            {m.credits.cast.slice(0, 20).map((c) => (
+            {m.credits.cast.slice(0, castLimit).map((c, index) => (
               <a
-                key={c.id}
+                key={`${c.source ?? "tmdb"}:${String(c.id)}:${String(index)}`}
                 href={
                   c.source === "anidb"
                     ? `#creator/${String(c.id)}`
@@ -1453,6 +1431,17 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
               </a>
             ))}
           </div>
+          {m.credits.cast.length > 20 && (
+            <div className="toolbar">
+              {castLimit < m.credits.cast.length && (
+                <button onClick={() => setCastLimit(castLimit + 20)}>{t("showMore")}</button>
+              )}
+              {castLimit > 20 && <button onClick={() => setCastLimit(20)}>{t("showLess")}</button>}
+              <span role="status">
+                {Math.min(castLimit, m.credits.cast.length)} / {m.credits.cast.length}
+              </span>
+            </div>
+          )}
           <h2>{t("crew")}</h2>
           <div className="crew">
             {m.credits.crew.map((c, i) => (
@@ -1499,254 +1488,6 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
     </>
   );
 }
-function DashboardPage({ page, user, t }: { page: string | undefined; user: User; t: T }) {
-  const q = useQuery({ queryKey: ["dashboard"], queryFn: () => api<Dashboard>("/dashboard") });
-  const client = useQueryClient();
-  const [dragged, setDragged] = useState<string | null>(null);
-  const order = useMutation({
-    mutationFn: (ids: string[]) => api("/up-next/order", "PUT", { ids }),
-    onSuccess: () => client.invalidateQueries({ queryKey: ["dashboard"] }),
-  });
-  function move(id: string, before: string) {
-    const ids = (q.data?.up_next ?? []).map((e) => e.catalog_id).filter((x) => x !== id);
-    ids.splice(Math.max(0, ids.indexOf(before)), 0, id);
-    order.mutate(ids);
-  }
-  if (q.isPending) return <p>{t("loading")}</p>;
-  if (q.error)
-    return (
-      <ErrorBox
-        error={q.error}
-        retry={() => {
-          void q.refetch();
-        }}
-        t={t}
-      />
-    );
-  if (!q.data) return null;
-  const d = q.data;
-  if (page === "statistics")
-    return (
-      <>
-        <p className="eyebrow">{t("watchingStory")}</p>
-        <h1>{t("statistics")}</h1>
-        <div className="metric-grid">
-          <div>
-            <span>{t("watchedMovies")}</span>
-            <strong>{d.statistics.movies}</strong>
-          </div>
-          <div>
-            <span>{t("watchedEpisodes")}</span>
-            <strong>{d.statistics.episodes}</strong>
-          </div>
-        </div>
-        <h2>{t("activity")}</h2>
-        <p>{t("unknownDates")}</p>
-        {d.statistics.monthly.map((m) => (
-          <div className="bar-row" key={m.month}>
-            <span>{m.month}</span>
-            <meter
-              min="0"
-              max={Math.max(...d.statistics.monthly.map((x) => x.count), 1)}
-              value={m.count}
-            />
-            <strong>{m.count}</strong>
-          </div>
-        ))}
-      </>
-    );
-  if (page === "calendar")
-    return (
-      <>
-        <h1>{t("calendar")}</h1>
-        <div className="calendar-list">
-          {d.upcoming.map((e) => (
-            <a href={episodeLink(e.catalog_id, e.season, e.id)} key={e.id}>
-              <time>
-                {e.air_time
-                  ? new Date(e.air_time).toLocaleString(user.Settings.language, {
-                      timeZone: user.Settings.timezone,
-                    })
-                  : e.air_date}
-              </time>
-              <strong>{e.title}</strong>
-              <span>
-                S{e.season} · E{e.number}
-              </span>
-            </a>
-          ))}
-        </div>
-        {!d.upcoming.length && <Empty t={t} />}
-      </>
-    );
-  return (
-    <>
-      <div className="page-heading">
-        <div>
-          <p className="eyebrow">{t("makeTime")}</p>
-          <h1>{t("home")}</h1>
-          <p className="muted">{user.Name}</p>
-        </div>
-        <a className="button" href="#discover">
-          {t("discover")} ↗
-        </a>
-      </div>
-      <div className="section-heading">
-        <h2>{t("upNext")}</h2>
-        <a href="#library">{t("viewAll")} →</a>
-      </div>
-      {!d.up_next.length ? (
-        <Empty t={t} />
-      ) : (
-        <div className="next-grid">
-          {d.up_next.map((e) => (
-            <a
-              key={e.episode_id}
-              className="next-card"
-              draggable
-              onDragStart={() => {
-                setDragged(e.catalog_id);
-              }}
-              onDragOver={(event) => {
-                event.preventDefault();
-              }}
-              onDrop={(event) => {
-                event.preventDefault();
-                if (dragged) move(dragged, e.catalog_id);
-              }}
-
-              href={
-                e.view_anchor
-                  ? `#views/${encodeURIComponent(e.view_anchor)}`
-                  : episodeLink(e.catalog_id, e.season, e.episode_id)
-              }
-            >
-              <span className="play">▷</span>
-
-              <p>
-                S{e.season} · E{e.number}
-              </p>
-              <h2>{e.title}</h2>
-              {e.incomplete && <small>{t("alternateIncomplete")}</small>}
-              <span>{t("details")} →</span>
-            </a>
-          ))}
-        </div>
-      )}
-      {order.error && (
-        <p className="error" role="alert">
-          {order.error.message}
-        </p>
-      )}
-      {d.up_next.length > 1 && (
-        <div className="toolbar">
-          {d.up_next.slice(1).map((item, i) => (
-            <button
-              key={item.catalog_id}
-              disabled={order.isPending}
-              onClick={() => {
-                const before = d.up_next[i];
-                if (before) move(item.catalog_id, before.catalog_id);
-              }}
-            >
-              ↑ {item.title}
-            </button>
-          ))}
-        </div>
-      )}
-      <div className="dashboard-columns">
-        <section>
-          <h2>{t("recent")}</h2>
-          {d.activity.map((e, i) => (
-            <a
-              className="activity-row"
-              key={i}
-              href={
-                e.view_anchor
-                  ? `#views/${encodeURIComponent(e.view_anchor)}`
-                  : `#detail/${e.catalog_id.split(":").slice(1).join("/")}`
-              }
-            >
-              <span className="activity-dot" />
-              <strong>{e.title}</strong>
-              <small>
-                {e.watched_date ??
-                  (e.watched_time ? new Date(e.watched_time).toLocaleDateString() : t("unknown"))}
-              </small>
-            </a>
-          ))}
-        </section>
-        <section>
-          <h2>{t("upcoming")}</h2>
-          {d.upcoming.slice(0, 8).map((e) => (
-            <a className="activity-row" key={e.id} href={episodeLink(e.catalog_id, e.season, e.id)}>
-              <strong>{e.title}</strong>
-              <small>
-                {e.air_date ?? (e.air_time ? new Date(e.air_time).toLocaleString() : "")}
-              </small>
-            </a>
-          ))}
-        </section>
-      </div>
-    </>
-  );
-}
-function Filmography({ credits, t }: { credits: { cast: Title[]; crew: Title[] }; t: T }) {
-  const [role, setRole] = useState("cast"),
-    [kind, setKind] = useState("all"),
-    [order, setOrder] = useState("release");
-  const results = (role === "cast" ? credits.cast : credits.crew)
-    .filter((item) => kind === "all" || item.media_type === kind)
-    .sort((a, b) =>
-      order === "popularity"
-        ? (b.popularity ?? 0) - (a.popularity ?? 0)
-        : (b.release_date ?? b.first_air_date ?? "").localeCompare(
-            a.release_date ?? a.first_air_date ?? "",
-          ),
-    );
-  return (
-    <section>
-      <h2>{t("filmography")}</h2>
-      <div className="toolbar">
-        <select
-          aria-label={t("credits")}
-          value={role}
-          onChange={(e) => {
-            setRole(e.target.value);
-          }}
-        >
-          <option value="cast">{t("cast")}</option>
-          <option value="crew">{t("crew")}</option>
-        </select>
-        <select
-          aria-label={t("kind")}
-          value={kind}
-          onChange={(e) => {
-            setKind(e.target.value);
-          }}
-        >
-          {["all", "movie", "tv", "anime"].map((k) => (
-            <option key={k} value={k}>
-              {t(k as Key)}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label={t("sort")}
-          value={order}
-          onChange={(e) => {
-            setOrder(e.target.value);
-          }}
-        >
-          <option value="release">{t("release")}</option>
-          <option value="popularity">{t("popularity")}</option>
-        </select>
-      </div>
-      <Cards results={results} t={t} />
-    </section>
-  );
-}
-
 function NativeCreatorPage({ id, t, user }: { id: string; t: T; user: User }) {
   const q = useQuery({
     queryKey: ["native-creator", id, user.Settings.metadata_language, user.Settings.anime_title],

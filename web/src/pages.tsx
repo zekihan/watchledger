@@ -1,3 +1,4 @@
+import { usePreviewRequest } from "./use-preview-request";
 import { StatusReplacement } from "./status-replacement";
 import { InstallPanel } from "./install";
 import type { useInstall } from "./use-install";
@@ -199,13 +200,30 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
     queryKey: ["library"],
     queryFn: () => api<LibraryItem[]>("/library"),
   });
-  const [edit, setEdit] = useState<List | null>(null),
-    [drag, setDrag] = useState<string | null>(null);
+  const [edit, setEdit] = useState<List | null>(null);
+  const drag = useRef<{ list: string; member: string } | null>(null);
+  const [orderNotice, setOrderNotice] = useState("");
+  function moveMember(id: string, position: number) {
+    if (
+      save.isPending ||
+      !edit ||
+      !edit.members.includes(id) ||
+      position < 0 ||
+      position >= edit.members.length
+    )
+      return;
+    const members = edit.members.filter((member) => member !== id);
+    members.splice(position, 0, id);
+    setEdit({ ...edit, members });
+    const title = library.data?.find((item) => item.id === id)?.title ?? id;
+    setOrderNotice(`${title}: ${t("position")} ${position + 1} / ${members.length}`);
+  }
   const [viewID, setViewID] = useState<string | null>(null);
   const statuses = useQuery({ queryKey: ["statuses"], queryFn: () => api<Status[]>("/statuses") });
+  const needsProviders = edit?.kind === "smart" && hasRuleField(edit.rule, "service");
   const providers = useQuery({
     queryKey: ["provider-options", user.Settings.country ?? "TR"],
-    enabled: edit?.kind === "smart" && hasRuleField(edit.rule, "service"),
+    enabled: needsProviders,
     queryFn: async () => {
       const country = user.Settings.country ?? "TR";
       const responses = await Promise.all([
@@ -303,20 +321,36 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
           disabled={save.isPending}
           onClick={() => {
             setViewID(null);
+            drag.current = null;
+            setOrderNotice("");
             setEdit({ id: "", name: "", kind: "manual", rule: null, sort: "title", members: [] });
           }}
         >
           ＋ {t("newList")}
         </button>
       </div>
-      {[q.error, library.error, statuses.error, providers.error, save.error, remove.error]
-        .filter(Boolean)
-        .map((e, i) => (
-          <p role="alert" className="error" key={i}>
-            {e?.message}
-          </p>
-        ))}
-      {q.isPending && <p>{t("loading")}</p>}
+      {[q, library, statuses, ...(needsProviders ? [providers] : [])].map((query, index) =>
+        query.error ? (
+          <div role="alert" className="error" key={index}>
+            {query.error.message}
+            <button
+              disabled={query.isFetching}
+              onClick={() => {
+                void query.refetch();
+              }}
+            >
+              {t("retry")}
+            </button>
+          </div>
+        ) : null,
+      )}
+      {[save.error, remove.error].filter(Boolean).map((error, index) => (
+        <p role="alert" className="error" key={index}>
+          {error?.message}
+        </p>
+      ))}
+      {q.isPending && <p role="status">{t("loading")}</p>}
+      {!edit && !viewed && q.isSuccess && q.data.length === 0 && <p>{t("empty")}</p>}
       {edit ? (
         <section className="panel">
           <fieldset disabled={save.isPending} style={{ border: 0, padding: 0, minWidth: 0 }}>
@@ -345,19 +379,21 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
                 <option value="manual">{t("manual")}</option>
                 <option value="smart">{t("smart")}</option>
               </select>
-              <select
-                aria-label={t("sort")}
-                value={edit.sort}
-                onChange={(e) => {
-                  setEdit({ ...edit, sort: e.target.value });
-                }}
-              >
-                {["title", "release", "rating", "added"].map((s) => (
-                  <option key={s} value={s}>
-                    {t(s as Key)}
-                  </option>
-                ))}
-              </select>
+              {edit.kind === "smart" && (
+                <select
+                  aria-label={t("sort")}
+                  value={edit.sort}
+                  onChange={(e) => {
+                    setEdit({ ...edit, sort: e.target.value });
+                  }}
+                >
+                  {["title", "release", "rating", "added"].map((s) => (
+                    <option key={s} value={s}>
+                      {t(s as Key)}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
             {edit.kind === "smart" && edit.rule ? (
               <>
@@ -370,19 +406,37 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
                   }}
                 />
                 <div className="preview">
-                  <h3>
-                    {t("preview")}: {preview.data?.count ?? "…"}
-                  </h3>
-                  {preview.error && <p role="alert">{preview.error.message}</p>}
-                  {preview.data?.results.slice(0, 20).map((x) => (
-                    <a
-                      className="chip"
-                      key={x.id}
-                      href={`#detail/${x.id.split(":").slice(1).join("/")}`}
-                    >
-                      {x.title}
-                    </a>
-                  ))}
+                  <h3>{t("preview")}</h3>
+                  {preview.isFetching && <p role="status">{t("loading")}</p>}
+                  {preview.error && (
+                    <div role="alert">
+                      {preview.error.message}
+                      <button
+                        disabled={preview.isFetching}
+                        onClick={() => {
+                          void preview.refetch();
+                        }}
+                      >
+                        {t("retry")}
+                      </button>
+                    </div>
+                  )}
+                  {!preview.isFetching && !preview.error && preview.data && (
+                    <p role="status">
+                      {preview.data.count} {t("title")}
+                    </p>
+                  )}
+                  {!preview.isFetching &&
+                    !preview.error &&
+                    preview.data?.results.slice(0, 20).map((x) => (
+                      <a
+                        className="chip"
+                        key={x.id}
+                        href={`#detail/${x.id.split(":").slice(1).join("/")}`}
+                      >
+                        {x.title}
+                      </a>
+                    ))}
                 </div>
               </>
             ) : (
@@ -402,24 +456,30 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
                       </button>
                     ))}
                 </div>
+                <p role="status" aria-live="polite">
+                  {orderNotice}
+                </p>
                 <ol className="ordered-list">
                   {edit.members.map((id, i) => (
                     <li
                       key={id}
-                      draggable
-                      onDragStart={() => {
-                        setDrag(id);
+                      draggable={!save.isPending}
+                      onDragStart={(event) => {
+                        drag.current = { list: edit.id, member: id };
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData("text/plain", id);
+                      }}
+                      onDragEnd={() => {
+                        drag.current = null;
                       }}
                       onDragOver={(e) => {
                         e.preventDefault();
                       }}
                       onDrop={(e) => {
                         e.preventDefault();
-                        if (drag) {
-                          const members = edit.members.filter((x) => x !== drag);
-                          members.splice(i, 0, drag);
-                          setEdit({ ...edit, members });
-                        }
+                        const source = drag.current;
+                        drag.current = null;
+                        if (source?.list === edit.id) moveMember(source.member, i);
                       }}
                     >
                       <span>⠿ {library.data?.find((x) => x.id === id)?.title ?? id}</span>
@@ -427,10 +487,7 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
                         disabled={i === 0}
                         aria-label={`${t("moveUp")}: ${library.data?.find((item) => item.id === id)?.title ?? id}`}
                         onClick={() => {
-                          const members = [...edit.members];
-                          members.splice(i, 1);
-                          members.splice(i - 1, 0, id);
-                          setEdit({ ...edit, members });
+                          moveMember(id, i - 1);
                         }}
                       >
                         ↑
@@ -439,15 +496,13 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
                         disabled={i === edit.members.length - 1}
                         aria-label={`${t("moveDown")}: ${library.data?.find((item) => item.id === id)?.title ?? id}`}
                         onClick={() => {
-                          const members = [...edit.members];
-                          members.splice(i, 1);
-                          members.splice(i + 1, 0, id);
-                          setEdit({ ...edit, members });
+                          moveMember(id, i + 1);
                         }}
                       >
                         ↓
                       </button>
                       <button
+                        aria-label={`${t("remove")}: ${library.data?.find((item) => item.id === id)?.title ?? id}`}
                         onClick={() => {
                           setEdit({ ...edit, members: edit.members.filter((x) => x !== id) });
                         }}
@@ -476,6 +531,8 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
               </button>
               <button
                 onClick={() => {
+                  drag.current = null;
+                  setOrderNotice("");
                   setEdit(null);
                 }}
               >
@@ -492,6 +549,8 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
             setViewID(null);
           }}
           onEdit={() => {
+            drag.current = null;
+            setOrderNotice("");
             setEdit(viewed);
           }}
         />
@@ -505,6 +564,8 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
               <div className="toolbar">
                 <button
                   onClick={() => {
+                    drag.current = null;
+                    setOrderNotice("");
                     setEdit(l);
                   }}
                 >
@@ -770,7 +831,7 @@ export function SettingsPage({
           >
             <option value="romaji">Romaji</option>
             <option value="native">{t("native")}</option>
-            <option value="english">English</option>
+            <option value="english">{t("englishTitle")}</option>
           </select>
         </label>
         <label className="wide">
@@ -910,7 +971,7 @@ export function SettingsPage({
         <h2>
           {t("export")} / {t("restore")}
         </h2>
-        <PortabilityPanel t={t} />
+        <PortabilityPanel t={t} settings={user.Settings} />
       </section>
       <InstallPanel t={t} state={installation} />
       <button
@@ -925,11 +986,11 @@ export function SettingsPage({
   );
 }
 
-export function PortabilityPanel({ t }: { t: T }) {
+export function PortabilityPanel({ t, settings = {} }: { t: T; settings?: Settings }) {
   const client = useQueryClient();
   const [backed, setBacked] = useState(false);
   const [localError, setLocalError] = useState("");
-  const generation = useRef(0);
+  const beginPreview = usePreviewRequest();
   const [preview, setPreview] = useState<{
     id: string;
     additions: number;
@@ -945,7 +1006,7 @@ export function PortabilityPanel({ t }: { t: T }) {
     },
   });
   async function read(file: File | undefined) {
-    const current = ++generation.current;
+    const request = beginPreview();
     setPreview(null);
     setReading(false);
     setLocalError("");
@@ -958,18 +1019,18 @@ export function PortabilityPanel({ t }: { t: T }) {
     setReading(true);
     try {
       const value: unknown = JSON.parse(await file.text());
+      if (!request.current()) return;
       const result = await api<{
         id: string;
         additions: number;
         conflicts: string[];
         history_candidates: number;
-      }>("/restore/preview", "POST", value);
-      if (current === generation.current) setPreview(result);
+      }>("/restore/preview", "POST", value, request.signal);
+      if (request.current()) setPreview(result);
     } catch (error) {
-      if (current === generation.current)
-        setLocalError(error instanceof Error ? error.message : t("error"));
+      if (request.current()) setLocalError(error instanceof Error ? error.message : t("error"));
     } finally {
-      if (current === generation.current) setReading(false);
+      if (request.current()) setReading(false);
     }
   }
   return (
@@ -1032,7 +1093,7 @@ export function PortabilityPanel({ t }: { t: T }) {
       )}
       {apply.isSuccess && <p role="status">{t("restoreDone")}</p>}
       <SimklPanel t={t} backed={backed} />
-      <CustomListImport t={t} backed={backed} />
+      <CustomListImport t={t} backed={backed} settings={settings} />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ListsPage } from "./pages";
@@ -141,4 +141,211 @@ test("manual-list move-down control saves the chosen member order", async () => 
   await userEvent.click(screen.getByRole("button", { name: en.save }));
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0]).toMatchObject({ members: ["tmdb:movie:2", "tmdb:movie:1"] });
+});
+
+test("manual drag order is announced and a cancelled drag cannot reorder a later drop", async () => {
+  const writes: unknown[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string, init?: RequestInit) => {
+      if (path === "/api/lists" && init?.method === "POST" && typeof init.body === "string")
+        writes.push(JSON.parse(init.body));
+      return Promise.resolve(new Response(JSON.stringify(fixtures(path)), { status: 200 }));
+    }),
+  );
+  mount();
+  await userEvent.click(await screen.findByRole("button", { name: en.editList }));
+  const alpha = screen.getByText("⠿ Alpha").closest("li");
+  const beta = screen.getByText("⠿ Beta").closest("li");
+  if (!alpha || !beta) throw new Error("Missing ordered members");
+  const dataTransfer = { setData: vi.fn(), effectAllowed: "" };
+  fireEvent.dragStart(alpha, { dataTransfer });
+  fireEvent.drop(beta, { dataTransfer });
+  expect(screen.getByRole("status").textContent).toBe("Alpha: Position 2 / 2");
+  fireEvent.dragStart(alpha, { dataTransfer });
+  fireEvent.dragEnd(alpha, { dataTransfer });
+  fireEvent.drop(beta, { dataTransfer });
+  await userEvent.click(screen.getByRole("button", { name: en.save }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]).toMatchObject({ members: ["tmdb:movie:2", "tmdb:movie:1"] });
+});
+
+test("failed list loading can be retried and an empty collection is explicit", async () => {
+  let attempts = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string) => {
+      if (path === "/api/lists") {
+        attempts++;
+        return Promise.resolve(
+          attempts === 1
+            ? new Response("Synthetic temporary failure", { status: 503 })
+            : new Response("[]", { status: 200 }),
+        );
+      }
+      return Promise.resolve(new Response(JSON.stringify(fixtures(path)), { status: 200 }));
+    }),
+  );
+  mount();
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("Synthetic temporary failure");
+  await userEvent.click(within(alert).getByRole("button", { name: en.retry }));
+  expect(await screen.findByText(en.empty)).toBeTruthy();
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
+test("smart preview failures have explicit retry and cannot be saved until recovered", async () => {
+  let fail = true;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string) =>
+      Promise.resolve(
+        path === "/api/lists/preview" && fail
+          ? new Response("Synthetic preview failure", { status: 503 })
+          : new Response(JSON.stringify(fixtures(path)), { status: 200 }),
+      ),
+    ),
+  );
+  mount();
+  await screen.findByText("Favorites");
+  await userEvent.click(screen.getByRole("button", { name: `＋ ${en.newList}` }));
+  await userEvent.type(screen.getByRole("textbox", { name: en.name }), "Recovered preview");
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: en.kind }), "smart");
+  const alert = await screen.findByRole("alert");
+  expect(screen.getByRole<HTMLButtonElement>("button", { name: en.save }).disabled).toBe(true);
+  fail = false;
+  await userEvent.click(within(alert).getByRole("button", { name: en.retry }));
+  await waitFor(() =>
+    expect(screen.getByRole<HTMLButtonElement>("button", { name: en.save }).disabled).toBe(false),
+  );
+  expect(screen.getByRole("link", { name: "Alpha" })).toBeTruthy();
+});
+
+test("visual nested rules preserve OR, NOT and explicit unknown semantics when saved", async () => {
+  const writes: unknown[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string, init?: RequestInit) => {
+      if (path === "/api/lists" && init?.method === "POST" && typeof init.body === "string")
+        writes.push(JSON.parse(init.body));
+      return Promise.resolve(new Response(JSON.stringify(fixtures(path)), { status: 200 }));
+    }),
+  );
+  mount();
+  await screen.findByText("Favorites");
+  await userEvent.click(screen.getByRole("button", { name: `＋ ${en.newList}` }));
+  await userEvent.type(screen.getByRole("textbox", { name: en.name }), "Unknown or not watching");
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: en.kind }), "smart");
+  const root = screen.getByRole("button", { name: `＋ ${en.addGroup}` }).closest("fieldset");
+  if (!root) throw new Error("Missing rule group");
+  await userEvent.selectOptions(
+    within(root).getAllByRole("combobox", { name: en.condition })[0]!,
+    "or",
+  );
+  await userEvent.selectOptions(within(root).getByRole("combobox", { name: en.field }), "rating");
+  await userEvent.selectOptions(
+    within(root).getAllByRole("combobox", { name: en.condition })[1]!,
+    "unknown",
+  );
+  expect(within(root).queryByRole("spinbutton", { name: en.value })).toBeNull();
+  await userEvent.click(within(root).getByRole("button", { name: `＋ ${en.addGroup}` }));
+  const groups = within(root).getAllByRole("group");
+  const nested = groups[0];
+  if (!nested) throw new Error("Missing nested group");
+  await userEvent.selectOptions(
+    within(nested).getAllByRole("combobox", { name: en.condition })[0]!,
+    "not",
+  );
+  await waitFor(() =>
+    expect(screen.getByRole<HTMLButtonElement>("button", { name: en.save }).disabled).toBe(false),
+  );
+  await userEvent.click(screen.getByRole("button", { name: en.save }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]).toMatchObject({
+    rule: {
+      op: "or",
+      children: [
+        { op: "unknown", field: "rating" },
+        { op: "not", children: [{ op: "eq", field: "base", value: "watching" }] },
+      ],
+    },
+  });
+});
+
+test("dependent list names block deletion and smart membership retains a stable identifier", async () => {
+  const writes: unknown[] = [];
+  const dependent = {
+    id: "smart-dependent",
+    name: "High ratings",
+    kind: "smart",
+    rule: { op: "eq", field: "list", value: "list-a" },
+    sort: "rating",
+    members: [],
+    dependents: [],
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string, init?: RequestInit) => {
+      if (path === "/api/lists" && init?.method === "POST" && typeof init.body === "string")
+        writes.push(JSON.parse(init.body));
+      return Promise.resolve(
+        new Response(
+          JSON.stringify(
+            path === "/api/lists"
+              ? [{ ...manual, dependents: [dependent.id] }, dependent]
+              : fixtures(path),
+          ),
+          { status: 200 },
+        ),
+      );
+    }),
+  );
+  mount();
+  const card = (await screen.findByRole("heading", { name: "Favorites" })).closest("article");
+  if (!card) throw new Error("Missing manual list");
+  expect(within(card).getByRole<HTMLButtonElement>("button", { name: en.remove }).disabled).toBe(
+    true,
+  );
+  expect(within(card).getByText(/High ratings/)).toBeTruthy();
+  await userEvent.click(screen.getByRole("button", { name: `＋ ${en.newList}` }));
+  await userEvent.type(screen.getByRole("textbox", { name: en.name }), "Smart reference");
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: en.kind }), "smart");
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: en.field }), "list");
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: en.value }), dependent.id);
+  await waitFor(() =>
+    expect(screen.getByRole<HTMLButtonElement>("button", { name: en.save }).disabled).toBe(false),
+  );
+  await userEvent.click(screen.getByRole("button", { name: en.save }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]).toMatchObject({
+    rule: { op: "and", children: [{ op: "eq", field: "list", value: "smart-dependent" }] },
+  });
+});
+
+test("an inactive provider selector does not leak cached settings errors into private lists", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string) =>
+      Promise.resolve(new Response(JSON.stringify(fixtures(path)), { status: 200 })),
+    ),
+  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  await client
+    .fetchQuery({
+      queryKey: ["provider-options", "TR"],
+      queryFn: () => Promise.reject(new Error("Synthetic provider outage")),
+    })
+    .catch(() => {});
+  render(
+    <QueryClientProvider client={client}>
+      <ListsPage
+        t={(key) => en[key]}
+        user={{ ID: "synthetic", Name: "Synthetic", Admin: false, Settings: { country: "TR" } }}
+      />
+    </QueryClientProvider>,
+  );
+  await screen.findByText("Favorites");
+  expect(screen.queryByText("Synthetic provider outage")).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: `＋ ${en.newList}` }));
+  expect(screen.queryByText("Synthetic provider outage")).toBeNull();
 });
