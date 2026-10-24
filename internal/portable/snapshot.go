@@ -2,6 +2,7 @@
 package portable
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +12,9 @@ import (
 	"strconv"
 	"time"
 )
+
+// MaxSnapshotBytes is shared by successful export and restore acceptance.
+const MaxSnapshotBytes = 64 << 20
 
 type Catalog struct {
 	ID        string          `json:"id"`
@@ -51,14 +55,16 @@ type Library struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 type History struct {
-	ID          string          `json:"id"`
-	CatalogID   string          `json:"catalog_id"`
-	EpisodeID   *string         `json:"episode_id"`
-	WatchedDate *string         `json:"watched_date"`
-	WatchedTime *time.Time      `json:"watched_time"`
-	Provenance  json.RawMessage `json:"provenance"`
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at"`
+	IntentScope   []string        `json:"intent_scope,omitempty"`
+	LocalActionAt *time.Time      `json:"local_action_at,omitempty"`
+	ID            string          `json:"id"`
+	CatalogID     string          `json:"catalog_id"`
+	EpisodeID     *string         `json:"episode_id"`
+	WatchedDate   *string         `json:"watched_date"`
+	WatchedTime   *time.Time      `json:"watched_time"`
+	Provenance    json.RawMessage `json:"provenance"`
+	CreatedAt     time.Time       `json:"created_at"`
+	UpdatedAt     time.Time       `json:"updated_at"`
 }
 type List struct {
 	Source   *string     `json:"source,omitempty"`
@@ -71,9 +77,10 @@ type List struct {
 	Members  []string    `json:"members"`
 }
 type Tombstone struct {
-	CatalogID  string    `json:"catalog_id"`
-	EpisodeKey string    `json:"episode_key"`
-	DeletedAt  time.Time `json:"deleted_at"`
+	IntentScope []string  `json:"intent_scope,omitempty"`
+	CatalogID   string    `json:"catalog_id"`
+	EpisodeKey  string    `json:"episode_key"`
+	DeletedAt   time.Time `json:"deleted_at"`
 }
 type SIMKLLink struct {
 	SourceKey string `json:"source_key"`
@@ -93,6 +100,7 @@ type AlternateHistoryView struct {
 	AnchorID  string `json:"anchor_id"`
 }
 type Snapshot struct {
+	CatalogProof         string                 `json:"catalog_proof,omitempty"`
 	AlternateViews       []AlternateHistoryView `json:"alternate_views,omitempty"`
 	ListSourceTombstones []ListSourceTombstone  `json:"list_source_tombstones,omitempty"`
 	SIMKLLinks           []SIMKLLink            `json:"simkl_links,omitempty"`
@@ -109,6 +117,9 @@ type Snapshot struct {
 }
 
 func (s Snapshot) Validate() error {
+	if len(s.CatalogProof) > 512 {
+		return errors.New("invalid catalog proof")
+	}
 	if s.Version != 1 {
 		return errors.New("unsupported backup version")
 	}
@@ -168,6 +179,9 @@ func (s Snapshot) Validate() error {
 	catalog, episodes, statuses, library := map[string]bool{}, map[string]string{}, map[string]string{}, map[string]bool{}
 	catalogKinds := map[string]string{}
 	for _, c := range s.Catalog {
+		if c.FetchedAt.After(time.Now().Add(5 * time.Minute)) {
+			return errors.New("catalog freshness cannot be in the future")
+		}
 		if c.ID == "" || c.Source == "" || c.SourceID == "" || c.Title == "" || catalog[c.ID] {
 			return errors.New("invalid or duplicate catalog identity")
 		}
@@ -250,6 +264,12 @@ func (s Snapshot) Validate() error {
 		seenLinks[link.SourceKey] = true
 	}
 	for _, h := range s.History {
+		if !validIntentScope(h.IntentScope) {
+			return errors.New("invalid history intent scope")
+		}
+		if h.LocalActionAt != nil && h.LocalActionAt.After(time.Now().Add(5*time.Minute)) {
+			return errors.New("local action cannot be in the future")
+		}
 		if !library[h.CatalogID] && !views[h.CatalogID] {
 			return errors.New("history without library title")
 		}
@@ -276,6 +296,9 @@ func (s Snapshot) Validate() error {
 		}
 	}
 	for _, t := range s.Tombstones {
+		if !validIntentScope(t.IntentScope) {
+			return errors.New("invalid tombstone intent scope")
+		}
 		if (!library[t.CatalogID] && !views[t.CatalogID]) || (t.EpisodeKey != "" && episodes[t.EpisodeKey] != t.CatalogID) {
 			return errors.New("invalid tombstone reference")
 		}
@@ -335,4 +358,26 @@ func (s Snapshot) Validate() error {
 		deletedSources[deleted.SourceID] = true
 	}
 	return smart.Acyclic(graph)
+}
+
+// CatalogDigest excludes private records; only shared metadata needs provenance.
+func (s Snapshot) CatalogDigest() ([]byte, error) {
+	raw, err := json.Marshal(struct {
+		Catalog  []Catalog `json:"catalog"`
+		Episodes []Episode `json:"episodes"`
+	}{s.Catalog, s.Episodes})
+	if err != nil {
+		return nil, err
+	}
+	digest := sha256.Sum256(raw)
+	return digest[:], nil
+}
+
+func validIntentScope(scope []string) bool {
+	for _, part := range scope {
+		if part == "" || len(part) > 64 {
+			return false
+		}
+	}
+	return true
 }

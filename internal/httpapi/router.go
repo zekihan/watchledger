@@ -37,7 +37,7 @@ func NewApplication(webDir string, pool *pgxpool.Pool, identity *auth.Service, t
 	mux.HandleFunc("GET /auth/login", identity.Login)
 	mux.HandleFunc("GET /auth/callback", identity.Callback)
 	api := http.NewServeMux()
-	application := &API{DB: pool, Catalog: &catalog.Cache{DB: pool, Provider: catalog.New(tmdbToken)}}
+	application := &API{Identity: identity, DB: pool, Catalog: &catalog.Cache{DB: pool, Provider: catalog.New(tmdbToken)}}
 	var native anidb.Config
 	if len(animeConfig) > 0 {
 		native = animeConfig[0]

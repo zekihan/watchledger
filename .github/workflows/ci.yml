@@ -45,6 +45,11 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci
+      - name: Audit dependency advisories
+        if: matrix.browser == 'chromium'
+        run: |
+          npm audit --audit-level=high
+          go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
       - uses: golangci/golangci-lint-action@v9
         with:
           version: v2.15.0

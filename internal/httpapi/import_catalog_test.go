@@ -108,7 +108,7 @@ func TestSIMKLLoadsExplicitProviderIdentityBeforeResolve(t *testing.T) {
 	defer upstream.Close()
 	provider := catalog.New("synthetic-provider-token")
 	provider.BaseURL = upstream.URL
-	application := &API{DB: p, Catalog: &catalog.Cache{DB: p, Provider: provider}}
+	application := &API{Identity: identity, DB: p, Catalog: &catalog.Cache{DB: p, Provider: provider}}
 	mux := http.NewServeMux()
 	application.routes(mux)
 	handler = identity.Middleware(mux)

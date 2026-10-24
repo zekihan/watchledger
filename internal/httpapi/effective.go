@@ -14,6 +14,7 @@ import (
 )
 
 type recordedLink struct {
+	IntentScope   []string   `json:"-"`
 	Movie         bool       `json:"movie,omitempty"`
 	RecordID      string     `json:"record_id"`
 	LocalActionAt *time.Time `json:"-"`
@@ -66,14 +67,14 @@ func loadEffective(ctx context.Context, db queryRows, uid, catalogID string, ext
 			needed = append(needed, edge.From, edge.To)
 		}
 	}
-	rows, err = db.Query(ctx, "SELECT h.id::text,coalesce(h.episode_id,h.catalog_id),h.catalog_id,c.title,h.local_action_at,(h.episode_id IS NULL) FROM history h JOIN catalog c ON c.id=h.catalog_id WHERE h.user_id=$1 AND (h.episode_id IS NOT NULL OR c.kind='movie') AND ($2='' OR h.catalog_id=$2 OR coalesce(h.episode_id,h.catalog_id)=ANY($3::text[]) OR h.catalog_id=ANY($4::text[]))", uid, catalogID, needed, extraCatalogs)
+	rows, err = db.Query(ctx, "SELECT h.id::text,coalesce(h.episode_id,h.catalog_id),h.catalog_id,c.title,h.local_action_at,h.intent_scope,(h.episode_id IS NULL) FROM history h JOIN catalog c ON c.id=h.catalog_id WHERE h.user_id=$1 AND (h.episode_id IS NOT NULL OR c.kind='movie') AND ($2='' OR h.catalog_id=$2 OR coalesce(h.episode_id,h.catalog_id)=ANY($3::text[]) OR h.catalog_id=ANY($4::text[]))", uid, catalogID, needed, extraCatalogs)
 	if err != nil {
 		return out, err
 	}
 	watched := map[string]bool{}
 	for rows.Next() {
 		var link recordedLink
-		if err = rows.Scan(&link.RecordID, &link.EpisodeID, &link.CatalogID, &link.Title, &link.LocalActionAt, &link.Movie); err != nil {
+		if err = rows.Scan(&link.RecordID, &link.EpisodeID, &link.CatalogID, &link.Title, &link.LocalActionAt, &link.IntentScope, &link.Movie); err != nil {
 			rows.Close()
 			return out, err
 		}
@@ -89,14 +90,15 @@ func loadEffective(ctx context.Context, db queryRows, uid, catalogID string, ext
 	for id, state := range out.RawStates {
 		out.States[id] = state
 	}
-	rows, err = db.Query(ctx, "SELECT coalesce(nullif(episode_key,''),catalog_id),deleted_at FROM history_tombstones WHERE user_id=$1 AND ($2='' OR catalog_id=$2 OR coalesce(nullif(episode_key,''),catalog_id)=ANY($3::text[]) OR catalog_id=ANY($4::text[]))", uid, catalogID, needed, extraCatalogs)
+	rows, err = db.Query(ctx, "SELECT coalesce(nullif(episode_key,''),catalog_id),deleted_at,intent_scope FROM history_tombstones WHERE user_id=$1 AND ($2='' OR catalog_id=$2 OR coalesce(nullif(episode_key,''),catalog_id)=ANY($3::text[]) OR catalog_id=ANY($4::text[]))", uid, catalogID, needed, extraCatalogs)
 	if err != nil {
 		return out, err
 	}
 	for rows.Next() {
 		var id string
 		var deletedAt time.Time
-		if err = rows.Scan(&id, &deletedAt); err != nil {
+		var deletedScope []string
+		if err = rows.Scan(&id, &deletedAt, &deletedScope); err != nil {
 			rows.Close()
 			return out, err
 		}
@@ -111,7 +113,7 @@ func loadEffective(ctx context.Context, db queryRows, uid, catalogID string, ext
 				newer := state.Derived && len(group) > 0
 				for _, source := range group {
 					record := out.Direct[source]
-					newer = newer && record.LocalActionAt != nil && record.LocalActionAt.After(deletedAt)
+					newer = newer && record.LocalActionAt != nil && record.LocalActionAt.After(deletedAt) && intentCanOverride(record.IntentScope, deletedScope)
 				}
 				newerLocalWatch = newerLocalWatch || newer
 			}
@@ -222,4 +224,16 @@ func (a *API) effectiveHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, out)
+}
+
+// At the first differing restore generation, a destination-local action wins.
+// Prefixing BOTH imported scopes with the new import ID preserves their prior
+// relationship, including across repeated export/restore generations.
+func intentCanOverride(watch, unwatch []string) bool {
+	for i, part := range watch {
+		if i >= len(unwatch) || part != unwatch[i] {
+			return false
+		}
+	}
+	return true
 }

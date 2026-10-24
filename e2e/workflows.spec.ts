@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import type { BrowserContext, Page } from "@playwright/test";
+import type { Browser, BrowserContext, Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { en, tr } from "../web/src/i18n";
@@ -28,6 +28,51 @@ async function login(
     { name: "wl_session", value: row[6], url: origin, httpOnly: true, sameSite: "Lax" },
   ]);
 }
+// Seed only public synthetic catalog fixtures through the administrator's
+// explicit shared-metadata approval UI. Never copy private history to admin.
+async function seedSyntheticCatalog(
+  browser: Browser,
+  snapshot: { catalog: unknown[]; episodes: unknown[] },
+) {
+  const context = await browser.newContext();
+  try {
+    await login(context, "cookies-admin");
+    const page = await context.newPage();
+    await page.goto("/#settings");
+    const download = page.waitForEvent("download");
+    await page.getByRole("link", { name: `↓ ${en.export}`, exact: true }).click();
+    expect(await (await download).failure()).toBeNull();
+    await page.getByRole("checkbox", { name: en.backupSaved }).check();
+    await page.getByLabel(en.restore, { exact: true }).setInputFiles({
+      name: "synthetic-catalog-only.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(
+        JSON.stringify({
+          version: 1,
+          created_at: new Date().toISOString(),
+          settings: {},
+          catalog: snapshot.catalog,
+          episodes: snapshot.episodes,
+          library: [],
+          history: [],
+          statuses: [],
+          lists: [],
+          tombstones: [],
+        }),
+      ),
+    });
+    await expect(page.getByText(en.sharedRestoreWarning, { exact: true })).toBeVisible();
+    const apply = page.getByRole("button", { name: en.apply, exact: true });
+    await expect(apply).toBeDisabled();
+    await page.getByRole("checkbox", { name: en.sharedRestoreApprove }).check();
+    await apply.click();
+    await expect(page.getByText(en.restoreDone, { exact: true })).toBeVisible();
+    expect(await (await context.request.get(origin + "/api/library")).json()).toEqual([]);
+  } finally {
+    await context.close();
+  }
+}
+
 async function noOverflow(page: Page) {
   expect(
     await page.evaluate(
@@ -64,6 +109,7 @@ for (const [index, scenario] of cases.entries()) {
   test(`${scenario.language} ${scenario.width}px private restore, tracking, lists and navigation`, async ({
     page,
     context,
+    browser,
   }) => {
     const t = scenario.language === "tr" ? tr : en;
     await page.setViewportSize({ width: scenario.width, height: scenario.height });
@@ -251,6 +297,7 @@ for (const [index, scenario] of cases.entries()) {
     });
     snapshot.history = [];
     snapshot.settings = settings;
+    await seedSyntheticCatalog(browser, snapshot);
 
     await page.goto("/#settings");
     await expect(page.getByRole("heading", { name: t.settings, exact: true })).toBeVisible();
@@ -1046,6 +1093,7 @@ test("combined alternate tracking requires consent and preserves native identity
     lists: [],
     tombstones: [],
   };
+  await seedSyntheticCatalog(browser, snapshot);
   await page.goto("/#settings");
   const download = page.waitForEvent("download");
   await page.getByRole("link", { name: `↓ ${en.export}`, exact: true }).click();

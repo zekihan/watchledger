@@ -36,11 +36,6 @@ ready() {
   return 1
 }
 ready
-bash scripts/http-smoke.sh "$work"
-"${compose[@]}" restart app
-ready
-curl --fail --silent -b "$work/cookies" "$PUBLIC_URL/api/library" | python3 -c 'import json,sys; data=json.load(sys.stdin); assert any(x["id"]=="tmdb:movie:900001" and x["base"]=="completed" for x in data)'
-curl --fail --silent -b "$work/cookies" "$PUBLIC_URL/api/library/tmdb:movie:900001/history" | python3 -c 'import json,sys; data=json.load(sys.stdin); assert len(data)==1 and data[0]["watched_date"]=="2026-01-02" and data[0]["watched_time"] is None'
 # Fixed synthetic identities use verified OIDC claims, never database role edits.
 for identity in second admin; do
   curl --fail --silent -D "$work/identity-headers" -c "$work/cookies-$identity" "$PUBLIC_URL/auth/login" -o /dev/null
@@ -59,5 +54,10 @@ PYCODE
   unset fixture_authorize
   curl --fail --silent -b "$work/cookies-$identity" "$PUBLIC_URL/api/library" | python3 -c 'import json,sys;assert json.load(sys.stdin)==[]'
 done
+bash scripts/http-smoke.sh "$work"
+"${compose[@]}" restart app
+ready
+curl --fail --silent -b "$work/cookies" "$PUBLIC_URL/api/library" | python3 -c 'import json,sys; data=json.load(sys.stdin); assert any(x["id"]=="tmdb:movie:900001" and x["base"]=="completed" for x in data)'
+curl --fail --silent -b "$work/cookies" "$PUBLIC_URL/api/library/tmdb:movie:900001/history" | python3 -c 'import json,sys; data=json.load(sys.stdin); assert len(data)==1 and data[0]["watched_date"]=="2026-01-02" and data[0]["watched_time"] is None'
 npm run test:browser
 echo 'COMPOSE_LOGIN_TRACKING_RESTART_BROWSER_VERIFIED'

@@ -1062,6 +1062,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
                 <>
                   <select
                     aria-label={t("status")}
+                    disabled={save.isPending}
                     value={entry.status_id ?? entry.base}
                     onChange={(e) => {
                       const custom = statuses.data?.find((s) => s.id === e.target.value);
@@ -1084,6 +1085,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
                   </select>
                   <select
                     aria-label={t("rating")}
+                    disabled={save.isPending}
                     value={entry.rating ?? ""}
                     onChange={(e) => {
                       save.mutate({

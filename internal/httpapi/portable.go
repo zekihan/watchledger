@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -48,10 +49,48 @@ func (a *API) export(w http.ResponseWriter, r *http.Request) {
  'list_source_tombstones',coalesce((SELECT jsonb_agg(to_jsonb(t)-'user_id') FROM list_source_tombstones t WHERE t.user_id=u.id),'[]'),
  'simkl_links',coalesce((SELECT jsonb_agg(to_jsonb(k)-'user_id') FROM simkl_episode_links k WHERE k.user_id=u.id),'[]'),
  'tombstones',coalesce((SELECT jsonb_agg(to_jsonb(t)-'user_id') FROM history_tombstones t WHERE t.user_id=u.id),'[]'),
- 'history',coalesce((SELECT jsonb_agg(to_jsonb(h)-'user_id'-'local_action_at') FROM history h WHERE h.user_id=u.id),'[]'),
+ 'history',coalesce((SELECT jsonb_agg(to_jsonb(h)-'user_id') FROM history h WHERE h.user_id=u.id),'[]'),
  'lists',coalesce((SELECT jsonb_agg((to_jsonb(l)-'user_id') || jsonb_build_object('members',coalesce((SELECT jsonb_agg(catalog_id ORDER BY position) FROM list_members m WHERE m.user_id=u.id AND m.list_id=l.id),'[]'))) FROM lists l WHERE l.user_id=u.id),'[]')) FROM users u WHERE u.id=$1`, uid).Scan(&data)
 	if e != nil {
 		http.Error(w, "export unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if len(data) > portable.MaxSnapshotBytes {
+		http.Error(w, "portable backup exceeds 64 MiB; use the documented database backup procedure", http.StatusRequestEntityTooLarge)
+		return
+	}
+	var snapshot portable.Snapshot
+	if e = json.Unmarshal(data, &snapshot); e != nil {
+		http.Error(w, "export unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	digest, e := snapshot.CatalogDigest()
+	if e != nil || a.Identity == nil {
+		http.Error(w, "export signing unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	proof, e := a.Identity.SignCatalogProof(digest)
+	if e != nil {
+		http.Error(w, "export signing unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	var envelope map[string]json.RawMessage
+	if e = json.Unmarshal(data, &envelope); e != nil {
+		http.Error(w, "export unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	envelope["catalog_proof"], e = json.Marshal(proof)
+	if e != nil {
+		http.Error(w, "export unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	data, e = json.Marshal(envelope)
+	if e != nil {
+		http.Error(w, "export unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if len(data)+1 > portable.MaxSnapshotBytes {
+		http.Error(w, "portable backup exceeds 64 MiB; use the documented database backup procedure", http.StatusRequestEntityTooLarge)
 		return
 	}
 	if _, e = tx.Exec(r.Context(), "INSERT INTO export_receipts(user_id) VALUES($1) ON CONFLICT(user_id) DO UPDATE SET exported_at=now()", uid); e != nil {
@@ -66,7 +105,7 @@ func (a *API) export(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, data)
 }
 func (a *API) restorePreview(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, 32<<20)
+	r.Body = http.MaxBytesReader(w, r.Body, portable.MaxSnapshotBytes)
 	var raw json.RawMessage
 	if e := json.NewDecoder(r.Body).Decode(&raw); e != nil {
 		http.Error(w, "invalid JSON backup", http.StatusBadRequest)
@@ -96,7 +135,12 @@ func (a *API) restorePreview(w http.ResponseWriter, r *http.Request) {
 			additions++
 		}
 	}
-	preview := map[string]interface{}{"additions": additions, "conflicts": conflicts, "history_candidates": len(s.History), "existing_app_edits_win": true, "backup_required": true, "settings_policy": "restore only when current settings are empty", "mapping_consents_restored": false}
+	needsApproval, e := a.newSharedMetadata(r.Context(), a.DB, s)
+	if e != nil {
+		http.Error(w, "metadata validation unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	preview := map[string]interface{}{"shared_metadata_requires_approval": needsApproval, "can_approve_shared_metadata": auth.Current(r.Context()).Admin, "additions": additions, "conflicts": conflicts, "history_candidates": len(s.History), "existing_app_edits_win": true, "backup_required": true, "settings_policy": "restore only when current settings are empty", "mapping_consents_restored": false}
 	summary, e := json.Marshal(preview)
 	if e != nil {
 		http.Error(w, "preview unavailable", http.StatusServiceUnavailable)
@@ -118,16 +162,27 @@ func scopedID(uid, kind, id string) string {
 	x[8] = (x[8] & 63) | 128
 	return fmt.Sprintf("%x-%x-%x-%x-%x", x[0:4], x[4:6], x[6:8], x[8:10], x[10:16])
 }
-func remapRule(r smart.Rule, ids map[string]string) smart.Rule {
+func remapRule(r smart.Rule, ids map[string]string, statuses ...map[string]string) smart.Rule {
+	if r.Field == "status" && len(statuses) > 0 {
+		if replacement, ok := statuses[0][r.Value]; ok {
+			r.Value = replacement
+		}
+	}
 	if r.Field == "list" {
 		r.Value = ids[r.Value]
 	}
 	for i, c := range r.Children {
-		r.Children[i] = remapRule(c, ids)
+		r.Children[i] = remapRule(c, ids, statuses...)
 	}
 	return r
 }
 func (a *API) restoreApply(w http.ResponseWriter, r *http.Request) {
+	var approval struct {
+		TrustSharedMetadata bool `json:"trust_shared_metadata"`
+	}
+	if r.ContentLength != 0 && !decode(w, r, &approval) {
+		return
+	}
 	uid := auth.Current(r.Context()).ID
 	tx, e := a.DB.Begin(r.Context())
 	if e != nil {
@@ -165,6 +220,14 @@ func (a *API) restoreApply(w http.ResponseWriter, r *http.Request) {
 			return true
 		}
 		return false
+	}
+	needsApproval, e := a.newSharedMetadata(r.Context(), tx, s)
+	if fail(e) {
+		return
+	}
+	if needsApproval && (!auth.Current(r.Context()).Admin || !approval.TrustSharedMetadata) {
+		http.Error(w, "new shared catalog metadata requires a valid installation export or explicit administrator approval; load verified provider records first", http.StatusForbidden)
+		return
 	}
 	for _, c := range s.Catalog {
 		_, e = tx.Exec(r.Context(), "INSERT INTO catalog(id,source,source_id,kind,title,metadata,fetched_at) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(id) DO NOTHING", c.ID, c.Source, c.SourceID, c.Kind, c.Title, c.Metadata, c.FetchedAt)
@@ -256,13 +319,13 @@ func (a *API) restoreApply(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		_, e = tx.Exec(r.Context(), `INSERT INTO history(user_id,catalog_id,episode_id,watched_date,watched_time,provenance,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(user_id,catalog_id,episode_id) DO NOTHING`, uid, h.CatalogID, h.EpisodeID, h.WatchedDate, h.WatchedTime, h.Provenance, h.CreatedAt, h.UpdatedAt)
+		_, e = tx.Exec(r.Context(), `INSERT INTO history(user_id,catalog_id,episode_id,watched_date,watched_time,provenance,created_at,updated_at,local_action_at,intent_scope) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(user_id,catalog_id,episode_id) DO NOTHING`, uid, h.CatalogID, h.EpisodeID, h.WatchedDate, h.WatchedTime, h.Provenance, h.CreatedAt, h.UpdatedAt, h.LocalActionAt, append([]string{r.PathValue("id")}, h.IntentScope...))
 		if fail(e) {
 			return
 		}
 	}
 	for _, t := range s.Tombstones {
-		_, e = tx.Exec(r.Context(), "INSERT INTO history_tombstones(user_id,catalog_id,episode_key,deleted_at) SELECT $1,$2,$3,$4 WHERE NOT EXISTS(SELECT 1 FROM history WHERE user_id=$1 AND catalog_id=$2 AND coalesce(episode_id,'')=$3) ON CONFLICT DO NOTHING", uid, t.CatalogID, t.EpisodeKey, t.DeletedAt)
+		_, e = tx.Exec(r.Context(), "INSERT INTO history_tombstones(user_id,catalog_id,episode_key,deleted_at,intent_scope) SELECT $1,$2,$3,$4,$5 WHERE NOT EXISTS(SELECT 1 FROM history WHERE user_id=$1 AND catalog_id=$2 AND coalesce(episode_id,'')=$3) ON CONFLICT DO NOTHING", uid, t.CatalogID, t.EpisodeKey, t.DeletedAt, append([]string{r.PathValue("id")}, t.IntentScope...))
 		if fail(e) {
 			return
 		}
@@ -331,7 +394,7 @@ func (a *API) restoreApply(w http.ResponseWriter, r *http.Request) {
 		}
 		id := listIDs[l.ID]
 		if l.Rule != nil {
-			rule := remapRule(*l.Rule, listIDs)
+			rule := remapRule(*l.Rule, listIDs, statusIDs)
 			b, err := json.Marshal(rule)
 			if fail(err) {
 				return
@@ -390,4 +453,28 @@ func (a *API) imports(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, out)
+}
+
+// newSharedMetadata never treats a private user's unsigned archive as provider
+// authority. Existing cache rows are preserved by restore; new shared rows need
+// an installation proof or an explicit administrator decision.
+func (a *API) newSharedMetadata(ctx context.Context, db queryReader, s portable.Snapshot) (bool, error) {
+	digest, err := s.CatalogDigest()
+	if err != nil {
+		return false, err
+	}
+	if a.Identity != nil && a.Identity.VerifyCatalogProof(s.CatalogProof, digest) {
+		return false, nil
+	}
+	catalogIDs := make([]string, 0, len(s.Catalog))
+	episodeIDs := make([]string, 0, len(s.Episodes))
+	for _, c := range s.Catalog {
+		catalogIDs = append(catalogIDs, c.ID)
+	}
+	for _, e := range s.Episodes {
+		episodeIDs = append(episodeIDs, e.ID)
+	}
+	var missing bool
+	err = db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM unnest($1::text[]) AS wanted(id) WHERE NOT EXISTS(SELECT 1 FROM catalog c WHERE c.id=wanted.id)) OR EXISTS(SELECT 1 FROM unnest($2::text[]) AS wanted(id) WHERE NOT EXISTS(SELECT 1 FROM episodes e WHERE e.id=wanted.id))`, catalogIDs, episodeIDs).Scan(&missing)
+	return missing, err
 }
