@@ -56,7 +56,9 @@ func run(ctx context.Context) error {
 
 	server := &http.Server{
 		Addr:              c.Address,
-		Handler:           handler,
+		Handler:           httpapi.RequestBudget(handler),
+		ReadTimeout:       5 * time.Minute,
+		WriteTimeout:      6 * time.Minute,
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}

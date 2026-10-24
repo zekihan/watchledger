@@ -1,3 +1,4 @@
+import { PageControls } from "./page-controls";
 import { Filmography } from "./filmography";
 import { Cards, Poster } from "./catalog-cards";
 import { DashboardPage } from "./dashboard";
@@ -49,6 +50,13 @@ function ErrorBox({ error, retry, t }: { error: Error; retry?: () => void; t: T 
       {retry && <button onClick={retry}>{t("retry")}</button>}
     </div>
   );
+}
+function decodeRoute(value: string): string | null {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return null;
+  }
 }
 export function App() {
   const installation = useInstall();
@@ -241,14 +249,17 @@ export function App() {
         </header>
         <main id="content" tabIndex={-1} className="content">
           <Notices t={t} />
-          {root === "creator" ? (
+          {(root === "search" && decodeRoute(page.slice(7)) === null) ||
+          (root === "views" && decodeRoute(page.slice(6)) === null) ? (
+            <p role="alert">{t("invalidLink")}</p>
+          ) : root === "creator" ? (
             <NativeCreatorPage id={page.split("/")[1] ?? ""} t={t} user={user} />
           ) : root === "detail" ? (
             <DetailPage key={page} parts={page.split("/")} user={user} t={t} />
           ) : root === "views" ? (
             <AlternateView
               key={page}
-              id={decodeURIComponent(page.slice(6))}
+              id={decodeRoute(page.slice(6)) ?? ""}
               t={t}
               timezone={user.Settings.timezone}
             />
@@ -257,7 +268,7 @@ export function App() {
           ) : root === "search" || root === "discover" ? (
             <DiscoveryPage
               key={page}
-              search={root === "search" ? decodeURIComponent(page.slice(7)) : undefined}
+              search={root === "search" ? (decodeRoute(page.slice(7)) ?? "") : undefined}
               user={user}
               t={t}
             />
@@ -295,6 +306,7 @@ export function App() {
   );
 }
 function LibraryPage({ t, user }: { t: T; user: User }) {
+  const [page, setPage] = useState(0);
   const q = useQuery({ queryKey: ["library"], queryFn: () => api<LibraryItem[]>("/library") });
   const [filter, setFilter] = useState("all"),
     [term, setTerm] = useState(""),
@@ -326,6 +338,8 @@ function LibraryPage({ t, user }: { t: T; user: User }) {
     if (order === "added") return b.added_at.localeCompare(a.added_at);
     return a.title.localeCompare(b.title, user.Settings.language);
   });
+  const currentPage = Math.min(page, Math.max(0, Math.ceil(entries.length / 48) - 1));
+  const visible = entries.slice(currentPage * 48, (currentPage + 1) * 48);
   return (
     <>
       <div className="page-heading">
@@ -348,6 +362,7 @@ function LibraryPage({ t, user }: { t: T; user: User }) {
           value={term}
           onChange={(e) => {
             setTerm(e.target.value);
+            setPage(0);
           }}
         />
         <select
@@ -355,6 +370,7 @@ function LibraryPage({ t, user }: { t: T; user: User }) {
           value={filter}
           onChange={(e) => {
             setFilter(e.target.value);
+            setPage(0);
           }}
         >
           <option value="all">{t("all")}</option>
@@ -380,6 +396,7 @@ function LibraryPage({ t, user }: { t: T; user: User }) {
           value={contentType}
           onChange={(e) => {
             setContentType(e.target.value);
+            setPage(0);
           }}
         >
           {["all", "movie", "tv", "anime"].map((k) => (
@@ -393,6 +410,7 @@ function LibraryPage({ t, user }: { t: T; user: User }) {
           value={order}
           onChange={(e) => {
             setOrder(e.target.value);
+            setPage(0);
           }}
         >
           {["title", "rating", "added"].map((k) => (
@@ -418,7 +436,7 @@ function LibraryPage({ t, user }: { t: T; user: User }) {
               </tr>
             </thead>
             <tbody>
-              {entries.map((x) => (
+              {visible.map((x) => (
                 <tr key={x.id}>
                   <td>
                     <a href={`#detail/${x.id.split(":").slice(1).join("/")}`}>{x.title}</a>
@@ -432,7 +450,7 @@ function LibraryPage({ t, user }: { t: T; user: User }) {
         </div>
       ) : (
         <div className="poster-grid">
-          {entries.map((x) => {
+          {visible.map((x) => {
             const m = Object.values(x.metadata)[0];
             return (
               <a
@@ -453,6 +471,14 @@ function LibraryPage({ t, user }: { t: T; user: User }) {
           })}
         </div>
       )}
+      <PageControls
+        page={currentPage}
+        count={entries.length}
+        size={48}
+        label={t("library")}
+        change={setPage}
+        t={t}
+      />
     </>
   );
 }
@@ -835,6 +861,8 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
           flatrate?: { provider_id: number; provider_name: string }[];
           rent?: { provider_id: number; provider_name: string }[];
           buy?: { provider_id: number; provider_name: string }[];
+          free?: { provider_id: number; provider_name: string }[];
+          ads?: { provider_id: number; provider_name: string }[];
         } | null;
         fetched_at: string;
         stale: boolean;
@@ -843,14 +871,8 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
     retry: false,
   });
   const save = useMutation({
-    mutationFn: (data: { base: string; status_id?: string | null; rating?: number | null }) =>
-      api(`/library/${key}`, "PUT", {
-        position: entry?.position ?? 0,
-        anime_view: entry?.anime_view ?? null,
-        rating: entry?.rating ?? null,
-        status_id: entry?.status_id ?? null,
-        ...data,
-      }),
+    mutationFn: (data: { base?: string; status_id?: string | null; rating?: number | null }) =>
+      entry ? api(`/library/${key}`, "PATCH", data) : api(`/library/${key}`, "PUT", data),
     onSuccess: () => client.invalidateQueries({ queryKey: ["library"] }),
   });
   const [prompt, setPrompt] = useState<{
@@ -1108,7 +1130,6 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
                     value={entry.rating ?? ""}
                     onChange={(e) => {
                       save.mutate({
-                        base: entry.base,
                         rating: e.target.value ? Number(e.target.value) : null,
                       });
                     }}
@@ -1167,7 +1188,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
             />
           ) : offers.data?.offers ? (
             <div className="offers">
-              {(["flatrate", "rent", "buy"] as const).map((k) => (
+              {(["flatrate", "rent", "buy", "free", "ads"] as const).map((k) => (
                 <div key={k}>
                   <h3>{t(k === "flatrate" ? "subscription" : k)}</h3>
                   {offers.data?.offers?.[k]?.map((p) => (

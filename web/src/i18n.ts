@@ -1,4 +1,9 @@
 export const en = {
+  free: "Free",
+  ads: "Ad-supported",
+  invalidLink: "Invalid link. Use the navigation to continue.",
+  statusRestoreConflicts:
+    "Custom status base conflicts: resolve these before restoring. Existing statuses are unchanged.",
   preservedListDeletions: "Deleted lists and their dependent rules will remain deleted",
   importAllPages: "Apply processes the entire preview, not just the visible page.",
   importMessageAdd: "Add title",
@@ -437,6 +442,11 @@ export const en = {
 };
 export type Key = keyof typeof en;
 export const tr: Record<Key, string> = {
+  free: "Ücretsiz",
+  ads: "Reklam destekli",
+  invalidLink: "Geçersiz bağlantı. Devam etmek için gezinme menüsünü kullanın.",
+  statusRestoreConflicts:
+    "Özel durum temel türleri çakışıyor: geri yüklemeden önce çözün. Mevcut durumlar değiştirilmedi.",
   preservedListDeletions: "Silinen listeler ve onlara bağlı kurallar geri yüklenmeyecek",
   importAllPages: "Uygula işlemi yalnızca görünen sayfayı değil, önizlemenin tamamını işler.",
   importMessageAdd: "Yapımı ekle",

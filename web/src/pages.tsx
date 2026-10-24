@@ -998,6 +998,7 @@ export function PortabilityPanel({ t, settings = {} }: { t: T; settings?: Settin
     conflicts: string[];
     history_candidates: number;
     preserved_list_deletions?: string[];
+    status_conflicts?: string[];
     shared_metadata_requires_approval?: boolean;
     can_approve_shared_metadata?: boolean;
   } | null>(null);
@@ -1090,6 +1091,11 @@ export function PortabilityPanel({ t, settings = {} }: { t: T; settings?: Settin
               <li key={id}>{id}</li>
             ))}
           </ul>
+          {!!preview.status_conflicts?.length && (
+            <p role="alert">
+              {t("statusRestoreConflicts")}: {preview.status_conflicts.join(", ")}
+            </p>
+          )}
           {!!preview.preserved_list_deletions?.length && (
             <p>
               {t("preservedListDeletions")}: {preview.preserved_list_deletions.join(", ")}
@@ -1119,6 +1125,7 @@ export function PortabilityPanel({ t, settings = {} }: { t: T; settings?: Settin
               !backed ||
               apply.isPending ||
               reading ||
+              !!preview.status_conflicts?.length ||
               (!!preview.shared_metadata_requires_approval &&
                 (!preview.can_approve_shared_metadata || !trustShared))
             }

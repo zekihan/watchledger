@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"github.com/jackc/pgx/v5"
@@ -27,6 +28,7 @@ func (a *API) libraryRoutes(m *http.ServeMux) {
 	m.HandleFunc("GET /api/library", a.library)
 	m.HandleFunc("GET /api/library/watched", a.watchedTitles)
 	m.HandleFunc("PUT /api/library/{id}", a.saveLibrary)
+	m.HandleFunc("PATCH /api/library/{id}", a.saveLibrary)
 	m.HandleFunc("GET /api/library/{id}/history", a.history)
 	m.HandleFunc("GET /api/library/{id}/effective", a.effectiveHistory)
 	m.HandleFunc("POST /api/library/{id}/track", a.track)
@@ -36,7 +38,7 @@ func (a *API) libraryRoutes(m *http.ServeMux) {
 	m.HandleFunc("PUT /api/settings", a.settings)
 }
 func (a *API) library(w http.ResponseWriter, r *http.Request) {
-	rows, e := a.DB.Query(r.Context(), `SELECT jsonb_build_object('id',l.catalog_id,'title',catalog_display_title(c.kind,c.metadata,c.title,u.settings),'kind',c.kind,'metadata',jsonb_build_object('selected',catalog_metadata_variant(c.metadata,u.settings)),'base',l.base,'status_id',l.status_id,'status_name',s.name,'rating',l.rating,'added_at',l.added_at,'position',l.position,'anime_view',l.anime_view) FROM library l JOIN users u ON u.id=l.user_id JOIN catalog c ON c.id=l.catalog_id LEFT JOIN statuses s ON s.user_id=l.user_id AND s.id=l.status_id WHERE l.user_id=$1 ORDER BY l.position,c.title`, auth.Current(r.Context()).ID)
+	rows, e := a.DB.Query(r.Context(), `SELECT jsonb_build_object('id',l.catalog_id,'title',catalog_display_title(c.kind,c.metadata,c.title,u.settings),'kind',c.kind,'metadata',jsonb_build_object('selected',(SELECT coalesce(jsonb_object_agg(key,value),'{}'::jsonb) FROM jsonb_each(catalog_metadata_variant(c.metadata,u.settings)) WHERE key=ANY(ARRAY['id','title','name','poster_path','genres','release_date','first_air_date','anime_type']))),'base',l.base,'status_id',l.status_id,'status_name',s.name,'rating',l.rating,'added_at',l.added_at,'position',l.position,'anime_view',l.anime_view) FROM library l JOIN users u ON u.id=l.user_id JOIN catalog c ON c.id=l.catalog_id LEFT JOIN statuses s ON s.user_id=l.user_id AND s.id=l.status_id WHERE l.user_id=$1 ORDER BY l.position,c.title`, auth.Current(r.Context()).ID)
 	if e != nil {
 		http.Error(w, "library unavailable", http.StatusServiceUnavailable)
 		return
@@ -57,19 +59,25 @@ func (a *API) library(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, out)
 }
+
+type libraryInput struct {
+	Base      string  `json:"base"`
+	StatusID  *string `json:"status_id"`
+	Rating    *int    `json:"rating"`
+	Position  int     `json:"position"`
+	AnimeView *string `json:"anime_view"`
+}
+
 func (a *API) saveLibrary(w http.ResponseWriter, r *http.Request) {
-	var in struct {
-		Base      string  `json:"base"`
-		StatusID  *string `json:"status_id"`
-		Rating    *int    `json:"rating"`
-		Position  int     `json:"position"`
-		AnimeView *string `json:"anime_view"`
-	}
-	if !decode(w, r, &in) {
+	var raw json.RawMessage
+	if !decode(w, r, &raw) {
 		return
 	}
-	if !tracking.ValidBase(in.Base) || (in.Rating != nil && (*in.Rating < 1 || *in.Rating > 10)) || (in.AnimeView != nil && *in.AnimeView != "native" && *in.AnimeView != "show") {
-		http.Error(w, "invalid library values", http.StatusBadRequest)
+	var in libraryInput
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&in); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 	uid := auth.Current(r.Context()).ID
@@ -81,6 +89,24 @@ func (a *API) saveLibrary(w http.ResponseWriter, r *http.Request) {
 	defer func() { _ = tx.Rollback(r.Context()) }()
 	if _, e = tx.Exec(r.Context(), "SELECT id FROM users WHERE id=$1 FOR UPDATE", uid); e != nil {
 		http.Error(w, "database unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if r.Method == http.MethodPatch {
+		var current libraryInput
+		err := tx.QueryRow(r.Context(), "SELECT base,status_id,rating,position,anime_view FROM library WHERE user_id=$1 AND catalog_id=$2", uid, r.PathValue("id")).Scan(&current.Base, &current.StatusID, &current.Rating, &current.Position, &current.AnimeView)
+		if err != nil {
+			http.Error(w, "library entry not found", http.StatusNotFound)
+			return
+		}
+		if err = json.Unmarshal(raw, &current); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		in = current
+	}
+
+	if !tracking.ValidBase(in.Base) || (in.Rating != nil && (*in.Rating < 1 || *in.Rating > 10)) || (in.AnimeView != nil && *in.AnimeView != "native" && *in.AnimeView != "show") {
+		http.Error(w, "invalid library values", http.StatusBadRequest)
 		return
 	}
 	var kind string
@@ -613,14 +639,27 @@ func (a *API) saveStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	uid := auth.Current(r.Context()).ID
 	var id string
-	var e error
+	tx, e := a.DB.Begin(r.Context())
+	if e != nil {
+		http.Error(w, "database unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	defer func() { _ = tx.Rollback(r.Context()) }()
+	if _, e = tx.Exec(r.Context(), "SELECT id FROM users WHERE id=$1 FOR UPDATE", uid); e != nil {
+		http.Error(w, "database unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	if in.ID == "" {
-		e = a.DB.QueryRow(r.Context(), "INSERT INTO statuses(user_id,name,base) VALUES($1,$2,$3) RETURNING id", uid, in.Name, in.Base).Scan(&id)
+		e = tx.QueryRow(r.Context(), "INSERT INTO statuses(user_id,name,base) VALUES($1,$2,$3) RETURNING id", uid, in.Name, in.Base).Scan(&id)
 	} else {
-		e = a.DB.QueryRow(r.Context(), "UPDATE statuses SET name=$3,base=$4 WHERE user_id=$1 AND id=$2 AND (NOT used OR base=$4) RETURNING id", uid, in.ID, in.Name, in.Base).Scan(&id)
+		e = tx.QueryRow(r.Context(), "UPDATE statuses SET name=$3,base=$4 WHERE user_id=$1 AND id=$2 AND (NOT used OR base=$4) RETURNING id", uid, in.ID, in.Name, in.Base).Scan(&id)
 	}
 	if e != nil {
 		http.Error(w, "status unavailable, duplicate name, or used mapping is locked", http.StatusConflict)
+		return
+	}
+	if e = tx.Commit(r.Context()); e != nil {
+		http.Error(w, "status update failed", http.StatusServiceUnavailable)
 		return
 	}
 	writeJSON(w, map[string]string{"id": id})
