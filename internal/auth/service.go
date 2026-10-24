@@ -16,7 +16,6 @@ import (
 	"net/http"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -37,8 +36,10 @@ type contextKey struct{}
 func Current(ctx context.Context) Principal { p, _ := ctx.Value(contextKey{}).(Principal); return p }
 
 type flow struct {
-	nonce, verifier string
-	until           time.Time
+	State    string    `json:"state"`
+	Nonce    string    `json:"nonce"`
+	Verifier string    `json:"verifier"`
+	Until    time.Time `json:"until"`
 }
 type Service struct {
 	pool         *pgxpool.Pool
@@ -50,8 +51,6 @@ type Service struct {
 	origin       string
 	secure       bool
 	box          cipher.AEAD
-	mu           sync.Mutex
-	flows        map[string]flow
 	claimsSource string
 }
 
@@ -78,7 +77,7 @@ func New(ctx context.Context, pool *pgxpool.Pool, c config.Config) (*Service, er
 			scopes = append(scopes, scope)
 		}
 	}
-	return &Service{pool: pool, q: dbgen.New(pool), provider: provider, verifier: provider.Verifier(&oidc.Config{ClientID: c.ClientID}), oauth: oauth2.Config{ClientID: c.ClientID, ClientSecret: c.ClientSecret, Endpoint: provider.Endpoint(), RedirectURL: strings.TrimRight(c.PublicURL, "/") + "/auth/callback", Scopes: scopes}, policy: Policy{c.AdmissionClaim, c.AdmissionValue, c.AdminClaim, c.AdminValue}, origin: strings.TrimRight(c.PublicURL, "/"), secure: strings.HasPrefix(c.PublicURL, "https:"), box: box, flows: map[string]flow{}, claimsSource: c.OIDCClaimsSource}, nil
+	return &Service{pool: pool, q: dbgen.New(pool), provider: provider, verifier: provider.Verifier(&oidc.Config{ClientID: c.ClientID}), oauth: oauth2.Config{ClientID: c.ClientID, ClientSecret: c.ClientSecret, Endpoint: provider.Endpoint(), RedirectURL: strings.TrimRight(c.PublicURL, "/") + "/auth/callback", Scopes: scopes}, policy: Policy{c.AdmissionClaim, c.AdmissionValue, c.AdminClaim, c.AdminValue}, origin: strings.TrimRight(c.PublicURL, "/"), secure: strings.HasPrefix(c.PublicURL, "https:"), box: box, claimsSource: c.OIDCClaimsSource}, nil
 }
 func random() string       { return oauth2.GenerateVerifier() }
 func hash(s string) string { x := sha256.Sum256([]byte(s)); return hex.EncodeToString(x[:]) }
@@ -87,40 +86,33 @@ func (s *Service) cookie(w http.ResponseWriter, name, value string, seconds int)
 }
 func (s *Service) Login(w http.ResponseWriter, r *http.Request) {
 	state, nonce, verifier := random(), random(), oauth2.GenerateVerifier()
-	s.mu.Lock()
-	for k, f := range s.flows {
-		if time.Now().After(f.until) {
-			delete(s.flows, k)
-		}
-	}
-	if len(s.flows) >= 1000 {
-		s.mu.Unlock()
-		http.Error(w, "too many login attempts", http.StatusTooManyRequests)
+	sealed, err := s.sealFlow(flow{State: state, Nonce: nonce, Verifier: verifier, Until: time.Now().Add(10 * time.Minute)})
+	if err != nil {
+		http.Error(w, "login unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	s.flows[state] = flow{nonce, verifier, time.Now().Add(10 * time.Minute)}
-	s.mu.Unlock()
-	s.cookie(w, "wl_login", state, 600)
+	s.cookie(w, "wl_login", sealed, 600)
 	http.Redirect(w, r, s.oauth.AuthCodeURL(state, oidc.Nonce(nonce), oauth2.S256ChallengeOption(verifier)), http.StatusFound)
 }
 func (s *Service) Callback(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
 	cookie, e := r.Cookie("wl_login")
-	if e != nil || state == "" || subtle.ConstantTimeCompare([]byte(state), []byte(cookie.Value)) != 1 {
+	if e != nil {
 		http.Error(w, "invalid login state", http.StatusBadRequest)
 		return
 	}
-	s.mu.Lock()
-	f, ok := s.flows[state]
-	delete(s.flows, state)
-	s.mu.Unlock()
+	f, e := s.openFlow(cookie.Value)
 	s.cookie(w, "wl_login", "", -1)
-	if !ok || time.Now().After(f.until) {
+	if e != nil || state == "" || subtle.ConstantTimeCompare([]byte(state), []byte(f.State)) != 1 {
+		http.Error(w, "invalid login state", http.StatusBadRequest)
+		return
+	}
+	if time.Now().After(f.Until) {
 		http.Error(w, "login expired", http.StatusBadRequest)
 		return
 	}
 	exchangeCtx := context.WithValue(r.Context(), oauth2.HTTPClient, &http.Client{Timeout: 20 * time.Second})
-	tok, e := s.oauth.Exchange(exchangeCtx, r.URL.Query().Get("code"), oauth2.VerifierOption(f.verifier))
+	tok, e := s.oauth.Exchange(exchangeCtx, r.URL.Query().Get("code"), oauth2.VerifierOption(f.Verifier))
 	if e != nil {
 		var providerError *oauth2.RetrieveError
 		if errors.As(e, &providerError) && providerError.Response != nil {
@@ -138,7 +130,7 @@ func (s *Service) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 	raw, _ := tok.Extra("id_token").(string)
 	id, e := s.verifier.Verify(r.Context(), raw)
-	if e != nil || id.Nonce != f.nonce {
+	if e != nil || id.Nonce != f.Nonce {
 		http.Error(w, "invalid identity token", http.StatusUnauthorized)
 		return
 	}
@@ -356,4 +348,63 @@ func (s *Service) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 	s.cookie(w, "wl_session", "", -1)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// Login flow state is encrypted in a bounded, browser-bound cookie instead of
+// a globally saturatable pending-flow map. The provider consumes authorization
+// codes once; PKCE, state, nonce and expiry remain validated.
+func (s *Service) sealFlow(f flow) (string, error) {
+	raw, err := json.Marshal(f)
+	if err != nil {
+		return "", err
+	}
+	nonce := make([]byte, s.box.NonceSize())
+	if _, err = rand.Read(nonce); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(s.box.Seal(nonce, nonce, raw, []byte("watchledger-login-flow-v1"))), nil
+}
+func (s *Service) openFlow(value string) (flow, error) {
+	var f flow
+	if len(value) > 2048 {
+		return f, errors.New("oversized login cookie")
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(value)
+	n := s.box.NonceSize()
+	if err != nil || len(raw) < n {
+		return f, errors.New("invalid login cookie")
+	}
+	plain, err := s.box.Open(nil, raw[:n], raw[n:], []byte("watchledger-login-flow-v1"))
+	if err != nil {
+		return f, err
+	}
+	if err = json.Unmarshal(plain, &f); err != nil {
+		return f, err
+	}
+	if f.State == "" || f.Nonce == "" || f.Verifier == "" || f.Until.IsZero() {
+		return f, errors.New("incomplete login flow")
+	}
+	return f, nil
+}
+
+// SignCatalogProof binds portable shared-cache material to this installation's
+// existing session key. It grants no roles or access to private user records.
+func (s *Service) SignCatalogProof(digest []byte) (string, error) {
+	nonce := make([]byte, s.box.NonceSize())
+	if _, err := rand.Read(nonce); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(s.box.Seal(nonce, nonce, digest, []byte("watchledger-portable-catalog-v1"))), nil
+}
+func (s *Service) VerifyCatalogProof(proof string, digest []byte) bool {
+	if len(proof) > 512 {
+		return false
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(proof)
+	n := s.box.NonceSize()
+	if err != nil || len(raw) < n || len(raw) > 256 {
+		return false
+	}
+	value, err := s.box.Open(nil, raw[:n], raw[n:], []byte("watchledger-portable-catalog-v1"))
+	return err == nil && subtle.ConstantTimeCompare(value, digest) == 1
 }
