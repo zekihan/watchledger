@@ -69,3 +69,14 @@ nonce, PKCE and expiry are still checked, and authorization codes are consumed
 once by the OIDC provider. Apply ordinary connection/rate limits at a trusted
 reverse proxy for broader traffic abuse; the app does not trust arbitrary
 forwarding headers or modify proxy configuration.
+
+Migration 019 preserves ordinary-list deletions for additive restores and carries
+those records in portable exports. Deletions made before that migration were not
+recorded and cannot be reconstructed automatically: review older backups before
+restoring lists you may have intentionally removed. Existing live lists are never
+deleted by imported deletion records. Dependent incoming rules are skipped with a
+preview notice rather than saved with missing references.
+
+The same migration normalizes previously accepted host-dependent timezone values
+(`Local`, empty, `posix/…`, `right/…`) to UTC. Select your intended IANA timezone in
+Settings afterward if affected. New settings and restores reject those values.

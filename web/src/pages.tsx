@@ -6,7 +6,7 @@ import { CustomListImport } from "./custom-list-import";
 import { SimklPanel } from "./imports";
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "./api";
+import { api, apiBody } from "./api";
 import type { LibraryItem, List, Rule, Settings, Status, User } from "./api";
 import type { T } from "./App";
 import type { Key } from "./i18n";
@@ -997,6 +997,7 @@ export function PortabilityPanel({ t, settings = {} }: { t: T; settings?: Settin
     additions: number;
     conflicts: string[];
     history_candidates: number;
+    preserved_list_deletions?: string[];
     shared_metadata_requires_approval?: boolean;
     can_approve_shared_metadata?: boolean;
   } | null>(null);
@@ -1023,9 +1024,11 @@ export function PortabilityPanel({ t, settings = {} }: { t: T; settings?: Settin
     }
     setReading(true);
     try {
-      const value: unknown = JSON.parse(await file.text());
+      const value = await file.text();
       if (!request.current()) return;
-      const result = await api<{
+      // Validate locally without reserializing signed number representations.
+      JSON.parse(value);
+      const result = await apiBody<{
         id: string;
         additions: number;
         conflicts: string[];
@@ -1087,6 +1090,11 @@ export function PortabilityPanel({ t, settings = {} }: { t: T; settings?: Settin
               <li key={id}>{id}</li>
             ))}
           </ul>
+          {!!preview.preserved_list_deletions?.length && (
+            <p>
+              {t("preservedListDeletions")}: {preview.preserved_list_deletions.join(", ")}
+            </p>
+          )}
           {preview.shared_metadata_requires_approval && (
             <div className="notice">
               <p>{t("sharedRestoreWarning")}</p>

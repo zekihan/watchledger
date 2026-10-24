@@ -190,6 +190,12 @@ type ListSourceTombstone struct {
 	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
 }
 
+type ListTombstone struct {
+	UserID    pgtype.UUID        `json:"user_id"`
+	ListID    pgtype.UUID        `json:"list_id"`
+	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
+}
+
 type Mapping struct {
 	ID              pgtype.UUID        `json:"id"`
 	Revision        string             `json:"revision"`

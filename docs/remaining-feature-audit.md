@@ -206,3 +206,38 @@ Regression tests replace the audit reproductions. Browser fixtures use explicit
 synthetic administrator approval for their fabricated shared catalog; the actual
 ordinary-user restore and cross-account privacy assertions remain intact.
 Exact-head CI and final verification are still required before completion.
+
+## Second repository audit fixes
+
+The second pass targets ten independently reproduced issues on `81b261b`:
+
+- Account identity changes hide private screens immediately, cancel outstanding
+  private queries, clear their caches and mutation state, and remount forms.
+  Tests include an old response arriving after the account switches.
+- Portable upload validates JSON but sends the original bytes, preserving signed
+  decimal representations such as `8.0` instead of normalizing them to `8`.
+- Native portable-cache fallback rebuilds episode presentation identity, numbering,
+  kind and date from authoritative stored columns, not incomplete metadata JSON.
+- Successful complete TMDB refreshes retire vanished seasons and invalidate their
+  season caches while preserving history and issuing reconciliation notices.
+- Shared timezone validation rejects host-dependent `Local` and zoneinfo tree
+  pseudo-names. Migration 019 normalizes previously accepted values to UTC.
+- Migration 019 also records ordinary-list deletions. Portable backups carry those
+  facts; additive restore preserves them and previews skipped dependent rules.
+- Smart-list save and preview revalidate custom-status ownership/existence;
+  restore validation also rejects dangling custom-status predicates.
+- Malformed successful TMDB responses fall back to usable cached detail with an
+  explicit stale warning, without storing the invalid response.
+- Person-based TV discovery sorts supplied credit candidates before paging and
+  applies excluded genres; unsupported sorting is rejected rather than ignored.
+- Calendar and dashboard titles use each account's selected metadata language.
+
+Regression coverage is in the second-audit HTTP/job tests, portable/timezone
+validation, account-boundary and raw-upload UI tests, plus a same-tab identity
+change browser case. Browser and publication acceptance require exact-head CI;
+local jsdom tests alone do not establish them. Physical-device and live-provider
+acceptance remain separately tracked in TODO.md.
+
+Local final-code verification passed lint, PostgreSQL-backed tests, 94 frontend
+behavioral tests, browser-test type checking, production build and Go race tests.
+The new real-browser case still requires exact-head CI; no deployment is implied.

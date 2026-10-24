@@ -52,11 +52,29 @@ function ErrorBox({ error, retry, t }: { error: Error; retry?: () => void; t: T 
 }
 export function App() {
   const installation = useInstall();
+  const client = useQueryClient();
   const page = useSyncExternalStore(subscribe, route);
   const [fallbackLang, setFallbackLang] = useState(() =>
     navigator.language.startsWith("tr") ? "tr" : "en",
   );
   const me = useQuery({ queryKey: ["me"], queryFn: () => api<User>("/me"), retry: false });
+  const identity = me.error ? null : (me.data?.ID ?? null);
+  const [cacheIdentity, setCacheIdentity] = useState<string | null>(null);
+  useEffect(() => {
+    if (identity === cacheIdentity) return;
+    let current = true;
+    // Cancel before removal so an old in-flight response cannot repopulate
+    // another account's cache. Keep /me, which establishes the boundary.
+    void client.cancelQueries({ predicate: (query) => query.queryKey[0] !== "me" }).then(() => {
+      if (!current) return;
+      client.removeQueries({ predicate: (query) => query.queryKey[0] !== "me" });
+      client.getMutationCache().clear();
+      setCacheIdentity(identity);
+    });
+    return () => {
+      current = false;
+    };
+  }, [identity, cacheIdentity, client]);
   const language = (me.data?.Settings.language ?? fallbackLang) === "tr" ? "tr" : "en";
   const t: T = (key) => (language === "tr" ? tr : en)[key];
   const [search, setSearch] = useState("");
@@ -151,10 +169,11 @@ export function App() {
     );
   }
   if (!me.data) return null;
+  if (cacheIdentity !== identity) return <div className="center">{t("loading")}</div>;
   const user = { ...me.data, Settings: { ...me.data.Settings, language } };
   const root = page.split("/")[0];
   return (
-    <div className="app-shell">
+    <div className="app-shell" key={user.ID}>
       <a
         className="skip-link"
         href="#content"

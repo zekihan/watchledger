@@ -12,12 +12,22 @@ export async function api<T>(
   body?: unknown,
   signal?: AbortSignal,
 ): Promise<T> {
+  return apiBody<T>(path, method, body === undefined ? undefined : JSON.stringify(body), signal);
+}
+
+// Preserve signed backup bytes, including JSON number representations.
+export async function apiBody<T>(
+  path: string,
+  method: string,
+  body?: string,
+  signal?: AbortSignal,
+): Promise<T> {
   const response = await fetch(`/api${path}`, {
     method,
     signal,
     credentials: "same-origin",
     headers: body === undefined ? {} : { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body,
   });
   if (!response.ok) throw new APIError(response.status, await response.text());
   if (response.status === 204) return undefined as T;

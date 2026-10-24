@@ -1,4 +1,5 @@
 export const en = {
+  preservedListDeletions: "Deleted lists and their dependent rules will remain deleted",
   importAllPages: "Apply processes the entire preview, not just the visible page.",
   importMessageAdd: "Add title",
   importMessageReview: "Needs review",
@@ -436,6 +437,7 @@ export const en = {
 };
 export type Key = keyof typeof en;
 export const tr: Record<Key, string> = {
+  preservedListDeletions: "Silinen listeler ve onlara bağlı kurallar geri yüklenmeyecek",
   importAllPages: "Uygula işlemi yalnızca görünen sayfayı değil, önizlemenin tamamını işler.",
   importMessageAdd: "Yapımı ekle",
   importMessageReview: "İnceleme gerekli",
