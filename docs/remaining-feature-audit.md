@@ -241,3 +241,45 @@ acceptance remain separately tracked in TODO.md.
 Local final-code verification passed lint, PostgreSQL-backed tests, 94 frontend
 behavioral tests, browser-test type checking, production build and Go race tests.
 The new real-browser case still requires exact-head CI; no deployment is implied.
+
+## Third audit: edit safety, restore compatibility and bounded work
+
+The third audit of main `db4b83e` produced six reproduced bugs and four
+functional/scalability improvements. The implementation on
+`fix/third-audit-findings` addresses all ten:
+
+- Existing-entry edits use field-specific PATCH requests under the account lock.
+  Status changes do not resend stale ratings, and rating changes do not resend
+  stale statuses. Explicit null clears a rating; omitted fields remain unchanged.
+  PUT remains the full-record creation/replacement API for existing clients.
+- Restore plans reuse compatible custom status names, preserve existing edits,
+  remap incoming references and expose incompatible base-status collisions before
+  apply. Apply rechecks the plan under the account lock; it never guesses a base.
+- Season outage fallback excludes retired episodes without deleting history.
+- Malformed availability envelopes/offer structures preserve cached offers with a
+  stale warning instead of recording a false fresh negative result.
+- Smart rules distinguish missing fields from known-empty genres and cached
+  negative availability. Free and ad-supported offers are included consistently
+  in service filters and displayed separately in details.
+- Invalid encoded navigation links show a recoverable translated error while
+  retaining the application navigation.
+- Library responses carry compact card/filter metadata instead of full detail
+  payloads. The UI renders 48 entries per page, with filtering/sorting across the
+  full summary collection and page reset/clamping after filtering or refresh.
+- Restore preview uses one set-based library lookup, including a 10,000-candidate
+  regression, rather than one query per incoming entry.
+- The HTTP server bounds body reads to five minutes and writes to six minutes.
+  Ordinary handlers have a two-minute cancellation budget; restore, SIMKL, admin
+  and export handlers have five minutes. Proxy budgets must accommodate intended
+  large imports without disabling the application's bounds.
+
+Regression coverage includes cross-account PATCH rejection, nullable fields,
+status-name collision preview/apply, known-empty smart conditions, free offers,
+retired fallback, malformed availability, compact payloads, 10,000-candidate
+lookups, request cancellation, invalid routes, 1,000-entry UI pagination and
+field-only mutation payloads. Tests use synthetic data. Real-browser acceptance
+and exact-head hosted CI must be recorded separately from local jsdom results.
+
+Local verification on 2026-10-24: `make lint test build test-race` passed with
+PostgreSQL-backed tests and 98 frontend tests. These are local API/database,
+jsdom, type-check, build and race-detector results, not hosted CI or a deployment.

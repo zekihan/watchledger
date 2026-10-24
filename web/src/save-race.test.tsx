@@ -40,7 +40,7 @@ test("pending status save blocks stale rating writes", async () => {
         data = { metadata: { id: 880020, title: "Audit" }, fetched_at: "2026-01-01T00:00:00Z" };
       else if (path.endsWith("/alternate"))
         data = { structure: "native", incomplete: false, titles: [] };
-      else if (path === "/api/library/tmdb:movie:880020" && init?.method === "PUT") {
+      else if (path === "/api/library/tmdb:movie:880020" && init?.method === "PATCH") {
         writes.push(
           JSON.parse(typeof init.body === "string" ? init.body : "{}") as Record<string, unknown>,
         );
@@ -70,6 +70,11 @@ test("pending status save blocks stale rating writes", async () => {
   expect(screen.getByRole<HTMLSelectElement>("combobox", { name: en.status }).disabled).toBe(true);
   await user.selectOptions(rating, "9");
   expect(writes).toHaveLength(1);
-  expect(writes[0]).toMatchObject({ base: "hold", rating: 5 });
+  expect(writes[0]).toEqual({ base: "hold", status_id: null });
+  releases.forEach((release) => release());
+  await waitFor(() => expect(rating.disabled).toBe(false));
+  await user.selectOptions(rating, "9");
+  await waitFor(() => expect(writes).toHaveLength(2));
+  expect(writes[1]).toEqual({ rating: 9 });
   releases.forEach((release) => release());
 });

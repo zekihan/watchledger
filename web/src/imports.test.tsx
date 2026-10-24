@@ -285,3 +285,41 @@ test("ordinary accounts cannot approve unknown shared metadata", async () => {
   expect(screen.queryByRole("checkbox", { name: en.sharedRestoreApprove })).toBeNull();
   expect(screen.getByRole<HTMLButtonElement>("button", { name: en.apply }).disabled).toBe(true);
 });
+
+test("restore names incompatible custom statuses and blocks apply", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string) =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify(
+            path.endsWith("/preview")
+              ? {
+                  id: "collision",
+                  additions: 0,
+                  conflicts: [],
+                  history_candidates: 0,
+                  status_conflicts: ["My watching"],
+                }
+              : [],
+          ),
+          { status: 200 },
+        ),
+      ),
+    ),
+  );
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <PortabilityPanel t={(key) => en[key]} />
+    </QueryClientProvider>,
+  );
+  await userEvent.click(screen.getByRole("checkbox", { name: en.backupSaved }));
+  await userEvent.upload(
+    screen.getByLabelText(en.restore),
+    file("collision.json", '{"version":1}'),
+  );
+  expect((await screen.findByRole("alert")).textContent).toContain("My watching");
+  expect(screen.getByRole<HTMLButtonElement>("button", { name: en.apply }).disabled).toBe(true);
+});
