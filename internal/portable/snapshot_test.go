@@ -165,3 +165,27 @@ func TestFutureFreshnessAndIntentRejected(t *testing.T) {
 		t.Fatal("future intent accepted")
 	}
 }
+
+func TestDeletedListsAndDanglingStatusValidation(t *testing.T) {
+	s := snapshot()
+	s.Lists = []List{{ID: "list", Name: "Rule", Kind: "smart", Rule: &smart.Rule{Op: "eq", Field: "status", Value: "deleted-status"}}}
+	if s.Validate() == nil {
+		t.Fatal("dangling status accepted")
+	}
+	s.Lists[0].Rule.Value = "watching"
+	if err := s.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	s.ListTombstones = []ListTombstone{{ListID: "list", DeletedAt: time.Now()}}
+	if s.Validate() == nil {
+		t.Fatal("contradictory deletion accepted")
+	}
+	s.Lists = nil
+	if err := s.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	s.Settings = json.RawMessage(`{"timezone":"Local"}`)
+	if s.Validate() == nil {
+		t.Fatal("nonportable timezone accepted")
+	}
+}

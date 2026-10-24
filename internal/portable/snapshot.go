@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/zekihan/watchledger/internal/preferences"
 	"github.com/zekihan/watchledger/internal/smart"
 	"github.com/zekihan/watchledger/internal/tracking"
 	"regexp"
@@ -99,7 +100,12 @@ type AlternateHistoryView struct {
 	CatalogID string `json:"catalog_id"`
 	AnchorID  string `json:"anchor_id"`
 }
+type ListTombstone struct {
+	ListID    string    `json:"list_id"`
+	DeletedAt time.Time `json:"deleted_at"`
+}
 type Snapshot struct {
+	ListTombstones       []ListTombstone        `json:"list_tombstones,omitempty"`
 	CatalogProof         string                 `json:"catalog_proof,omitempty"`
 	AlternateViews       []AlternateHistoryView `json:"alternate_views,omitempty"`
 	ListSourceTombstones []ListSourceTombstone  `json:"list_source_tombstones,omitempty"`
@@ -139,8 +145,8 @@ func (s Snapshot) Validate() error {
 					return errors.New("invalid setting")
 				}
 				if k == "timezone" {
-					if _, e := time.LoadLocation(value); e != nil {
-						return e
+					if !preferences.ValidTimezone(value) {
+						return errors.New("invalid timezone")
 					}
 				}
 				if k == "language" && value != "en" && value != "tr" {
@@ -339,6 +345,11 @@ func (s Snapshot) Validate() error {
 				return err
 			}
 			graph[l.ID] = smart.References(*l.Rule)
+			for _, id := range smart.StatusReferences(*l.Rule) {
+				if !tracking.ValidBase(id) && statuses[id] == "" {
+					return errors.New("unknown custom status in smart rule")
+				}
+			}
 		} else if l.Kind != "manual" {
 			return errors.New("invalid list kind")
 		}
@@ -356,6 +367,16 @@ func (s Snapshot) Validate() error {
 			return errors.New("invalid or contradictory list source deletion")
 		}
 		deletedSources[deleted.SourceID] = true
+	}
+	deletedLists := map[string]bool{}
+	for _, deleted := range s.ListTombstones {
+		if deleted.ListID == "" || deleted.DeletedAt.IsZero() || deletedLists[deleted.ListID] {
+			return errors.New("invalid list deletion")
+		}
+		if _, exists := graph[deleted.ListID]; exists {
+			return errors.New("list conflicts with explicit deletion")
+		}
+		deletedLists[deleted.ListID] = true
 	}
 	return smart.Acyclic(graph)
 }

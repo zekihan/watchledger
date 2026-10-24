@@ -1,9 +1,12 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"github.com/zekihan/watchledger/internal/auth"
 	"github.com/zekihan/watchledger/internal/smart"
+	"github.com/zekihan/watchledger/internal/tracking"
 	"net/http"
 	"sort"
 	"strconv"
@@ -86,6 +89,12 @@ func (a *API) saveList(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "database unavailable", http.StatusServiceUnavailable)
 		return
 	}
+	if in.Rule != nil {
+		if e = validateStatusReferences(r.Context(), tx, uid, *in.Rule); e != nil {
+			http.Error(w, "custom status reference is no longer available; refresh the editor", http.StatusConflict)
+			return
+		}
+	}
 	rule, e := json.Marshal(in.Rule)
 	if e != nil {
 		http.Error(w, "invalid rule", http.StatusBadRequest)
@@ -167,6 +176,10 @@ func (a *API) deleteList(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "list unavailable", http.StatusServiceUnavailable)
 		return
 	}
+	if _, err = tx.Exec(r.Context(), `INSERT INTO list_tombstones(user_id,list_id) SELECT user_id,id FROM lists WHERE user_id=$1 AND id=$2 ON CONFLICT(user_id,list_id) DO UPDATE SET deleted_at=now()`, uid, r.PathValue("id")); err != nil {
+		http.Error(w, "list unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	if _, err = tx.Exec(r.Context(), `INSERT INTO list_source_tombstones(user_id,source,source_id) SELECT user_id,source,source_id FROM lists WHERE user_id=$1 AND id=$2 AND source IS NOT NULL ON CONFLICT(user_id,source,source_id) DO UPDATE SET deleted_at=now()`, uid, r.PathValue("id")); err != nil {
 		http.Error(w, "list unavailable", http.StatusServiceUnavailable)
 		return
@@ -198,6 +211,10 @@ func (a *API) previewList(w http.ResponseWriter, r *http.Request) {
 	case "", "title", "release", "rating", "added":
 	default:
 		http.Error(w, "invalid sorting", http.StatusBadRequest)
+		return
+	}
+	if e := validateStatusReferences(r.Context(), a.DB, auth.Current(r.Context()).ID, in.Rule); e != nil {
+		http.Error(w, "custom status reference is no longer available; refresh the editor", http.StatusConflict)
 		return
 	}
 	a.renderListResults(w, r, in.Rule, in.Sort, in.ID)
@@ -456,4 +473,21 @@ func (a *API) listResults(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]interface{}{"count": len(out), "results": out})
+}
+
+// Validate against current ownership under the same account lock as deletion.
+func validateStatusReferences(ctx context.Context, db queryReader, uid string, rule smart.Rule) error {
+	for _, id := range smart.StatusReferences(rule) {
+		if tracking.ValidBase(id) {
+			continue
+		}
+		var exists bool
+		if err := db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM statuses WHERE user_id=$1 AND id::text=$2)", uid, id).Scan(&exists); err != nil {
+			return err
+		}
+		if !exists {
+			return errors.New("custom status not found")
+		}
+	}
+	return nil
 }

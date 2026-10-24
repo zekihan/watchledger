@@ -117,3 +117,31 @@ test.each(cases)(
     expect(screen.queryByRole("button", { name: en.apply })).toBeNull();
   },
 );
+
+test("restore uploads original JSON numbers without breaking catalog proof", async () => {
+  const raw =
+    '{"version":1,"catalog_proof":"signed-fixture","catalog":[{"metadata":{"en":{"vote_average":8.0}}}]}';
+  let uploaded: BodyInit | null | undefined;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string, init?: RequestInit) => {
+      if (path === "/api/restore/preview") uploaded = init?.body;
+      return Promise.resolve(
+        new Response(
+          JSON.stringify(
+            path === "/api/restore/preview"
+              ? { id: "proof", additions: 1, conflicts: [], history_candidates: 0 }
+              : [],
+          ),
+          { status: 200 },
+        ),
+      );
+    }),
+  );
+  mount(<PortabilityPanel t={(key) => en[key]} />);
+  const file = new File([raw], "backup.json", { type: "application/json" });
+  Object.defineProperty(file, "text", { value: () => Promise.resolve(raw) });
+  await userEvent.upload(screen.getByLabelText(en.restore), file);
+  expect(await screen.findByText(en.previewReady)).toBeTruthy();
+  expect(uploaded).toBe(raw);
+});

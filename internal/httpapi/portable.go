@@ -46,6 +46,7 @@ func (a *API) export(w http.ResponseWriter, r *http.Request) {
  'statuses',coalesce((SELECT jsonb_agg(to_jsonb(s)-'user_id') FROM statuses s WHERE s.user_id=u.id),'[]'),
  'alternate_views',coalesce((SELECT jsonb_agg(to_jsonb(v)-'user_id') FROM alternate_history_views v WHERE v.user_id=u.id),'[]'),
  'library',coalesce((SELECT jsonb_agg(to_jsonb(l)-'user_id') FROM library l WHERE l.user_id=u.id),'[]'),
+ 'list_tombstones',coalesce((SELECT jsonb_agg(to_jsonb(t)-'user_id') FROM list_tombstones t WHERE t.user_id=u.id),'[]'),
  'list_source_tombstones',coalesce((SELECT jsonb_agg(to_jsonb(t)-'user_id') FROM list_source_tombstones t WHERE t.user_id=u.id),'[]'),
  'simkl_links',coalesce((SELECT jsonb_agg(to_jsonb(k)-'user_id') FROM simkl_episode_links k WHERE k.user_id=u.id),'[]'),
  'tombstones',coalesce((SELECT jsonb_agg(to_jsonb(t)-'user_id') FROM history_tombstones t WHERE t.user_id=u.id),'[]'),
@@ -140,7 +141,12 @@ func (a *API) restorePreview(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "metadata validation unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	preview := map[string]interface{}{"shared_metadata_requires_approval": needsApproval, "can_approve_shared_metadata": auth.Current(r.Context()).Admin, "additions": additions, "conflicts": conflicts, "history_candidates": len(s.History), "existing_app_edits_win": true, "backup_required": true, "settings_policy": "restore only when current settings are empty", "mapping_consents_restored": false}
+	_, preserved, e := filterDeletedLists(r.Context(), a.DB, uid, s.Lists)
+	if e != nil {
+		http.Error(w, "list deletion lookup unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	preview := map[string]interface{}{"preserved_list_deletions": preserved, "shared_metadata_requires_approval": needsApproval, "can_approve_shared_metadata": auth.Current(r.Context()).Admin, "additions": additions, "conflicts": conflicts, "history_candidates": len(s.History), "existing_app_edits_win": true, "backup_required": true, "settings_policy": "restore only when current settings are empty", "mapping_consents_restored": false}
 	summary, e := json.Marshal(preview)
 	if e != nil {
 		http.Error(w, "preview unavailable", http.StatusServiceUnavailable)
@@ -337,6 +343,17 @@ func (a *API) restoreApply(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	for _, deleted := range s.ListTombstones {
+		mapped := scopedID(uid, "list", deleted.ListID)
+		_, e = tx.Exec(r.Context(), `INSERT INTO list_tombstones(user_id,list_id,deleted_at) SELECT $1,$2::text::uuid,$3 WHERE NOT EXISTS(SELECT 1 FROM lists WHERE user_id=$1 AND (id::text=$2 OR id::text=$4)) ON CONFLICT DO NOTHING`, uid, mapped, deleted.DeletedAt, deleted.ListID)
+		if fail(e) {
+			return
+		}
+	}
+	s.Lists, _, e = filterDeletedLists(r.Context(), tx, uid, s.Lists)
+	if fail(e) {
+		return
+	}
 	listIDs := map[string]string{}
 	newLists := map[string]bool{}
 	for _, l := range s.Lists {
@@ -477,4 +494,57 @@ func (a *API) newSharedMetadata(ctx context.Context, db queryReader, s portable.
 	var missing bool
 	err = db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM unnest($1::text[]) AS wanted(id) WHERE NOT EXISTS(SELECT 1 FROM catalog c WHERE c.id=wanted.id)) OR EXISTS(SELECT 1 FROM unnest($2::text[]) AS wanted(id) WHERE NOT EXISTS(SELECT 1 FROM episodes e WHERE e.id=wanted.id))`, catalogIDs, episodeIDs).Scan(&missing)
 	return missing, err
+}
+
+// Preserve local deletions and omit incoming rules depending on those lists.
+// Existing lists are never removed by an imported tombstone.
+func filterDeletedLists(ctx context.Context, db queryReader, uid string, lists []portable.List) ([]portable.List, []string, error) {
+	rows, err := db.Query(ctx, "SELECT list_id::text FROM list_tombstones WHERE user_id=$1", uid)
+	if err != nil {
+		return nil, nil, err
+	}
+	deleted := map[string]bool{}
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			rows.Close()
+			return nil, nil, err
+		}
+		deleted[id] = true
+	}
+	rows.Close()
+	if rows.Err() != nil {
+		return nil, nil, rows.Err()
+	}
+	skipped := map[string]bool{}
+	for _, list := range lists {
+		if deleted[list.ID] || deleted[scopedID(uid, "list", list.ID)] {
+			skipped[list.ID] = true
+		}
+	}
+	for changed := true; changed; {
+		changed = false
+		for _, list := range lists {
+			if skipped[list.ID] || list.Rule == nil {
+				continue
+			}
+			for _, ref := range smart.References(*list.Rule) {
+				if skipped[ref] {
+					skipped[list.ID] = true
+					changed = true
+					break
+				}
+			}
+		}
+	}
+	out := []portable.List{}
+	names := []string{}
+	for _, list := range lists {
+		if skipped[list.ID] {
+			names = append(names, list.Name)
+		} else {
+			out = append(out, list)
+		}
+	}
+	return out, names, nil
 }

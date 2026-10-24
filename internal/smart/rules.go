@@ -190,3 +190,15 @@ func UsesStatus(r Rule, id string) bool {
 	}
 	return false
 }
+
+// StatusReferences returns exact custom/base status predicates at any depth.
+func StatusReferences(r Rule) []string {
+	out := []string{}
+	if r.Field == "status" && r.Op != "unknown" {
+		out = append(out, r.Value)
+	}
+	for _, child := range r.Children {
+		out = append(out, StatusReferences(child)...)
+	}
+	return out
+}
