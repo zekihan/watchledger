@@ -41,4 +41,5 @@ bash scripts/http-smoke.sh "$work"
 ready
 curl --fail --silent -b "$work/cookies" "$PUBLIC_URL/api/library" | python3 -c 'import json,sys; data=json.load(sys.stdin); assert any(x["id"]=="tmdb:movie:900001" and x["base"]=="completed" for x in data)'
 curl --fail --silent -b "$work/cookies" "$PUBLIC_URL/api/library/tmdb:movie:900001/history" | python3 -c 'import json,sys; data=json.load(sys.stdin); assert len(data)==1 and data[0]["watched_date"]=="2026-01-02" and data[0]["watched_time"] is None'
-echo 'COMPOSE_LOGIN_TRACKING_RESTART_VERIFIED'
+npm run test:browser
+echo 'COMPOSE_LOGIN_TRACKING_RESTART_BROWSER_VERIFIED'

@@ -40,3 +40,7 @@ The audit found that discovery equated Completed status with watched history. Th
 ### Actual browser boundary
 
 A fresh command-workspace Chromium attempt failed before page loading at `socket() failed: Operation not permitted` in its process-singleton initialization. No sandbox/security bypass or protected-directory access was attempted. This is not evidence of app behavior and does not block the independent code and synthetic interaction audit. Existing Mac browser evidence remains valid for its recorded revision; new real-browser acceptance remains distinct.
+
+## Browser CI work in progress
+
+A pinned Playwright suite now targets the existing disposable Compose app with real synthetic database/API state, in English/Turkish at desktop and phone-sized viewports. It covers restore, selected-episode/unknown-date tracking, default/cancel/focus behavior, manual/smart lists, export exclusions, navigation and overflow. Browser execution is still pending the exact-head CI result; type-checking or test discovery alone does not complete acceptance. Screenshots contain only synthetic fixtures and can support visual review after execution. This work is independent and must not be moved to the operator checklist merely because local Chromium cannot launch.
