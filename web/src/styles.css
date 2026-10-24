@@ -731,6 +731,8 @@ footer {
 }
 footer a {
   color: #a6b7c4;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .login {
   min-height: 100vh;

@@ -139,3 +139,55 @@ func TestSyntheticCertificateUsesVerifiedHostnames(t *testing.T) {
 		t.Fatal("fixture certificate trusted unrelated host")
 	}
 }
+
+func TestSyntheticAdminClaimsAreExplicitAndSubjectBound(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := newHandler("https://oidc:8443", "https://localhost:8443/authorize", key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, subject := range []string{"synthetic-ci-user", "synthetic-ci-second", "synthetic-ci-admin", "unknown-admin"} {
+		form := url.Values{"grant_type": {"refresh_token"}, "refresh_token": {"synthetic-ci-refresh:" + subject}}
+		r := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/token", strings.NewReader(form.Encode()))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		r.SetBasicAuth(clientID, "synthetic")
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if subject == "unknown-admin" {
+			if w.Code != http.StatusUnauthorized {
+				t.Fatal("unknown subject granted access")
+			}
+			continue
+		}
+		if w.Code != http.StatusOK {
+			t.Fatal(w.Code)
+		}
+		var body struct {
+			IDToken string `json:"id_token"`
+		}
+		if err = json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		signed, e := jwt.ParseSigned(body.IDToken, []jose.SignatureAlgorithm{jose.RS256})
+		if e != nil {
+			t.Fatal(e)
+		}
+		var claims struct {
+			Subject string   `json:"sub"`
+			Roles   []string `json:"roles"`
+		}
+		if e = signed.Claims(&key.PublicKey, &claims); e != nil || claims.Subject != subject {
+			t.Fatal("identity changed", e)
+		}
+		expected := "member"
+		if subject == "synthetic-ci-admin" {
+			expected = "member,admin"
+		}
+		if strings.Join(claims.Roles, ",") != expected {
+			t.Fatal("unexpected privilege", claims.Roles)
+		}
+	}
+}

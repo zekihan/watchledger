@@ -18,7 +18,7 @@ func (a *API) dashboard(w http.ResponseWriter, r *http.Request) {
 
 	var result json.RawMessage
 	e := tx.QueryRow(r.Context(), `SELECT jsonb_build_object(
- 'upcoming',coalesce((SELECT jsonb_agg(x) FROM (SELECT e.id,e.catalog_id,c.title,e.season,e.number,e.air_date,e.air_time FROM episodes e JOIN catalog c ON c.id=e.catalog_id JOIN library l ON l.catalog_id=c.id AND l.user_id=$1 WHERE NOT e.retired AND (e.air_date>(now() AT TIME ZONE $2)::date OR e.air_time>now()) ORDER BY e.air_date,e.air_time LIMIT 100) x),'[]'::jsonb),
+ 'upcoming',coalesce((SELECT jsonb_agg(x) FROM (SELECT e.id,e.catalog_id,c.title,e.season,e.number,e.air_date,e.air_time FROM episodes e JOIN catalog c ON c.id=e.catalog_id JOIN library l ON l.catalog_id=c.id AND l.user_id=$1 WHERE NOT e.retired AND (e.air_date>(now() AT TIME ZONE $2)::date OR e.air_time>now()) ORDER BY coalesce(e.air_date,(e.air_time AT TIME ZONE $2)::date),e.air_time NULLS FIRST,e.catalog_id,e.season,e.number,e.id LIMIT 100) x),'[]'::jsonb),
  'activity',coalesce((SELECT jsonb_agg(x) FROM (SELECT h.catalog_id,c.title,h.episode_id,h.watched_date,h.watched_time,h.created_at,v.anchor_id AS view_anchor FROM history h JOIN catalog c ON c.id=h.catalog_id LEFT JOIN alternate_history_views v ON v.user_id=h.user_id AND v.catalog_id=h.catalog_id WHERE h.user_id=$1 ORDER BY h.created_at DESC LIMIT 30) x),'[]'::jsonb))
 `, uid, timezone(r)).Scan(&result)
 	if e != nil {

@@ -137,6 +137,8 @@ func newHandler(issuer, authorize string, key *rsa.PrivateKey) (http.Handler, er
 		subject := "synthetic-ci-user"
 		if q.Get("fixture_user") == "second" {
 			subject = "synthetic-ci-second"
+		} else if q.Get("fixture_user") == "admin" {
+			subject = "synthetic-ci-admin"
 		} else if q.Get("fixture_user") != "" {
 			http.Error(w, "unknown synthetic identity", http.StatusBadRequest)
 			return
@@ -190,6 +192,8 @@ func newHandler(issuer, authorize string, key *rsa.PrivateKey) (http.Handler, er
 				subject = "synthetic-ci-user"
 			case "synthetic-ci-refresh:synthetic-ci-second":
 				subject = "synthetic-ci-second"
+			case "synthetic-ci-refresh:synthetic-ci-admin":
+				subject = "synthetic-ci-admin"
 			default:
 				http.Error(w, "invalid refresh", http.StatusUnauthorized)
 				return
@@ -198,7 +202,11 @@ func newHandler(issuer, authorize string, key *rsa.PrivateKey) (http.Handler, er
 			http.Error(w, "unsupported grant", http.StatusBadRequest)
 			return
 		}
-		signed, err := jwt.Signed(signer).Claims(map[string]interface{}{"iss": issuer, "sub": subject, "aud": clientID, "exp": time.Now().Add(5 * time.Minute).Unix(), "iat": time.Now().Unix(), "nonce": nonce, "name": "Synthetic CI User", "roles": []string{"member"}}).Serialize()
+		roles := []string{"member"}
+		if subject == "synthetic-ci-admin" {
+			roles = append(roles, "admin")
+		}
+		signed, err := jwt.Signed(signer).Claims(map[string]interface{}{"iss": issuer, "sub": subject, "aud": clientID, "exp": time.Now().Add(5 * time.Minute).Unix(), "iat": time.Now().Unix(), "nonce": nonce, "name": "Synthetic CI User", "roles": roles}).Serialize()
 		if err != nil {
 			http.Error(w, "fixture signing failed", http.StatusInternalServerError)
 			return

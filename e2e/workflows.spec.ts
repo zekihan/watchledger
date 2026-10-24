@@ -6,7 +6,10 @@ import { join } from "node:path";
 import { en, tr } from "../web/src/i18n";
 
 const origin = "http://127.0.0.1:8080";
-async function login(context: BrowserContext, file: "cookies" | "cookies-second" = "cookies") {
+async function login(
+  context: BrowserContext,
+  file: "cookies" | "cookies-second" | "cookies-admin" = "cookies",
+) {
   if (
     process.env.GITHUB_ACTIONS !== "true" ||
     process.env.WATCHLEDGER_SYNTHETIC_OIDC !== "1" ||
@@ -446,6 +449,9 @@ test("second synthetic identity cannot browse the first user's library, lists, h
     ).json();
     async function restore() {
       await page.goto("/#settings");
+      const exported = page.waitForEvent("download");
+      await page.getByRole("link", { name: `↓ ${en.export}`, exact: true }).click();
+      expect(await (await exported).failure()).toBeNull();
       await page.getByRole("checkbox", { name: en.backupSaved }).check();
       await page.getByLabel(en.restore, { exact: true }).setInputFiles({
         name: "synthetic-cross-account.json",
@@ -687,3 +693,127 @@ for (const scenario of cases) {
     });
   });
 }
+
+test("synthetic admin reviews source-safe mappings without browsing private libraries", async ({
+  page,
+  context,
+}) => {
+  await login(context, "cookies-admin");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/#admin");
+  await expect(page.getByRole("heading", { name: en.accounts, exact: true })).toBeVisible();
+  expect(await (await context.request.get(origin + "/api/library")).json()).toEqual([]);
+  const accounts = (await (
+    await context.request.get(origin + "/api/admin/accounts")
+  ).json()) as Record<string, unknown>[];
+  expect(accounts).toHaveLength(3);
+  for (const account of accounts) {
+    expect(account).not.toHaveProperty("library");
+    expect(account).not.toHaveProperty("history");
+  }
+  await page.getByRole("button", { name: en.newMapping, exact: true }).click();
+  await page
+    .getByRole("textbox", { name: en.sourceEpisode, exact: true })
+    .fill("anidb:episode:910006");
+  await page
+    .getByRole("textbox", { name: en.targetEpisode, exact: true })
+    .fill("tmdb:episode:910001");
+  await page.getByRole("button", { name: "＋", exact: true }).click();
+  await page
+    .getByRole("textbox", { name: en.reviewNote, exact: true })
+    .fill("Synthetic browser mapping review");
+  await page.getByRole("button", { name: en.save, exact: true }).click();
+  await expect(page.getByText("Synthetic browser mapping review", { exact: true })).toBeVisible();
+  const mappings = (await (await context.request.get(origin + "/api/mappings")).json()) as {
+    id: string;
+    revision: string;
+    relationships: { from: string; to: string }[];
+  }[];
+  expect(mappings).toHaveLength(1);
+  expect(mappings[0]?.relationships).toEqual([
+    { from: "anidb:episode:910006", to: "tmdb:episode:910001" },
+  ]);
+  await page.getByRole("button", { name: en.reviewMapping, exact: true }).click();
+  await page
+    .getByRole("textbox", { name: en.reviewNote, exact: true })
+    .fill("Synthetic reviewed correction");
+  await page.getByRole("button", { name: en.save, exact: true }).click();
+  await expect(page.getByText("Synthetic reviewed correction", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: en.mappingHistory, exact: true }).click();
+  const revisions = (await (
+    await context.request.get(`${origin}/api/admin/mappings/${mappings[0]!.id}/history`)
+  ).json()) as unknown[];
+  expect(revisions.length).toBeGreaterThanOrEqual(2);
+  await noOverflow(page);
+  await page.screenshot({ path: "test-results/en-390-admin.png", fullPage: true });
+  await accessible(page);
+});
+
+test("synthetic SIMKL preview and repeat import retain local edits and unresolved source records", async ({
+  page,
+  context,
+}) => {
+  await login(context, "cookies-second");
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    (
+      await context.request.put(origin + "/api/library/tmdb:movie:900001", {
+        headers: { Origin: origin },
+        data: { base: "hold", rating: 3 },
+      })
+    ).ok(),
+  ).toBe(true);
+  const historyURL = origin + "/api/library/tmdb:movie:900001/history";
+  const history = await (await context.request.get(historyURL)).json();
+  const source = {
+    movies: [
+      {
+        movie: { title: "Synthetic imported movie", ids: { simkl: 900001, tmdb: 900001 } },
+        status: "completed",
+        user_rating: 10,
+      },
+    ],
+    anime: [
+      {
+        show: { title: "Synthetic unresolved edition", ids: { simkl: 900002, tmdb: 900001 } },
+        status: "completed",
+        watched_episodes_count: 12,
+      },
+    ],
+  };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await page.goto("/#library");
+    await page.goto("/#settings");
+    await page.getByRole("checkbox", { name: en.backupSaved }).check();
+    await page.getByLabel(en.simklFile, { exact: true }).setInputFiles({
+      name: `synthetic-simkl-${attempt}.json`,
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(source)),
+    });
+    const panel = page.getByRole("region", { name: en.import, exact: true });
+    await expect(panel.getByText(en.previewReady, { exact: true })).toBeVisible();
+    expect(await (await context.request.get(historyURL)).json()).toEqual(history);
+    await panel.getByRole("button", { name: en.apply, exact: true }).click();
+    await expect(panel.getByText(en.simklApplied, { exact: true })).toBeVisible();
+    const library = (await (await context.request.get(origin + "/api/library")).json()) as {
+      id: string;
+      base: string;
+      rating: number;
+    }[];
+    expect(library.find((item) => item.id === "tmdb:movie:900001")).toMatchObject({
+      base: "hold",
+      rating: 3,
+    });
+    expect(await (await context.request.get(historyURL)).json()).toEqual(history);
+    const reviews = (await (
+      await context.request.get(origin + "/api/import-reviews")
+    ).json()) as unknown[];
+    expect(reviews.length).toBeGreaterThan(0);
+    await expect(
+      panel.getByText("Synthetic unresolved edition", { exact: true }).first(),
+    ).toBeVisible();
+  }
+  await noOverflow(page);
+  await page.screenshot({ path: "test-results/en-390-import-review.png", fullPage: true });
+  await accessible(page);
+});
