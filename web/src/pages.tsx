@@ -831,7 +831,7 @@ export function SettingsPage({
           >
             <option value="romaji">Romaji</option>
             <option value="native">{t("native")}</option>
-            <option value="english">English</option>
+            <option value="english">{t("englishTitle")}</option>
           </select>
         </label>
         <label className="wide">

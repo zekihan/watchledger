@@ -37,8 +37,8 @@ Checked behaviors below are supported by the named regression tests in [implemen
 
 ## Interface and localization
 
-- [ ] Original polished dark, poster-focused interface with compact controls.
-- [ ] Responsive desktop layouts.
+- [x] Original polished dark, poster-focused interface with compact controls. See [browser, localization and acceptance evidence](remaining-feature-audit.md).
+- [x] Responsive desktop layouts. See [browser, localization and acceptance evidence](remaining-feature-audit.md).
 - [ ] Responsive phone layouts and touch-friendly quick actions.
   - [x] Main English/Turkish screens fit verified Chrome phone viewports; mapping-panel overflow fixed. Physical Android Chrome acceptance remains deferred.
 - [ ] Installable web-app manifest and icons.
@@ -49,22 +49,22 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [x] Library poster-grid view. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Library table view.
 - [x] Discovery and global search screens. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
-- [ ] Movie/show/season/episode detail screens.
+- [x] Movie/show/season/episode detail screens.
   - [x] Source-ID episode deep links, season detail presentation, spoiler-safe episode stills and missing-identity handling.
-  - [ ] Real-browser presentation acceptance.
+  - [x] Movie/TV/native episode presentation verified in the Chromium fixture matrix; representative live-source checks remain in the dated acceptance record.
 - [x] Person detail screens. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Manual-list and smart-list screens. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
-- [ ] Calendar screens.
+- [x] Calendar screens. See [browser, localization and acceptance evidence](remaining-feature-audit.md).
 - [x] Statistics screen. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] User settings and import/export screens. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
-- [ ] Import preview, conflicts, and review queue screens.
-- [ ] Admin mapping and account-oversight screens.
+- [x] Import preview, conflicts, and review queue screens. See [browser, localization and acceptance evidence](remaining-feature-audit.md).
+- [x] Admin mapping and account-oversight screens. See [browser, localization and acceptance evidence](remaining-feature-audit.md).
 - [x] Keyboard shortcuts for search, watched actions, and result navigation. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Visible equivalents for every keyboard action. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [ ] Accessible UI primitives, focus handling, and keyboard navigation.
 - [ ] Polished loading, empty, error, and retry states.
-- [ ] Complete English UI translation.
-- [ ] Complete Turkish UI translation.
+- [x] Complete English UI translation. See [browser, localization and acceptance evidence](remaining-feature-audit.md).
+- [x] Complete Turkish UI translation. See [browser, localization and acceptance evidence](remaining-feature-audit.md).
 - [x] Browser-language initialization with English fallback. See [independent audit evidence](remaining-feature-audit.md).
 - [x] Independent interface language, metadata language, anime title style, country, and timezone settings. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Metadata language fallback to available source content. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
@@ -159,9 +159,10 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [x] Manual Up next ordering. See [independent audit evidence](remaining-feature-audit.md).
 - [x] Recent activity on the dashboard. See [independent audit evidence](remaining-feature-audit.md).
 - [x] Upcoming episodes on the dashboard. See [independent audit evidence](remaining-feature-audit.md).
-- [ ] Calendar month view.
+- [x] Calendar month view. Readable desktop grid and phone-selectable horizontal grid; phones default to agenda. See [audit](remaining-feature-audit.md).
   - [x] Date-only preservation, timestamp timezone placement, source episode links and day-list semantics in UI regression tests.
-  - [ ] Desktop/phone visual and assistive-technology acceptance.
+  - [x] Desktop/phone-sized Chromium visual review and automated accessibility scans.
+  - [ ] Intended physical-device and screen-reader acceptance.
 - [x] Calendar list view. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Preserve date-only release precision. See [independent audit evidence](remaining-feature-audit.md).
 - [x] Display known release timestamps in each user's timezone. See [independent audit evidence](remaining-feature-audit.md).
@@ -327,8 +328,8 @@ Backend regressions verify private counts, runtime unknowns, metadata-language s
 - [x] Tests for export/restore and user isolation.
 - [x] Browser checks for search, details, providers, and library workflows. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Browser checks for tracking and smart-list workflows. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
-- [ ] English and Turkish layout review.
-- [ ] Desktop and phone visual review.
+- [x] English and Turkish layout review. See [browser, localization and acceptance evidence](remaining-feature-audit.md).
+- [x] Desktop and phone visual review. See [browser, localization and acceptance evidence](remaining-feature-audit.md).
 - [ ] Keyboard and focus accessibility review.
 - [x] Synthetic Compose deployment smoke check; actual provider configuration remains in TODO.md.
 - [x] Helm deployment smoke check. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).

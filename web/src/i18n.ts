@@ -102,6 +102,9 @@ export const en = {
   mappingDatasetHint:
     "Upload an official animap JSON release and its published SHA-256. A proposal uses explicit episode identities only. TVDB numbering is never treated as TMDB numbering. Review before saving; inferred targets remain unresolved.",
   datasetVersion: "Dataset release version",
+  mappingReleases: "animap releases",
+  anidbID: "AniDB ID",
+  englishTitle: "English",
   datasetFile: "animap JSON file",
   resolveDataset: "Resolve episode identities for review",
 
@@ -398,7 +401,7 @@ export const en = {
   activity: "Monthly activity",
   attribution: "This product uses the TMDB API but is not endorsed or certified by TMDB.",
   mappingGated:
-    "Anime source verification is pending. No alternate mapping is inferred automatically.",
+    "Mappings use explicit source identities. Review connected entries before linking progress; uncertain matches remain unresolved.",
   mapping: "Mapping review",
   accounts: "Accounts",
   noCredentials:
@@ -527,6 +530,9 @@ export const tr: Record<Key, string> = {
   mappingDatasets: "Sürümlü anime eşleme veri kümeleri",
   mappingDatasetHint:
     "Resmî animap JSON sürümünü ve yayımlanmış SHA-256 değerini yükleyin. Öneri yalnızca açık bölüm kimliklerini kullanır. TVDB numaraları TMDB numaraları sayılmaz. Kaydetmeden önce inceleyin; tahminî hedefler çözümsüz kalır.",
+  mappingReleases: "animap sürümleri",
+  anidbID: "AniDB kimliği",
+  englishTitle: "İngilizce",
   datasetVersion: "Veri kümesi sürümü",
   datasetFile: "animap JSON dosyası",
   resolveDataset: "İnceleme için bölüm kimliklerini çöz",
@@ -818,7 +824,8 @@ export const tr: Record<Key, string> = {
   activity: "Aylık etkinlik",
   attribution:
     "Bu ürün TMDB API'sini kullanır ancak TMDB tarafından onaylanmamış veya sertifikalandırılmamıştır.",
-  mappingGated: "Anime kaynağı doğrulaması bekleniyor. Alternatif eşlemeler otomatik varsayılmaz.",
+  mappingGated:
+    "Eşlemeler açık kaynak kimliklerini kullanır. İlerlemeyi bağlamadan önce ilişkili kayıtları inceleyin; belirsiz eşleşmeler çözümlenmeden kalır.",
   mapping: "Eşleme incelemesi",
   accounts: "Hesaplar",
   noCredentials:

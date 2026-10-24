@@ -810,7 +810,10 @@ test("synthetic SIMKL preview and repeat import retain local edits and unresolve
     ).json()) as unknown[];
     expect(reviews.length).toBeGreaterThan(0);
     await expect(
-      panel.getByText("Synthetic unresolved edition", { exact: true }).first(),
+      panel
+        .getByRole("listitem")
+        .filter({ hasText: "Synthetic unresolved edition" })
+        .getByRole("button", { name: en.resolveImport, exact: true }),
     ).toBeVisible();
   }
   await noOverflow(page);

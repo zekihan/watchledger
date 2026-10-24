@@ -2,18 +2,20 @@
 
 This audit replaces the earlier narrow-pass completion assessment. Passing CI for one increment is not evidence that all independently actionable work is finished. Work below stays with implementation, not in the operator handoff. The contract remains [the specification](specification.md); deferred post-first-release features are not silently added.
 
-## Independent work queue
+## Independent implementation audit
+
+Checked audit items mean their implementation/evidence reconciliation is recorded below. Publication is not accepted until the latest branch CI is successful; current and prior browser failures are tracked explicitly in this record.
 
 - [x] Dashboard: use the selected timezone/language for timestamped activity and upcoming releases, preserve date-only values, and test ordering controls including cancelled drag and concurrent saves.
 - [x] Catalog credits: make the full supplied cast browsable instead of silently stopping at twenty; handle duplicate person/title credits safely and test person filmography filtering/sorting/empty states.
 - [x] Lists: exercise nested AND/OR/NOT and unknown-value editing through the UI, not only backend evaluation; check dependent-list workflows and accessible editor behavior.
 - [x] Library/navigation: verify custom/base status filters, sorting, keyboard shortcuts and visible equivalents against synthetic populated UI fixtures; fix gaps found.
-- [ ] Localization/settings: verify browser-language fallback, separate settings and date formatting across all visible screens; distinguish untranslated source content from UI strings.
+- [x] Localization/settings: verify browser-language fallback, separate settings and date formatting across all visible screens; distinguish untranslated source content from UI strings.
 - [x] Tracking/detail: verify movie/bulk chosen/unknown dates, ended-show transitions, specials/spoilers and retained source history in UI fixtures alongside existing database tests.
 - [x] Discovery/availability: verify filters, person-credit pagination, selected-service behavior, no-match/error states and attribution in UI fixtures.
-- [ ] Import/portability: reconcile every tracker claim with existing HTTP/database/UI tests, add missing independent coverage and keep only actual private-provider/device acceptance owner-dependent.
+- [x] Import/portability: reconcile every tracker claim with existing HTTP/database/UI tests, add missing independent coverage and keep only actual private-provider/device acceptance owner-dependent.
 - [x] Background operations: verify weekly saved-title and recently-used-country refresh schedules independently, plus user-visible admin error/retry states.
-- [ ] Reconcile every unchecked first-release tracker item with implementation, named test evidence, an actual independent task, or a specifically justified operator-only acceptance item. Do not blanket-check visual acceptance based on jsdom.
+- [x] Reconcile every unchecked first-release tracker item with implementation, named test evidence, an actual independent task, or a specifically justified operator-only acceptance item. Do not blanket-check visual acceptance based on jsdom.
 
 ## Existing evidence, not a substitute for this audit
 
@@ -105,3 +107,16 @@ Automated accessibility scans using pinned `@axe-core/playwright` are being adde
 The native portable-cache change passed [CI 40047729763](https://github.com/zekihan/watchledger/actions/runs/40047729763) at `b6fdab9`, including real-browser restored native detail and unknown-date tracking with provider credentials absent. The next browser increment adds a third, explicit synthetic admin identity from the same CA-verified OIDC fixture, source-safe mapping create/review/history and private-account oversight checks, plus SIMKL conflict/reimport/unresolved-archive UI coverage. The test-only issuer is not included in the application binary/image and does not modify database roles or production identity settings.
 
 The first axe-enabled run (`40048373216`) found footer links distinguished only by color. They now have persistent underlines; no accessibility rule was suppressed. The cross-account restore test correctly hit the server's current-export prerequisite, so the browser flow now actually downloads that account's backup before applying, rather than merely ticking the checkbox. Reviewed phone calendar screenshots confirm readable agenda entries. Their mixed date/timestamp fixtures also exposed chronological ordering gaps: calendar and upcoming queries now sort by selected-zone day and then actual timestamp, with stable identity ties and unchanged date-only precision. Database regressions cover both endpoints.
+
+A TypeScript AST review of visible JSX text and literal accessible labels found untranslated mapping-release and AniDB-identity labels, plus the English anime-title-style option. These now use the interface translations. Remaining literal text consists of brand/license names, protocol identifiers and language autonyms; provider metadata/diagnostics remain source content. This complements the English/Turkish browser matrix rather than relying on translation-key parity alone.
+
+At `96067fd`, [CI 40049102769](https://github.com/zekihan/watchledger/actions/runs/40049102769) passed ten browser cases, including all populated main-page/movie accessibility scans, second-account restore/reimport and the synthetic admin mapping workflow. The final SIMKL case applied safely and displayed the unresolved source record, confirmed in its screenshot; its exact-text locator incorrectly included the adjacent action button. It now locates the named review action within that source row. No product safeguard or assertion about retained history was removed. The mapping page's stale unconditional “source verification pending” banner was replaced by the actual identity/review policy in both languages.
+
+### Remaining open tracker classifications
+
+- Responsive/visual/accessibility composite items combine implemented layouts and verified browser behavior with intended physical-device or assistive-technology acceptance. Existing 1440px desktop and 360/390px phone-sized Chromium evidence is recorded above; physical Android and screen-reader checks stay in TODO.md. Automated accessibility scans do not prove universal conformance.
+- Native/alternate-view and aggregate-history composite items have implemented source-safe behavior, database/UI regressions and the recorded representative real-source mapping exercises. Broader edition coverage is limited by source evidence, not missing generic tracking code; the specifically unresolved edition decision stays in TODO.md.
+- Live AUTH V2/list-source composites retain the already completed real-adapter and representative browser acceptance. Premium/expired-token/other-account and full private-backup cases still require those actual inputs, not a replacement implementation.
+- Exact translation of source automatic rules is conditional on a verified schema/equivalence. No such schema was present in the inspected source; manual snapshots and preserved raw rules are deliberate, not inferred smart rules.
+- Daily live refresh and real-provider Compose acceptance require the intended running environment and its issuer connectivity. Scheduling logic, retry behavior and synthetic Compose execution are tested independently.
+- Final branch acceptance requires successful exact-head CI, including the remaining SIMKL repeat-import case and refreshed screenshots. A failed or unrun browser assertion remains independent work until fixed; it is never an operator blocker.
