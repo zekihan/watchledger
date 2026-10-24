@@ -176,6 +176,57 @@ for (const [index, scenario] of cases.entries()) {
         updated_at: stamp,
       },
     ];
+    const nativeID = `anidb:anime:${base + 5}`;
+    const nativeTitle = `Synthetic native entry ${index}`;
+    snapshot.catalog.push({
+      id: nativeID,
+      source: "anidb",
+      source_id: String(base + 5),
+      kind: "anime",
+      title: nativeTitle,
+      metadata: {
+        en: {
+          id: base + 5,
+          name: nativeTitle,
+          status: "Ended",
+          number_of_episodes: 1,
+          seasons: [{ season_number: 1, name: "Regular", episode_count: 1 }],
+          titles: [{ language: "x-jat", type: "main", text: nativeTitle }],
+        },
+      },
+      fetched_at: new Date().toISOString(),
+    });
+    snapshot.episodes.push({
+      id: `anidb:episode:${base + 6}`,
+      catalog_id: nativeID,
+      source: "anidb",
+      source_id: String(base + 6),
+      season: 1,
+      number: 1,
+      kind: "regular",
+      retired: false,
+      air_date: "2020-01-01",
+      air_time: null,
+      metadata: {
+        id: base + 6,
+        name: "Native restored episode",
+        season_number: 1,
+        episode_number: 1,
+        native_number: "1",
+        air_date: "2020-01-01",
+        runtime: 24,
+      },
+    });
+    snapshot.library.push({
+      catalog_id: nativeID,
+      base: "watching",
+      rating: 9,
+      status_id: null,
+      position: 1,
+      anime_view: null,
+      added_at: stamp,
+      updated_at: stamp,
+    });
     snapshot.history = [];
     snapshot.settings = settings;
 
@@ -194,6 +245,26 @@ for (const [index, scenario] of cases.entries()) {
     );
     await page.getByRole("button", { name: t.apply, exact: true }).click();
     await expect(page.getByText(t.restoreDone, { exact: true })).toBeVisible();
+
+    await page.goto(`/#detail/anime/${base + 5}`);
+    await expect(page.getByRole("heading", { name: nativeTitle, exact: true })).toBeVisible();
+    await page.getByRole("combobox", { name: t.watchDate }).selectOption("unknown");
+    const nativeEpisode = page
+      .locator("article.episode")
+      .filter({ hasText: "Native restored episode" });
+    await nativeEpisode.getByRole("button", { name: `＋ ${t.watched}`, exact: true }).click();
+    await expect(
+      nativeEpisode.getByRole("button", { name: `✓ ${t.unwatched}`, exact: true }),
+    ).toBeVisible();
+    const nativeHistory = (await (
+      await context.request.get(`${origin}/api/library/${nativeID}/history`)
+    ).json()) as { episode_id: string; watched_date: null; watched_time: null }[];
+    expect(nativeHistory).toHaveLength(1);
+    expect(nativeHistory[0]).toMatchObject({
+      episode_id: `anidb:episode:${base + 6}`,
+      watched_date: null,
+      watched_time: null,
+    });
 
     await page.goto(`/#detail/tv/${base}`);
     await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
