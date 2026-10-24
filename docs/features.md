@@ -207,7 +207,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [x] Aggregate progress without fabricated combined ratings. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [ ] Up next cards follow the selected structure.
   - [x] Effective-progress native-to-show cards, incomplete source fallback, and private displayed-card ordering.
-  - [ ] Full alternate-view tracking and browser acceptance.
+  - [x] Synthetic combined alternate-view tracking, consent cancellation/confirmation and linked-unwatch browser acceptance in all three engines. Broader real-source/device coverage remains separate.
 - [x] Missing/ambiguous mappings retain usable source entries. See the Frieren correction exercise in [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] Incomplete alternate-view indicators. See the Frieren correction exercise in [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [ ] Admin mapping review and local override tools.
@@ -330,7 +330,7 @@ Backend regressions verify private counts, runtime unknowns, metadata-language s
 - [x] Browser checks for tracking and smart-list workflows. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] English and Turkish layout review. See [browser, localization and acceptance evidence](remaining-feature-audit.md).
 - [x] Desktop and phone visual review. See [browser, localization and acceptance evidence](remaining-feature-audit.md).
-- [ ] Keyboard and focus accessibility review.
+- [x] Automated keyboard, dialog cancellation and focus-return review in Chromium, Firefox and WebKit. Intended physical-device/screen-reader acceptance remains separate in TODO.md.
 - [x] Synthetic Compose deployment smoke check; actual provider configuration remains in TODO.md.
 - [x] Helm deployment smoke check. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] Provider-outage behavior check. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).

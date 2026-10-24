@@ -149,3 +149,32 @@ subject to normal validation. SIMKL acceptance now saves its own current backup
 rather than depending on the preceding cross-account test. No product safeguard
 or assertion is removed. Combined native-parts/alternate tracking and signed
 fixture claim-transition tests are included in the next run.
+
+### Verified hardening result
+
+At `9a5f37c`, [CI 40123390744](https://github.com/zekihan/watchledger/actions/runs/40123390744)
+passed all fifteen scenarios in each of Chromium, Firefox and WebKit: **45 browser
+executions**, with no retries or suppressed accessibility rules. The exact-head
+run also passed 89 frontend tests, Go/database/race tests, lint, builds, synthetic
+Compose login/tracking/restart and Helm validation. All three jobs succeeded.
+
+The new combined-episode case uses two exact synthetic native parts and one
+combined TV episode. It verifies unconfirmed blocking, consent dismissal, explicit
+confirmation, incomplete versus complete progress, linked-unwatch default and
+Escape/focus return, explicit linked removal, unchanged native rating and no
+fabricated aggregate library entry. The authentication cases verify denied
+admission, loss of admission at refresh and loss of admin while preserving the
+admitted subject and settings. These do not impersonate real users or prove a
+particular external identity provider's behavior.
+
+Reviewed Firefox phone library/settings and WebKit Turkish phone calendar/catalog
+screenshots after the successful run. The sampled screens remain readable, with
+wrapping, chronological agenda entries and no document-width overflow. Desktop
+WebKit is not physical Safari/iOS acceptance, and Firefox phone-sized windows
+are not Android device acceptance.
+
+The enumerated hardening pass is verified. No product defect was established by
+its failures: fixture selectors and required settings/backup setup were corrected
+without weakening production validation. Remaining owner-dependent acceptance is
+in TODO.md. This is not a claim that no future bugs, broader catalog cases or
+additional useful tests can exist, nor does it authorize merging or deployment.
