@@ -1,3 +1,4 @@
+import { importMessage } from "./import-messages";
 import { displayDate } from "./dates";
 import type { Settings } from "./api";
 import { useState } from "react";
@@ -213,7 +214,9 @@ export function CustomListImport({
           <ol>
             {preview.members.slice(page * 50, page * 50 + 50).map((member) => (
               <li key={member.key}>
-                {member.title} · {member.catalog_id || member.reason}
+                {member.title} ·{" "}
+                {member.catalog_id ||
+                  importMessage(member.reason ?? "source_identity_unresolved", t)}
                 {member.source_url && (
                   <a href={member.source_url} target="_blank" rel="noreferrer">
                     {" "}

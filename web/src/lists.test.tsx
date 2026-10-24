@@ -271,3 +271,53 @@ test("visual nested rules preserve OR, NOT and explicit unknown semantics when s
     },
   });
 });
+
+test("dependent list names block deletion and smart membership retains a stable identifier", async () => {
+  const writes: unknown[] = [];
+  const dependent = {
+    id: "smart-dependent",
+    name: "High ratings",
+    kind: "smart",
+    rule: { op: "eq", field: "list", value: "list-a" },
+    sort: "rating",
+    members: [],
+    dependents: [],
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string, init?: RequestInit) => {
+      if (path === "/api/lists" && init?.method === "POST" && typeof init.body === "string")
+        writes.push(JSON.parse(init.body));
+      return Promise.resolve(
+        new Response(
+          JSON.stringify(
+            path === "/api/lists"
+              ? [{ ...manual, dependents: [dependent.id] }, dependent]
+              : fixtures(path),
+          ),
+          { status: 200 },
+        ),
+      );
+    }),
+  );
+  mount();
+  const card = (await screen.findByRole("heading", { name: "Favorites" })).closest("article");
+  if (!card) throw new Error("Missing manual list");
+  expect(within(card).getByRole<HTMLButtonElement>("button", { name: en.remove }).disabled).toBe(
+    true,
+  );
+  expect(within(card).getByText(/High ratings/)).toBeTruthy();
+  await userEvent.click(screen.getByRole("button", { name: `＋ ${en.newList}` }));
+  await userEvent.type(screen.getByRole("textbox", { name: en.name }), "Smart reference");
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: en.kind }), "smart");
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: en.field }), "list");
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: en.value }), dependent.id);
+  await waitFor(() =>
+    expect(screen.getByRole<HTMLButtonElement>("button", { name: en.save }).disabled).toBe(false),
+  );
+  await userEvent.click(screen.getByRole("button", { name: en.save }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]).toMatchObject({
+    rule: { op: "and", children: [{ op: "eq", field: "list", value: "smart-dependent" }] },
+  });
+});

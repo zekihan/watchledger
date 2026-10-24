@@ -378,19 +378,21 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
                 <option value="manual">{t("manual")}</option>
                 <option value="smart">{t("smart")}</option>
               </select>
-              <select
-                aria-label={t("sort")}
-                value={edit.sort}
-                onChange={(e) => {
-                  setEdit({ ...edit, sort: e.target.value });
-                }}
-              >
-                {["title", "release", "rating", "added"].map((s) => (
-                  <option key={s} value={s}>
-                    {t(s as Key)}
-                  </option>
-                ))}
-              </select>
+              {edit.kind === "smart" && (
+                <select
+                  aria-label={t("sort")}
+                  value={edit.sort}
+                  onChange={(e) => {
+                    setEdit({ ...edit, sort: e.target.value });
+                  }}
+                >
+                  {["title", "release", "rating", "added"].map((s) => (
+                    <option key={s} value={s}>
+                      {t(s as Key)}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
             {edit.kind === "smart" && edit.rule ? (
               <>

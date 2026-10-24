@@ -106,7 +106,10 @@ test("episode deep link loads the actual source identity and reveals no synopsis
   expect(image.getAttribute("src")).toBe("https://image.tmdb.org/t/p/w780/synthetic.jpg");
   fireEvent.error(image);
   expect(screen.queryByRole("img", { name: "Chosen episode" })).toBeNull();
-  await userEvent.click(screen.getByRole("button", { name: `＋ ${en.watched}` }));
+  const watchButton = screen.getByRole("button", { name: `＋ ${en.watched}` });
+  const description = watchButton.getAttribute("aria-describedby");
+  expect(description && document.getElementById(description)?.textContent).toBe("Chosen episode");
+  await userEvent.click(watchButton);
   await waitFor(() => {
     expect(writes.some((write) => !write.preview && write.episode_id === "tmdb:episode:702")).toBe(
       true,

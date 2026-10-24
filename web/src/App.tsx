@@ -266,6 +266,7 @@ export function App() {
             <a href="https://www.justwatch.com" target="_blank" rel="noreferrer">
               JustWatch
             </a>
+            {" · "}
             <a href="#credits">{t("sourceCredits")}</a>
             <p>{t("incomplete")}</p>
           </footer>
@@ -1318,15 +1319,19 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
                 );
               const show = seen || user.Settings.spoilers || reveal.includes(eid);
               return (
-                <article className="episode" key={ep.id}>
+                <article
+                  className="episode"
+                  key={ep.id}
+                  aria-labelledby={`episode-heading-${kind}-${String(ep.id)}`}
+                >
                   <span className="episode-number">
                     {ep.native_number ?? String(ep.episode_number).padStart(2, "0")}
                   </span>
                   <div>
                     {selectedEpisode ? (
-                      <h3>{ep.name}</h3>
+                      <h3 id={`episode-heading-${kind}-${String(ep.id)}`}>{ep.name}</h3>
                     ) : (
-                      <h3>
+                      <h3 id={`episode-heading-${kind}-${String(ep.id)}`}>
                         <a href={episodeLink(key, season, eid)}>{ep.name}</a>
                       </h3>
                     )}
@@ -1346,6 +1351,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
                   {entry && (
                     <button
                       data-watch-action="episode"
+                      aria-describedby={`episode-heading-${kind}-${String(ep.id)}`}
                       className={seen ? "checked" : ""}
                       disabled={track.isPending || effective.isPending || !!effective.error}
                       onClick={() => {

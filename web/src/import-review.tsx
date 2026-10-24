@@ -1,3 +1,4 @@
+import { importMessage } from "./import-messages";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
@@ -226,7 +227,9 @@ function ReviewEditor({
         </div>
       )}
       <p className="notice">{t("importMappingSafety")}</p>
-      {data.source.issues.length > 0 && <p role="alert">{data.source.issues.join(", ")}</p>}
+      {data.source.issues.length > 0 && (
+        <p role="alert">{data.source.issues.map((issue) => importMessage(issue, t)).join(", ")}</p>
+      )}
       {!backed && <p>{t("backupFirst")}</p>}
       {data.source.episodes.length > 0 && (
         <>

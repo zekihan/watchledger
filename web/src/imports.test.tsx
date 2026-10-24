@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SimklPanel } from "./imports";
@@ -141,4 +141,57 @@ test("restore discards an earlier valid preview when a replacement file is inval
   await userEvent.upload(screen.getByLabelText(en.restore), file("bad.json", "not json"));
   await waitFor(() => expect(screen.queryByRole("button", { name: en.apply })).toBeNull());
   expect(await screen.findByRole("alert")).toBeTruthy();
+});
+
+test("large previews and unresolved queues are paged without truncating the import", async () => {
+  const writes: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string, init?: RequestInit) => {
+      if (init?.method === "POST") writes.push(path);
+      const data = path.endsWith("/preview")
+        ? {
+            ...preview,
+            items: Array.from({ length: 51 }, (_, i) => ({
+              key: `item-${i}`,
+              title: `Source ${i}`,
+              action: "review",
+              issues: [],
+              warnings: [],
+            })),
+          }
+        : path === "/api/import-reviews"
+          ? Array.from({ length: 51 }, (_, i) => ({
+              id: `review-${i}`,
+              reason: "simkl_source_review",
+              item: { source: { title: `Review ${i}` } },
+            }))
+          : [];
+      return Promise.resolve(new Response(JSON.stringify(data), { status: 200 }));
+    }),
+  );
+  mount(true);
+  await screen.findByText("Review 0");
+  expect(screen.queryByText("Review 50")).toBeNull();
+  await userEvent.click(
+    within(screen.getByRole("navigation", { name: en.unresolved })).getByRole("button", {
+      name: en.nextPage,
+    }),
+  );
+  expect(screen.getByText("Review 50")).toBeTruthy();
+  await userEvent.upload(screen.getByLabelText(en.simklFile), file("large.json", '{"movies":[]}'));
+  await screen.findByRole("button", { name: en.apply });
+  await userEvent.click(screen.getByText(`${en.sourceItems} (51)`));
+  expect(screen.getByText(/Source 0 ·/)).toBeTruthy();
+  expect(screen.queryByText(/Source 50 ·/)).toBeNull();
+  await userEvent.click(
+    within(screen.getByRole("navigation", { name: en.sourceItems })).getByRole("button", {
+      name: en.nextPage,
+    }),
+  );
+  expect(screen.getByText(/Source 50 ·/)).toBeTruthy();
+  expect(screen.getByText(en.importAllPages)).toBeTruthy();
+  expect(writes).toEqual(["/api/simkl/preview"]);
+  await userEvent.click(screen.getByRole("button", { name: en.apply }));
+  await waitFor(() => expect(writes).toEqual(["/api/simkl/preview", "/api/simkl/synthetic/apply"]));
 });
