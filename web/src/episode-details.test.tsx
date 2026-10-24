@@ -134,3 +134,14 @@ test("episode links preserve specials and native identity instead of treating nu
   );
   expect(episodeLink("anidb:anime:42", 0, "tmdb:episode:501")).toBe("#detail/anime/42");
 });
+
+test("clearing a chosen watch date cannot silently record an unknown date", async () => {
+  const { writes } = mount();
+  await screen.findByRole("heading", { name: "Chosen episode" });
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: en.watchDate }), "chosen");
+  const date = screen.getByLabelText(en.watchDate, { selector: "input" });
+  fireEvent.change(date, { target: { value: "" } });
+  await userEvent.click(screen.getByRole("button", { name: `＋ ${en.watched}` }));
+  expect(await screen.findByText(en.chooseWatchDate)).toBeTruthy();
+  expect(writes).toHaveLength(0);
+});

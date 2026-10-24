@@ -861,6 +861,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
       whole?: boolean;
       watched: boolean;
     }) => {
+      if (scope.watched && dateMode === "chosen" && !day) throw new Error(t("chooseWatchDate"));
       const date =
         dateMode === "unknown"
           ? {}
@@ -1001,7 +1002,10 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
         </div>
         <div>
           <p className="eyebrow">
-            {kind.toUpperCase()} · {(m.release_date ?? m.first_air_date)?.slice(0, 4)}
+            {t(
+              (["movie", "tv", "anime", "person"].includes(kind) ? kind : "unknown") as Key,
+            ).toLocaleUpperCase(user.Settings.language)}{" "}
+            · {(m.release_date ?? m.first_air_date)?.slice(0, 4)}
           </p>
           <h1>{m.title ?? m.name}</h1>
           <div className="tags">
@@ -1173,6 +1177,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
             {t("watchDate")}{" "}
             <select
               value={dateMode}
+              disabled={track.isPending}
               onChange={(e) => {
                 setDateMode(e.target.value);
               }}
@@ -1186,6 +1191,8 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
             <input
               aria-label={t("watchDate")}
               type="date"
+              disabled={track.isPending}
+              required
               value={day}
               onChange={(e) => {
                 setDay(e.target.value);

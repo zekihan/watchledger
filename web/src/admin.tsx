@@ -1,3 +1,4 @@
+import { QueryFeedback } from "./query-feedback";
 import { displayDate } from "./dates";
 import type { Settings } from "./api";
 import { MappingDatasets } from "./mapping-datasets";
@@ -119,8 +120,8 @@ export function MappingPage({
     <>
       <h1>{t("mapping")}</h1>
       <p className="notice">{t("mappingGated")}</p>
-      {q.isPending && <p>{t("loading")}</p>}
-      {[q.error, save.error, confirm.error].filter(Boolean).map((e, i) => (
+      <QueryFeedback query={q} t={t} />
+      {[save.error, confirm.error].filter(Boolean).map((e, i) => (
         <p className="error" role="alert" key={i}>
           {e?.message}
         </p>
@@ -285,8 +286,7 @@ export function MappingPage({
           )}
           {admin && historyID === m.id && (
             <div>
-              {history.isPending && <p>{t("loading")}</p>}
-              {history.error && <p role="alert">{history.error.message}</p>}
+              <QueryFeedback query={history} t={t} />
               {history.data?.map((h, i) => (
                 <details key={i}>
                   <summary>
@@ -337,7 +337,7 @@ export function MappingPage({
           <AnimeIndex t={t} settings={settings} />
           <h2>{t("accounts")}</h2>
           <p>{t("accountsPrivacy")}</p>
-          {accounts.error && <p className="error">{accounts.error.message}</p>}
+          <QueryFeedback query={accounts} t={t} />
           {accounts.data?.map((a) => (
             <div className="activity-row" key={a.id}>
               <strong>{a.name}</strong>
@@ -345,7 +345,7 @@ export function MappingPage({
             </div>
           ))}
           <h2>{t("refreshFailures")}</h2>
-          {jobs.error && <p className="error">{jobs.error.message}</p>}
+          <QueryFeedback query={jobs} t={t} />
           {jobs.data?.map((j) => (
             <div className="error" key={j.id}>
               <strong>{j.id}</strong>

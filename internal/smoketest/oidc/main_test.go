@@ -9,6 +9,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -59,6 +61,49 @@ func TestSyntheticProviderRequiresPKCEAndSingleUseCode(t *testing.T) {
 	if repeated := exchange(); repeated.Code != http.StatusUnauthorized {
 		t.Fatal("code reused", repeated.Code)
 	}
+
+	q.Set("fixture_user", "second")
+	response = httptest.NewRecorder()
+	h.ServeHTTP(response, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/authorize?"+q.Encode(), nil))
+	target, err = url.Parse(response.Header().Get("Location"))
+	if err != nil || response.Code != http.StatusFound {
+		t.Fatal("second identity authorization failed", err)
+	}
+	form.Set("code", target.Query().Get("code"))
+	token = exchange()
+	if err = json.Unmarshal(token.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	verifySecond := func() {
+		t.Helper()
+		raw, ok := body["id_token"].(string)
+		if !ok {
+			t.Fatal("missing ID token")
+		}
+		signed, e := jwt.ParseSigned(raw, []jose.SignatureAlgorithm{jose.RS256})
+		if e != nil {
+			t.Fatal(e)
+		}
+		var claims jwt.Claims
+		if e = signed.Claims(&key.PublicKey, &claims); e != nil || claims.Subject != "synthetic-ci-second" {
+			t.Fatal("second identity changed", claims.Subject, e)
+		}
+	}
+	verifySecond()
+	form.Set("grant_type", "refresh_token")
+	refresh, ok := body["refresh_token"].(string)
+	if !ok {
+		t.Fatal("missing refresh")
+	}
+	form.Set("refresh_token", refresh)
+	token = exchange()
+	if token.Code != http.StatusOK {
+		t.Fatal("refresh failed", token.Code)
+	}
+	if err = json.Unmarshal(token.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	verifySecond()
 	q.Set("code_challenge_method", "plain")
 	response = httptest.NewRecorder()
 	h.ServeHTTP(response, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/authorize?"+q.Encode(), nil))

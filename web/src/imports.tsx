@@ -1,3 +1,4 @@
+import { QueryFeedback } from "./query-feedback";
 import { ImportReview } from "./import-review";
 import { useState } from "react";
 import { usePreviewRequest } from "./use-preview-request";
@@ -86,13 +87,11 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
         />
       </label>
       {busy && <p role="status">{t("loading")}</p>}
-      {[error, apply.error?.message, imports.error?.message, reviews.error?.message]
-        .filter(Boolean)
-        .map((message, i) => (
-          <p role="alert" key={i}>
-            {message}
-          </p>
-        ))}
+      {[error, apply.error?.message].filter(Boolean).map((message, i) => (
+        <p role="alert" key={i}>
+          {message}
+        </p>
+      ))}
       {preview && !busy && (
         <div className="preview">
           <h4>{t("previewReady")}</h4>
@@ -134,6 +133,7 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
       )}
       {apply.isSuccess && <p role="status">{t("simklApplied")}</p>}
       <h4>{t("sourceArchives")}</h4>
+      <QueryFeedback query={imports} t={t} />
       <ul>
         {imports.data
           ?.filter((row) => row.kind === "simkl")
@@ -147,6 +147,7 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
           ))}
       </ul>
       <h4>{t("unresolved")}</h4>
+      <QueryFeedback query={reviews} t={t} />
       <p>{t("reviewInstructions")}</p>
       {activeReview && (
         <ImportReview

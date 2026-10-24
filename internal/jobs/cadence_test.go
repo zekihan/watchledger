@@ -32,6 +32,15 @@ func TestTMDBRefreshCadenceAndRecentlyUsedCountries(t *testing.T) {
 			}
 		}
 	}
+	for i, age := range []string{"2 days", "8 days"} {
+		id := fmt.Sprintf("tmdb:movie:%d", 100+i)
+		if _, err := p.Exec(ctx, "INSERT INTO catalog(id,source,source_id,kind,title,fetched_at) VALUES($1,'tmdb',$2,'movie','Synthetic movie',now()-$3::interval)", id, fmt.Sprint(100+i), age); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := p.Exec(ctx, "INSERT INTO library(user_id,catalog_id,base) VALUES($1,$2,'watching')", uid, id); err != nil {
+			t.Fatal(err)
+		}
+	}
 	for _, fixture := range []struct{ country, age, used string }{
 		{"TR", "25 hours", "1 day"}, {"US", "23 hours", "1 day"}, {"DE", "25 hours", "31 days"},
 	} {
@@ -49,7 +58,7 @@ func TestTMDBRefreshCadenceAndRecentlyUsedCountries(t *testing.T) {
 	if err := p.QueryRow(ctx, "SELECT array_agg(id ORDER BY id) FROM jobs").Scan(&ids); err != nil {
 		t.Fatal(err)
 	}
-	if fmt.Sprint(ids) != "[availability:tmdb:tv:1:TR metadata:tmdb:tv:1 metadata:tmdb:tv:3]" {
+	if fmt.Sprint(ids) != "[availability:tmdb:tv:1:TR metadata:tmdb:movie:101 metadata:tmdb:tv:1 metadata:tmdb:tv:3]" {
 		t.Fatalf("unexpected queued work: %v", ids)
 	}
 }

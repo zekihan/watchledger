@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { imageURL as image } from "./images";
+import type { Key } from "./i18n";
 import type { Title } from "./api";
 import type { T } from "./App";
 export function Poster({ title, path }: { title: string; path?: string }) {
@@ -48,7 +49,12 @@ export function Cards({ results, kind, t }: { results: Title[]; kind?: string; t
             </div>
             <strong>{item.title ?? item.name}</strong>
             <small>
-              {(item.release_date ?? item.first_air_date)?.slice(0, 4)} · {item.media_type ?? kind}
+              {(item.release_date ?? item.first_air_date)?.slice(0, 4)} ·{" "}
+              {t(
+                (["movie", "tv", "anime", "person"].includes(item.media_type ?? kind ?? "")
+                  ? (item.media_type ?? kind)
+                  : "unknown") as Key,
+              )}
             </small>
           </a>
         ))}

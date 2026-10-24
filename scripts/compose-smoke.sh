@@ -41,5 +41,20 @@ bash scripts/http-smoke.sh "$work"
 ready
 curl --fail --silent -b "$work/cookies" "$PUBLIC_URL/api/library" | python3 -c 'import json,sys; data=json.load(sys.stdin); assert any(x["id"]=="tmdb:movie:900001" and x["base"]=="completed" for x in data)'
 curl --fail --silent -b "$work/cookies" "$PUBLIC_URL/api/library/tmdb:movie:900001/history" | python3 -c 'import json,sys; data=json.load(sys.stdin); assert len(data)==1 and data[0]["watched_date"]=="2026-01-02" and data[0]["watched_time"] is None'
+# A second synthetic identity uses the same verified issuer, never a DB role bypass.
+curl --fail --silent -D "$work/second-headers" -c "$work/cookies-second" "$PUBLIC_URL/auth/login" -o /dev/null
+second_authorize=$(python3 - "$work/second-headers" <<'PYCODE'
+import sys,urllib.parse
+headers=open(sys.argv[1]).read().splitlines()
+url=next(line.split(':',1)[1].strip() for line in headers if line.lower().startswith('location:'))
+p=urllib.parse.urlsplit(url)
+assert p.scheme=='https' and p.hostname=='localhost' and p.port==8443 and p.path=='/authorize'
+q=urllib.parse.parse_qsl(p.query);q.append(('fixture_user','second'))
+print(urllib.parse.urlunsplit((p.scheme,p.netloc,p.path,urllib.parse.urlencode(q),'')))
+PYCODE
+)
+curl --fail --silent --location --max-redirs 5 --cacert "$work/ca.crt" -c "$work/cookies-second" -b "$work/cookies-second" "$second_authorize" > /dev/null
+unset second_authorize
+curl --fail --silent -b "$work/cookies-second" "$PUBLIC_URL/api/library" | python3 -c 'import json,sys;assert json.load(sys.stdin)==[]'
 npm run test:browser
 echo 'COMPOSE_LOGIN_TRACKING_RESTART_BROWSER_VERIFIED'

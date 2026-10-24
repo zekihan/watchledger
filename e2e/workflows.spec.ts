@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { en, tr } from "../web/src/i18n";
 
 const origin = "http://127.0.0.1:8080";
-async function login(context: BrowserContext) {
+async function login(context: BrowserContext, file: "cookies" | "cookies-second" = "cookies") {
   if (
     process.env.GITHUB_ACTIONS !== "true" ||
     process.env.WATCHLEDGER_SYNTHETIC_OIDC !== "1" ||
@@ -14,7 +14,7 @@ async function login(context: BrowserContext) {
     throw new Error("Browser fixtures require the disposable synthetic CI environment");
   // This is the ephemeral session from the CA-verified synthetic OIDC login.
   // Do not print it, save storageState, record traces, or load operator cookies.
-  const raw = await readFile(join(process.env.SMOKE_DIR, "cookies"), "utf8");
+  const raw = await readFile(join(process.env.SMOKE_DIR, file), "utf8");
   const row = raw
     .split("\n")
     .map((line) => line.replace(/^#HttpOnly_/, "").split("\t"))
@@ -51,6 +51,8 @@ for (const [index, scenario] of cases.entries()) {
       "/auth/login",
     );
     await login(context);
+    // A cookie handoff must discard the already-rendered anonymous query cache.
+    await page.goto("about:blank");
     const settings = {
       language: scenario.language,
       metadata_language: "en",
@@ -176,7 +178,8 @@ for (const [index, scenario] of cases.entries()) {
     await page.getByRole("combobox", { name: t.watchDate }).selectOption("unknown");
     const second = page.locator("article.episode").filter({ hasText: "Synthetic episode 2" });
     const watch = second.getByRole("button", { name: `＋ ${t.watched}`, exact: true });
-    await watch.click();
+    await watch.focus();
+    await page.keyboard.press("w");
     const dialog = page.getByRole("dialog", { name: t.earlierPrompt });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole("radio", { name: t.onlyThis, exact: true })).toBeChecked();
@@ -252,3 +255,46 @@ for (const [index, scenario] of cases.entries()) {
     expect(backup).not.toHaveProperty("admin");
   });
 }
+
+test("second synthetic identity cannot browse the first user's library, lists, history or imports", async ({
+  page,
+  context,
+  browser,
+}) => {
+  await login(context, "cookies-second");
+  await page.goto("/#library");
+  await expect(page.getByText(en.empty, { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Synthetic browser series/ })).toHaveCount(0);
+  for (const path of [
+    "/api/library",
+    "/api/lists",
+    "/api/imports",
+    "/api/import-reviews",
+    "/api/library/tmdb:tv:910000/history",
+  ]) {
+    const response = await context.request.get(origin + path);
+    expect(response.ok()).toBe(true);
+    expect(await response.json()).toEqual([]);
+  }
+  const first = await browser.newContext();
+  try {
+    await login(first);
+    const lists = (await (await first.request.get(origin + "/api/lists")).json()) as {
+      id: string;
+    }[];
+    expect(lists.length).toBeGreaterThan(0);
+    expect(
+      (await context.request.get(`${origin}/api/lists/${lists[0]!.id}/results`)).status(),
+    ).toBe(404);
+    const imports = (await (await first.request.get(origin + "/api/imports")).json()) as {
+      id: string;
+    }[];
+    expect(imports.length).toBeGreaterThan(0);
+    expect(
+      (await context.request.get(`${origin}/api/imports/${imports[0]!.id}/archive`)).status(),
+    ).toBe(404);
+  } finally {
+    await first.close();
+  }
+  expect((await context.request.get(origin + "/api/admin/accounts")).status()).toBe(403);
+});

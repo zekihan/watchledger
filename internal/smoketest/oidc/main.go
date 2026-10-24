@@ -33,8 +33,8 @@ import (
 const clientID = "watchledger-smoke"
 
 type code struct {
-	nonce, challenge string
-	until            time.Time
+	nonce, challenge, subject string
+	until                     time.Time
 }
 
 func main() {
@@ -134,6 +134,13 @@ func newHandler(issuer, authorize string, key *rsa.PrivateKey) (http.Handler, er
 			http.Error(w, "invalid synthetic authorization", http.StatusBadRequest)
 			return
 		}
+		subject := "synthetic-ci-user"
+		if q.Get("fixture_user") == "second" {
+			subject = "synthetic-ci-second"
+		} else if q.Get("fixture_user") != "" {
+			http.Error(w, "unknown synthetic identity", http.StatusBadRequest)
+			return
+		}
 		random := make([]byte, 32)
 		if _, err := rand.Read(random); err != nil {
 			http.Error(w, "fixture random unavailable", http.StatusInternalServerError)
@@ -146,7 +153,7 @@ func newHandler(issuer, authorize string, key *rsa.PrivateKey) (http.Handler, er
 				delete(codes, id)
 			}
 		}
-		codes[value] = code{nonce: q.Get("nonce"), challenge: q.Get("code_challenge"), until: time.Now().Add(time.Minute)}
+		codes[value] = code{subject: subject, nonce: q.Get("nonce"), challenge: q.Get("code_challenge"), until: time.Now().Add(time.Minute)}
 		mu.Unlock()
 		target := url.Values{"code": {value}, "state": {q.Get("state")}}
 		http.Redirect(w, r, q.Get("redirect_uri")+"?"+target.Encode(), http.StatusFound)
@@ -164,7 +171,7 @@ func newHandler(issuer, authorize string, key *rsa.PrivateKey) (http.Handler, er
 			http.Error(w, "invalid fixture client", http.StatusUnauthorized)
 			return
 		}
-		nonce := ""
+		var nonce, subject string
 		switch r.Form.Get("grant_type") {
 		case "authorization_code":
 			mu.Lock()
@@ -176,9 +183,14 @@ func newHandler(issuer, authorize string, key *rsa.PrivateKey) (http.Handler, er
 				http.Error(w, "invalid code or PKCE", http.StatusUnauthorized)
 				return
 			}
-			nonce = pending.nonce
+			nonce, subject = pending.nonce, pending.subject
 		case "refresh_token":
-			if r.Form.Get("refresh_token") != "synthetic-ci-refresh" {
+			switch r.Form.Get("refresh_token") {
+			case "synthetic-ci-refresh:synthetic-ci-user":
+				subject = "synthetic-ci-user"
+			case "synthetic-ci-refresh:synthetic-ci-second":
+				subject = "synthetic-ci-second"
+			default:
 				http.Error(w, "invalid refresh", http.StatusUnauthorized)
 				return
 			}
@@ -186,12 +198,12 @@ func newHandler(issuer, authorize string, key *rsa.PrivateKey) (http.Handler, er
 			http.Error(w, "unsupported grant", http.StatusBadRequest)
 			return
 		}
-		signed, err := jwt.Signed(signer).Claims(map[string]interface{}{"iss": issuer, "sub": "synthetic-ci-user", "aud": clientID, "exp": time.Now().Add(5 * time.Minute).Unix(), "iat": time.Now().Unix(), "nonce": nonce, "name": "Synthetic CI User", "roles": []string{"member"}}).Serialize()
+		signed, err := jwt.Signed(signer).Claims(map[string]interface{}{"iss": issuer, "sub": subject, "aud": clientID, "exp": time.Now().Add(5 * time.Minute).Unix(), "iat": time.Now().Unix(), "nonce": nonce, "name": "Synthetic CI User", "roles": []string{"member"}}).Serialize()
 		if err != nil {
 			http.Error(w, "fixture signing failed", http.StatusInternalServerError)
 			return
 		}
-		write(w, map[string]interface{}{"access_token": "synthetic-ci-access", "refresh_token": "synthetic-ci-refresh", "token_type": "Bearer", "expires_in": 300, "id_token": signed})
+		write(w, map[string]interface{}{"access_token": "synthetic-ci-access", "refresh_token": "synthetic-ci-refresh:" + subject, "token_type": "Bearer", "expires_in": 300, "id_token": signed})
 	})
 	return mux, nil
 }

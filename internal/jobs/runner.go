@@ -49,7 +49,7 @@ func (r *Runner) enqueue(ctx context.Context) error {
 	_, e := r.Cache.DB.Exec(ctx, `INSERT INTO jobs(id,kind,payload)
  SELECT 'metadata:'||c.id,'metadata',jsonb_build_object('source',c.source,'kind',c.kind,'source_id',c.source_id)
  FROM catalog c WHERE ((c.source='tmdb' AND $1) OR (c.source='anidb' AND $2))
- AND EXISTS(SELECT 1 FROM library l WHERE l.catalog_id=c.id AND c.fetched_at<now()-CASE WHEN l.base='watching' THEN interval '1 day' ELSE interval '7 days' END)
+ AND EXISTS(SELECT 1 FROM library l WHERE l.catalog_id=c.id AND c.fetched_at<now()-CASE WHEN l.base='watching' AND c.kind IN ('tv','anime') THEN interval '1 day' ELSE interval '7 days' END)
  ON CONFLICT(id) DO NOTHING`, r.tmdbEnabled(), r.animeEnabled())
 	if e != nil {
 		return e

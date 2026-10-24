@@ -44,3 +44,12 @@ A fresh command-workspace Chromium attempt failed before page loading at `socket
 ## Browser CI work in progress
 
 A pinned Playwright suite now targets the existing disposable Compose app with real synthetic database/API state, in English/Turkish at desktop and phone-sized viewports. It covers restore, selected-episode/unknown-date tracking, default/cancel/focus behavior, manual/smart lists, export exclusions, navigation and overflow. Browser execution is still pending the exact-head CI result; type-checking or test discovery alone does not complete acceptance. Screenshots contain only synthetic fixtures and can support visual review after execution. This work is independent and must not be moved to the operator checklist merely because local Chromium cannot launch.
+
+### Continued tracking, administration and browser work
+
+- Empty chosen-date inputs now fail before preview/apply instead of becoming implicit unknown-date events. The user must choose a date or explicitly select Unknown. Detail and shared quick/alternate tracking paths have regressions; pending controls cannot change the selected date mid-action.
+- Admin mapping/history, account oversight, background failure queries and private import archive/review queues now have accessible loading/error/retry feedback. Non-admin screens never request account/job oversight. `admin-recovery.test.tsx` tests independent recovery and absence of admin requests.
+- Daily metadata refresh is limited to actively watched episodic titles; saved movies use the weekly cadence even if manually marked Watching. The cadence regression distinguishes the two.
+- Catalog content-type labels now use the interface translation instead of exposing raw English type identifiers in Turkish layouts.
+- The first actual Chromium CI run reached the app but exposed a test-session handoff bug: same-document hash navigation retained the already-rendered anonymous query state. The screenshot confirmed the login page, not a missing settings screen. The harness now starts a fresh document after adding its synthetic session. This does not weaken app authentication or a test assertion.
+- The synthetic issuer now provides two fixed, distinct test identities with subject-preserving refresh tokens. A separate verified OIDC flow obtains the second session; new browser checks attempt cross-account library/list/history/import access without changing database roles. Real provider/group-change acceptance remains distinct.

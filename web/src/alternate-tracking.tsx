@@ -41,6 +41,7 @@ export function useAlternateTracking(t: T, timezone?: string) {
   const mutation = useMutation({
     mutationFn: async (scope: AlternateScope) => {
       const { catalog_id, ...action } = scope;
+      if (action.watched && mode === "chosen" && !day) throw new Error(t("chooseWatchDate"));
       const date = mode === "unknown" ? {} : { day: mode === "today" ? localDay(timezone) : day };
       const path = `/library/${encodeURIComponent(catalog_id)}/track`;
       const preview = await api<{
@@ -118,6 +119,8 @@ export function useAlternateTracking(t: T, timezone?: string) {
           type="date"
           aria-label={t("watchDate")}
           value={day}
+          disabled={mutation.isPending}
+          required
           onChange={(e) => setDay(e.target.value)}
         />
       )}
