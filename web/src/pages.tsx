@@ -220,9 +220,10 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
   }
   const [viewID, setViewID] = useState<string | null>(null);
   const statuses = useQuery({ queryKey: ["statuses"], queryFn: () => api<Status[]>("/statuses") });
+  const needsProviders = edit?.kind === "smart" && hasRuleField(edit.rule, "service");
   const providers = useQuery({
     queryKey: ["provider-options", user.Settings.country ?? "TR"],
-    enabled: edit?.kind === "smart" && hasRuleField(edit.rule, "service"),
+    enabled: needsProviders,
     queryFn: async () => {
       const country = user.Settings.country ?? "TR";
       const responses = await Promise.all([
@@ -328,7 +329,7 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
           ＋ {t("newList")}
         </button>
       </div>
-      {[q, library, statuses, providers].map((query, index) =>
+      {[q, library, statuses, ...(needsProviders ? [providers] : [])].map((query, index) =>
         query.error ? (
           <div role="alert" className="error" key={index}>
             {query.error.message}

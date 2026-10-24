@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 import type { BrowserContext, Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -30,6 +31,24 @@ async function noOverflow(page: Page) {
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
     ),
   ).toBe(true);
+}
+
+async function accessible(page: Page) {
+  const result = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+    .analyze();
+  expect
+    .soft(
+      result.violations.map((violation) => ({
+        id: violation.id,
+        impact: violation.impact,
+        nodes: violation.nodes.map((node) => ({
+          target: node.target,
+          reason: node.failureSummary,
+        })),
+      })),
+    )
+    .toEqual([]);
 }
 
 const cases = [
@@ -339,11 +358,20 @@ for (const [index, scenario] of cases.entries()) {
     ] as const) {
       await page.goto(`/#${route}`);
       await expect(page.getByRole("heading", { name: headings[route], exact: true })).toBeVisible();
+      if (route === "calendar") {
+        const view = page.getByRole("combobox", { name: t.calendar, exact: true });
+        await expect(view).toHaveValue(scenario.width < 680 ? "list" : "month");
+        await view.selectOption("month");
+        await expect(page.getByRole("region", { name: new RegExp(t.calendar) })).toBeVisible();
+        await noOverflow(page);
+        await view.selectOption(scenario.width < 680 ? "list" : "month");
+      }
       await noOverflow(page);
       await page.screenshot({
         path: `test-results/${scenario.language}-${scenario.width}-${route}.png`,
         fullPage: true,
       });
+      await accessible(page);
     }
     await page.goto("/#library");
     await page.keyboard.press("/");
@@ -398,6 +426,85 @@ test("second synthetic identity cannot browse the first user's library, lists, h
     expect(
       (await context.request.get(`${origin}/api/imports/${imports[0]!.id}/archive`)).status(),
     ).toBe(404);
+
+    // Copy only synthetic portable data through the actual UI. Identity and
+    // authorization remain bound to the second independently authenticated user.
+    const backup = (await (await first.request.get(origin + "/api/export")).json()) as {
+      settings: Record<string, unknown>;
+      library: { catalog_id: string }[];
+      history: {
+        catalog_id: string;
+        episode_id: string | null;
+        watched_date: string | null;
+        watched_time: string | null;
+      }[];
+      lists: { name: string }[];
+    };
+    backup.settings.language = "en";
+    const firstHistory = await (
+      await first.request.get(origin + "/api/library/tmdb:tv:910000/history")
+    ).json();
+    async function restore() {
+      await page.goto("/#settings");
+      await page.getByRole("checkbox", { name: en.backupSaved }).check();
+      await page.getByLabel(en.restore, { exact: true }).setInputFiles({
+        name: "synthetic-cross-account.json",
+        mimeType: "application/json",
+        buffer: Buffer.from(JSON.stringify(backup)),
+      });
+      await expect(page.getByText(en.previewReady, { exact: true })).toBeVisible();
+      await page.getByRole("button", { name: en.apply, exact: true }).click();
+      await expect(page.getByText(en.restoreDone, { exact: true })).toBeVisible();
+    }
+    await restore();
+    const restored = (await (
+      await context.request.get(origin + "/api/export")
+    ).json()) as typeof backup;
+    expect(restored.library).toHaveLength(backup.library.length);
+    expect(restored.lists.map((list) => list.name).sort()).toEqual(
+      backup.lists.map((list) => list.name).sort(),
+    );
+    const facts = (snapshot: typeof backup) =>
+      snapshot.history
+        .map((event) =>
+          [event.catalog_id, event.episode_id, event.watched_date, event.watched_time].join("|"),
+        )
+        .sort();
+    expect(facts(restored)).toEqual(facts(backup));
+    expect(
+      (
+        await context.request.put(origin + "/api/library/tmdb:tv:910000", {
+          headers: { Origin: origin },
+          data: { base: "hold", rating: 3 },
+        })
+      ).ok(),
+    ).toBe(true);
+    await page.goto("/#library");
+    await expect(
+      page.getByRole("link", { name: /Synthetic browser series 0/ }).first(),
+    ).toBeVisible();
+    await restore();
+    const afterRepeat = (await (await context.request.get(origin + "/api/library")).json()) as {
+      id: string;
+      rating: number;
+      base: string;
+    }[];
+    expect(afterRepeat.find((item) => item.id === "tmdb:tv:910000")).toMatchObject({
+      rating: 3,
+      base: "hold",
+    });
+    const repeated = (await (
+      await context.request.get(origin + "/api/export")
+    ).json()) as typeof backup;
+    expect(facts(repeated)).toEqual(facts(restored));
+    expect(
+      await (await first.request.get(origin + "/api/library/tmdb:tv:910000/history")).json(),
+    ).toEqual(firstHistory);
+    const firstLibrary = (await (await first.request.get(origin + "/api/library")).json()) as {
+      id: string;
+      rating: number;
+    }[];
+    expect(firstLibrary.find((item) => item.id === "tmdb:tv:910000")?.rating).toBe(8);
   } finally {
     await first.close();
   }
@@ -546,6 +653,7 @@ for (const scenario of cases) {
       path: `test-results/${scenario.language}-${scenario.width}-catalog.png`,
       fullPage: true,
     });
+    await accessible(page);
     await page.locator(".people a").first().click();
     await expect(page.getByText("Synthetic person biography", { exact: true })).toBeVisible();
     await page.getByRole("combobox", { name: t.credits, exact: true }).selectOption("crew");

@@ -16,7 +16,7 @@ The final section is explicitly deferred and does not count toward first-release
 - [x] Verify mapping coverage for ordinary shows, split cours, specials, and split/combined anime episodes. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] Pin compatible implementation dependencies and mapping dataset versions.
 
-Checked behaviors below are supported by the named regression tests in [implementation evidence](implementation-notes.md). Browser, live-provider, and anime cross-view acceptance remain separate and unchecked.
+Checked behaviors below are supported by the named regression tests in [implementation evidence](implementation-notes.md). Actual Chromium coverage is recorded in the independent audit. Real-provider, physical-device and broad anime coverage remain separate wherever explicitly open.
 
 ## Identity and privacy
 
@@ -44,80 +44,80 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Installable web-app manifest and icons.
   - [x] Dimension-verified raster manifest/touch icons and explicit browser-provided install flow.
   - [ ] Target-device installation and authentication-return checks.
-- [ ] Persistent main navigation and header search.
-- [ ] Home dashboard.
-- [ ] Library poster-grid view.
+- [x] Persistent main navigation and header search. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Home dashboard. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Library poster-grid view. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Library table view.
-- [ ] Discovery and global search screens.
+- [x] Discovery and global search screens. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [ ] Movie/show/season/episode detail screens.
   - [x] Source-ID episode deep links, season detail presentation, spoiler-safe episode stills and missing-identity handling.
   - [ ] Real-browser presentation acceptance.
-- [ ] Person detail screens.
-- [ ] Manual-list and smart-list screens.
+- [x] Person detail screens. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Manual-list and smart-list screens. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [ ] Calendar screens.
 - [x] Statistics screen. Verified in the bounded [2026-10-24 acceptance](acceptance-2026-10-24.md).
-- [ ] User settings and import/export screens.
+- [x] User settings and import/export screens. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [ ] Import preview, conflicts, and review queue screens.
 - [ ] Admin mapping and account-oversight screens.
-- [ ] Keyboard shortcuts for search, watched actions, and result navigation.
-- [ ] Visible equivalents for every keyboard action.
+- [x] Keyboard shortcuts for search, watched actions, and result navigation. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Visible equivalents for every keyboard action. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [ ] Accessible UI primitives, focus handling, and keyboard navigation.
 - [ ] Polished loading, empty, error, and retry states.
 - [ ] Complete English UI translation.
 - [ ] Complete Turkish UI translation.
 - [x] Browser-language initialization with English fallback. See [independent audit evidence](remaining-feature-audit.md).
-- [ ] Independent interface language, metadata language, anime title style, country, and timezone settings.
-- [ ] Metadata language fallback to available source content.
+- [x] Independent interface language, metadata language, anime title style, country, and timezone settings. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Metadata language fallback to available source content. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 
 ## Catalog and details
 
-- [ ] Movie catalog search and metadata.
-- [ ] TV catalog search and metadata.
+- [x] Movie catalog search and metadata. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] TV catalog search and metadata. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [ ] Anime catalog search and native identities.
   - [x] Explicit AniDB ID lookup and honestly labelled cached-alias search.
   - [x] Search aliases from an admin-uploaded official title-only index with atomic replacement.
   - [ ] Complete native presentation acceptance.
-- [ ] People search.
-- [ ] Popular and upcoming browsing.
-- [ ] Posters, artwork, synopsis, dates, runtime, and genres.
-- [ ] Show ongoing/ended status.
-- [ ] Season details and episode lists.
-- [ ] Episode titles, summaries, air dates, and available runtime information.
-- [ ] Separate specials from regular episode progression.
+- [x] People search. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Popular and upcoming browsing. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Posters, artwork, synopsis, dates, runtime, and genres. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Show ongoing/ended status. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Season details and episode lists. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Episode titles, summaries, air dates, and available runtime information. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Separate specials from regular episode progression. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Navigable cast credits. See [independent audit evidence](remaining-feature-audit.md).
 - [x] Extended crew browsing. See [independent audit evidence](remaining-feature-audit.md).
-- [ ] Related titles.
-- [ ] On-demand trailers without autoplay.
-- [ ] Person biography and image.
-- [ ] Person acting and crew filmography across supported content types.
+- [x] Related titles. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] On-demand trailers without autoplay. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Person biography and image. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Person acting and crew filmography across supported content types. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Person-credit filters by content type. See [independent audit evidence](remaining-feature-audit.md).
 - [x] Person-credit sorting by release date or popularity. See [independent audit evidence](remaining-feature-audit.md).
 
 ## Discovery
 
-- [ ] Content-type and genre filters.
-- [ ] Release year and year-range filters.
-- [ ] Cast and crew filters for movie discovery.
-- [ ] TV cast/crew discovery through progressively loaded person credits.
+- [x] Content-type and genre filters. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Release year and year-range filters. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Cast and crew filters for movie discovery. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] TV cast/crew discovery through progressively loaded person credits. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Honest page-local result counts after filtering and watched exclusions, including unavailable-library handling.
-- [ ] Runtime filters.
-- [ ] Original production language filter.
-- [ ] Community score threshold.
-- [ ] Configurable minimum vote count.
-- [ ] Country and provider filters.
+- [x] Runtime filters. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Original production language filter. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Community score threshold. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Configurable minimum vote count. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Country and provider filters. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Exclude watched titles without inventing unknown tracking data. See [independent audit evidence](remaining-feature-audit.md).
-- [ ] Paginated results and progressive enrichment without an exhaustive external catalog mirror.
+- [x] Paginated results and progressive enrichment without an exhaustive external catalog mirror. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 
 ## Where to watch
 
-- [ ] Per-user country selection.
-- [ ] Per-user streaming subscription selection.
-- [ ] Optional browsing limited to selected services.
-- [ ] Subscription, rental, and purchase categories.
-- [ ] Provider or availability-page outbound links.
-- [ ] Unknown/unavailable provider states.
+- [x] Per-user country selection. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Per-user streaming subscription selection. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Optional browsing limited to selected services. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Subscription, rental, and purchase categories. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Provider or availability-page outbound links. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Unknown/unavailable provider states. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Availability freshness display. Verified in the [2026-10-24 acceptance](acceptance-2026-10-24.md).
-- [ ] Required TMDB and JustWatch attribution.
+- [x] Required TMDB and JustWatch attribution. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 
 ## Library statuses and ratings
 
@@ -127,11 +127,11 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [x] Lock base mapping once a custom status has been used.
 - [x] Rename custom statuses without breaking references.
 - [x] Require replacement status before deleting a used status.
-- [ ] Dashboard and filter behavior based on mapped base status.
+- [x] Dashboard and filter behavior based on mapped base status. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Preserve custom statuses when automatic transitions retain their base.
-- [ ] Use the default destination status when automatic transitions change base.
+- [x] Use the default destination status when automatic transitions change base. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Personal whole-number ratings from 1 to 10 for movies and whole shows.
-- [ ] Anime-native entry ratings and statuses.
+- [x] Anime-native entry ratings and statuses. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Personal library searching, sorting, and filtering. See [independent audit evidence](remaining-feature-audit.md).
 
 ## Viewing history and progress
@@ -139,34 +139,34 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [x] Mark individual episodes watched/unwatched.
 - [x] Mark entire seasons watched/unwatched.
 - [x] Mark entire shows watched/unwatched.
-- [ ] Mark movies watched/unwatched.
-- [ ] Today's date, chosen date, and unknown date for bulk watch actions.
+- [x] Mark movies watched/unwatched. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Today's date, chosen date, and unknown date for bulk watch actions. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Preserve existing known watched dates during bulk actions.
 - [x] Mark only the selected episode by default.
 - [x] Detect earlier unwatched aired regular episodes.
 - [x] Prompt for this episode only or earlier episodes too, across prior seasons and excluding specials.
 - [x] Exclude unaired episodes from missed-episode counts.
 - [x] Keep caught-up ongoing shows Watching.
-- [ ] Complete ended shows after all regular episodes are watched, with manual overrides.
+- [x] Complete ended shows after all regular episodes are watched, with manual overrides. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Offer Watching after unwatching a completed show's episode, preserving status unless accepted.
-- [ ] Preserve watch events through metadata ID, ordering, and count changes.
-- [ ] Flag uncertain episode reconciliation instead of silently moving or deleting history.
+- [x] Preserve watch events through metadata ID, ordering, and count changes. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Flag uncertain episode reconciliation instead of silently moving or deleting history. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 
 ## Dashboard, calendar, spoilers, and notices
 
-- [ ] Up next uses the earliest unwatched aired regular episode of actively watched shows.
-- [ ] Up next excludes unaired episodes and separates specials.
+- [x] Up next uses the earliest unwatched aired regular episode of actively watched shows. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Up next excludes unaired episodes and separates specials. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Manual Up next ordering. See [independent audit evidence](remaining-feature-audit.md).
 - [x] Recent activity on the dashboard. See [independent audit evidence](remaining-feature-audit.md).
 - [x] Upcoming episodes on the dashboard. See [independent audit evidence](remaining-feature-audit.md).
 - [ ] Calendar month view.
   - [x] Date-only preservation, timestamp timezone placement, source episode links and day-list semantics in UI regression tests.
   - [ ] Desktop/phone visual and assistive-technology acceptance.
-- [ ] Calendar list view.
+- [x] Calendar list view. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Preserve date-only release precision. See [independent audit evidence](remaining-feature-audit.md).
 - [x] Display known release timestamps in each user's timezone. See [independent audit evidence](remaining-feature-audit.md).
-- [ ] Per-user spoiler preference hiding unwatched episode summaries and images.
-- [ ] Explicit spoiler reveal controls.
+- [x] Per-user spoiler preference hiding unwatched episode summaries and images. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Explicit spoiler reveal controls. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Private in-app notices with explicit, idempotent acknowledgement and retryable errors.
 
 ## Manual and smart lists
@@ -177,12 +177,12 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [x] Visual nested AND/OR rule groups. See [independent audit evidence](remaining-feature-audit.md).
 - [x] NOT exclusions. See [independent audit evidence](remaining-feature-audit.md).
 - [x] Live matching count and title preview before saving. See [independent audit evidence](remaining-feature-audit.md).
-- [ ] Content type, exact/base status, genre, year, and personal-rating conditions.
-- [ ] Country availability and streaming-service conditions.
+- [x] Content type, exact/base status, genre, year, and personal-rating conditions. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Country availability and streaming-service conditions. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Explicit unknown/unset conditions. See [independent audit evidence](remaining-feature-audit.md).
 - [x] Negative filters do not silently match unknown values.
-- [ ] Manual-list membership conditions.
-- [ ] Smart-list membership conditions.
+- [x] Manual-list membership conditions. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Smart-list membership conditions. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Stable list identifiers for dependencies.
 - [x] Cycle prevention across smart-list dependencies.
 - [x] Show dependent lists and block deletion until references are resolved.
@@ -194,16 +194,16 @@ Checked behaviors below are supported by the named regression tests in [implemen
 - [ ] Native anime entry/cour organization and numbering.
   - [x] Source episode types/numbers, native credits/related titles and bounded official Hot Anime discovery.
   - [ ] Broader source coverage and presentation acceptance.
-- [ ] TMDB-style show/season organization.
-- [ ] Per-user default structure.
+- [x] TMDB-style show/season organization. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Per-user default structure. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Per-series structure override.
 - [ ] One shared underlying episode history across views.
   - [x] Confirmed episode-level alternate tracking without duplicate library entries, including native status updates and portable source history.
   - [ ] Full mixed-relationship and cross-view/browser acceptance.
-- [ ] Stable source identities without merging entries solely on shared TMDB IDs.
+- [x] Stable source identities without merging entries solely on shared TMDB IDs. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Mapping provenance and dataset versions.
 - [x] Native-entry statuses and ratings visible in aggregate show views.
-- [ ] Aggregate progress without fabricated combined ratings.
+- [x] Aggregate progress without fabricated combined ratings. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [ ] Up next cards follow the selected structure.
   - [x] Effective-progress native-to-show cards, incomplete source fallback, and private displayed-card ordering.
   - [ ] Full alternate-view tracking and browser acceptance.
@@ -214,7 +214,7 @@ Checked behaviors below are supported by the named regression tests in [implemen
   - [x] Explicit movie-alias proposals, local overrides, distinct consent and source-safe tracking.
   - [ ] Full browser and broad mapping-coverage acceptance.
 - [x] Explicit versus inferred mapping distinction.
-- [ ] Per-user confirmation before split/combined cross-view progress linking.
+- [x] Per-user confirmation before split/combined cross-view progress linking. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Explain connected episodes during mapping confirmation.
 - [x] Prevent unconfirmed mapping propagation.
 - [x] Preserve recorded events when mappings change. See the Frieren correction exercise in [2026-10-24 acceptance](acceptance-2026-10-24.md).
@@ -233,34 +233,34 @@ Current source resolution remains conservative: explicit TMDB movie/show IDs can
 - [ ] Read-only API import when verified JSON coverage is insufficient.
   - [x] Optional GET-only custom-list fetch with ephemeral credentials, complete pagination, private caching and preview/apply safeguards.
   - [ ] Live AUTH V2 and source-account coverage acceptance.
-- [ ] Import source identifiers without unsafe anime merges.
-- [ ] Import statuses and episode progress.
-- [ ] Import recorded watched dates and personal ratings.
-- [ ] Represent inferred completion dates as unknown.
+- [x] Import source identifiers without unsafe anime merges. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Import statuses and episode progress. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Import recorded watched dates and personal ratings. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Represent inferred completion dates as unknown. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [ ] Import custom-list membership.
   - [x] Import complete documented API-response files as ordered manual snapshots, with private identity resolution and app edit/deletion preservation.
   - [ ] Verify ordinary backup custom-list coverage and live source acceptance.
 - [ ] Translate source smart rules only when exact.
 - [x] Preserve untranslated rules and unsupported fields in the source archive.
 - [x] Preserve imported SIMKL snapshots.
-- [ ] Preview additions, changes, conflicts, unresolved matches, and errors.
+- [x] Preview additions, changes, conflicts, unresolved matches, and errors. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Require user application after preview.
   - [x] Cancel superseded and abandoned preview requests across SIMKL backups, custom-list response files/live fetches, and portable restores. Delayed file reads cannot start uploads after navigation; late responses cannot restore discarded previews. Verified with synthetic UI regressions.
-- [ ] Apply resolved items without blocking on ambiguous items.
+- [x] Apply resolved items without blocking on ambiguous items. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Persistent unresolved-item review queue.
-- [ ] Existing app edits win on repeat imports.
-- [ ] Review conflicts and add missing history without deleting app records.
-- [ ] Idempotent repeat import without duplicated records.
+- [x] Existing app edits win on repeat imports. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Review conflicts and add missing history without deleting app records. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Idempotent repeat import without duplicated records. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Visible backup/export prerequisite before import, with no import-specific undo.
-- [ ] Manual reimport without ongoing SIMKL sync.
+- [x] Manual reimport without ongoing SIMKL sync. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 
 ## Portability and recovery
 
-- [ ] Per-user portable UI export.
-- [ ] Export library, history/dates, ratings, custom statuses, lists/rules, and settings.
-- [ ] Per-user UI restore with validation and preview.
-- [ ] Restore conflict handling consistent with migration.
-- [ ] Exclude authorization roles, server secrets, and sessions from library restore authority.
+- [x] Per-user portable UI export. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Export library, history/dates, ratings, custom statuses, lists/rules, and settings. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Per-user UI restore with validation and preview. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Restore conflict handling consistent with migration. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Exclude authorization roles, server secrets, and sessions from library restore authority. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Document infrastructure database backup and restoration. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] Validate a database recovery workflow with synthetic data.
 
@@ -325,8 +325,8 @@ Backend regressions verify private counts, runtime unknowns, metadata-language s
 - [x] Tests for mapping consent, corrections, and history preservation.
 - [x] Tests for import preview, idempotency, conflicts, and unresolved items.
 - [x] Tests for export/restore and user isolation.
-- [ ] Browser checks for search, details, providers, and library workflows.
-- [ ] Browser checks for tracking and smart-list workflows.
+- [x] Browser checks for search, details, providers, and library workflows. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Browser checks for tracking and smart-list workflows. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [ ] English and Turkish layout review.
 - [ ] Desktop and phone visual review.
 - [ ] Keyboard and focus accessibility review.

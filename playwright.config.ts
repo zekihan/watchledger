@@ -5,8 +5,8 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: 0,
-  timeout: 90000,
-  globalTimeout: 8 * 60 * 1000,
+  timeout: 150000,
+  globalTimeout: 12 * 60 * 1000,
   reporter: "list",
   use: {
     baseURL: "http://127.0.0.1:8080",

@@ -86,7 +86,12 @@ export function AnalyticsPage({ t }: { t: T }) {
       {d.monthly.map((m) => (
         <div className="bar-row" key={m.month}>
           <span>{m.month}</span>
-          <meter min="0" max={Math.max(...d.monthly.map((x) => x.count), 1)} value={m.count} />
+          <meter
+            aria-label={m.month}
+            min="0"
+            max={Math.max(...d.monthly.map((x) => x.count), 1)}
+            value={m.count}
+          />
           <strong>{m.count}</strong>
         </div>
       ))}
@@ -95,7 +100,12 @@ export function AnalyticsPage({ t }: { t: T }) {
       {d.genres.map((g) => (
         <div className="bar-row" key={g.name}>
           <span>{g.name}</span>
-          <meter min="0" max={Math.max(...d.genres.map((x) => x.count), 1)} value={g.count} />
+          <meter
+            aria-label={g.name}
+            min="0"
+            max={Math.max(...d.genres.map((x) => x.count), 1)}
+            value={g.count}
+          />
           <strong>{g.count}</strong>
         </div>
       ))}
@@ -110,7 +120,9 @@ export function CalendarPage({ t, user }: { t: T; user: User }) {
       new Date(),
     ),
   );
-  const [view, setView] = useState("month");
+  const [view, setView] = useState(() =>
+    window.matchMedia?.("(max-width: 680px)").matches ? "list" : "month",
+  );
   const q = useQuery({
     queryKey: ["calendar", month, zone, user.Settings.metadata_language, user.Settings.anime_title],
     queryFn: () => api<Dashboard["upcoming"]>(`/calendar?month=${month}`),
@@ -168,36 +180,45 @@ export function CalendarPage({ t, user }: { t: T; user: User }) {
       )}
       {q.isPending && <p>{t("loading")}</p>}
       {view === "month" ? (
-        <div className="month-grid" role="list" aria-label={month}>
-          {Array.from({ length: 7 }, (_, i) => (
-            <div className="weekday" aria-hidden="true" key={`w${String(i)}`}>
-              {new Intl.DateTimeFormat(lang, { weekday: "short" }).format(new Date(2026, 0, 5 + i))}
-            </div>
-          ))}
-          {Array.from({ length: offset }, (_, i) => (
-            <div className="calendar-cell blank" aria-hidden="true" key={`blank${String(i)}`} />
-          ))}
-          {Array.from({ length: days }, (_, i) => {
-            const day = `${month}-${String(i + 1).padStart(2, "0")}`;
-            return (
-              <div className="calendar-cell" role="listitem" aria-label={day} key={day}>
-                <time dateTime={day}>{i + 1}</time>
-                {q.data
-                  ?.filter((e) => date(e) === day)
-                  .map((e) => (
-                    <a key={e.id} href={episodeLink(e.catalog_id, e.season, e.id)}>
-                      <strong>{e.title}</strong>
-                      <small>
-                        S{e.season} E{e.number}
-                        {e.air_time
-                          ? ` · ${new Date(e.air_time).toLocaleTimeString(lang, { timeZone: zone, hour: "2-digit", minute: "2-digit" })}`
-                          : ""}
-                      </small>
-                    </a>
-                  ))}
+        <div
+          className="calendar-scroll"
+          role="region"
+          aria-label={`${t("calendar")}: ${month}`}
+          tabIndex={0}
+        >
+          <div className="month-grid" role="list" aria-label={month}>
+            {Array.from({ length: 7 }, (_, i) => (
+              <div className="weekday" aria-hidden="true" key={`w${String(i)}`}>
+                {new Intl.DateTimeFormat(lang, { weekday: "short" }).format(
+                  new Date(2026, 0, 5 + i),
+                )}
               </div>
-            );
-          })}
+            ))}
+            {Array.from({ length: offset }, (_, i) => (
+              <div className="calendar-cell blank" aria-hidden="true" key={`blank${String(i)}`} />
+            ))}
+            {Array.from({ length: days }, (_, i) => {
+              const day = `${month}-${String(i + 1).padStart(2, "0")}`;
+              return (
+                <div className="calendar-cell" role="listitem" aria-label={day} key={day}>
+                  <time dateTime={day}>{i + 1}</time>
+                  {q.data
+                    ?.filter((e) => date(e) === day)
+                    .map((e) => (
+                      <a key={e.id} href={episodeLink(e.catalog_id, e.season, e.id)}>
+                        <strong>{e.title}</strong>
+                        <small>
+                          S{e.season} E{e.number}
+                          {e.air_time
+                            ? ` · ${new Date(e.air_time).toLocaleTimeString(lang, { timeZone: zone, hour: "2-digit", minute: "2-digit" })}`
+                            : ""}
+                        </small>
+                      </a>
+                    ))}
+                </div>
+              );
+            })}
+          </div>
         </div>
       ) : (
         <div className="calendar-list">

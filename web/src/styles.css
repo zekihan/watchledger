@@ -141,7 +141,7 @@ aside {
 }
 .nav-label {
   font-size: 9px;
-  color: #6c7a88;
+  color: #8293a3;
   letter-spacing: 1.7px;
   margin: 42px 12px 16px;
 }
@@ -987,7 +987,12 @@ footer a {
 .choice-dialog label {
   padding: 12px 0;
 }
+.calendar-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
 .month-grid {
+  min-width: 770px;
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 1px;
@@ -1023,30 +1028,14 @@ footer a {
   overflow-wrap: anywhere;
 }
 .calendar-cell strong {
-  font-size: 10px;
+  font-size: 13px;
   display: block;
 }
 .calendar-cell small {
-  font-size: 9px;
+  font-size: 12px;
 }
 .calendar-cell.blank {
   background: #0e171e;
-}
-@media (max-width: 680px) {
-  .calendar-cell {
-    padding: 4px;
-    min-height: 100px;
-  }
-  .calendar-cell a {
-    padding: 4px;
-  }
-  .calendar-cell strong {
-    font-size: 9px;
-  }
-  .weekday {
-    padding: 8px 2px;
-    font-size: 9px;
-  }
 }
 .episode-still {
   width: 185px;

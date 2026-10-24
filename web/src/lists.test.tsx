@@ -321,3 +321,31 @@ test("dependent list names block deletion and smart membership retains a stable 
     rule: { op: "and", children: [{ op: "eq", field: "list", value: "smart-dependent" }] },
   });
 });
+
+test("an inactive provider selector does not leak cached settings errors into private lists", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string) =>
+      Promise.resolve(new Response(JSON.stringify(fixtures(path)), { status: 200 })),
+    ),
+  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  await client
+    .fetchQuery({
+      queryKey: ["provider-options", "TR"],
+      queryFn: () => Promise.reject(new Error("Synthetic provider outage")),
+    })
+    .catch(() => {});
+  render(
+    <QueryClientProvider client={client}>
+      <ListsPage
+        t={(key) => en[key]}
+        user={{ ID: "synthetic", Name: "Synthetic", Admin: false, Settings: { country: "TR" } }}
+      />
+    </QueryClientProvider>,
+  );
+  await screen.findByText("Favorites");
+  expect(screen.queryByText("Synthetic provider outage")).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: `＋ ${en.newList}` }));
+  expect(screen.queryByText("Synthetic provider outage")).toBeNull();
+});
