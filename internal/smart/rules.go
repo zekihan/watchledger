@@ -177,3 +177,16 @@ func Acyclic(graph map[string][]string) error {
 	}
 	return nil
 }
+
+// UsesStatus finds custom-status predicates at any supported nesting depth.
+func UsesStatus(r Rule, id string) bool {
+	if r.Field == "status" && r.Op != "unknown" && r.Value == id {
+		return true
+	}
+	for _, child := range r.Children {
+		if UsesStatus(child, id) {
+			return true
+		}
+	}
+	return false
+}

@@ -190,6 +190,13 @@ export const en = {
   simklLimits:
     "Partial migration: explicit movie, show and AniDB identities can be loaded. Episode mappings need explicit review. Custom lists use the separate complete-response file importer. No episode-number matching is guessed.",
   simklFile: "SIMKL JSON backup",
+  restoreSize: "Maximum portable backup size: 64 MiB",
+  sharedRestoreWarning:
+    "This backup contains new shared catalog metadata without a valid signature from this installation. Importing it can affect what every account sees. Existing private history remains isolated.",
+  sharedRestoreApprove:
+    "As an administrator, I have reviewed and approve adding this shared metadata.",
+  sharedRestoreBlocked:
+    "Load the titles from their verified providers first, or ask an administrator to review the shared metadata. Your private restore can then proceed.",
   importSize: "Maximum backup size: 32 MiB",
   unresolved: "Items requiring review",
   sourceItems: "Source items",
@@ -567,6 +574,12 @@ export const tr: Record<Key, string> = {
   simklLimits:
     "Kısmi aktarım: açık film, dizi ve AniDB kimlikleri yüklenebilir. Bölüm eşlemeleri açık inceleme gerektirir. Özel listeler ayrı tam yanıt dosyası aktarıcısını kullanır. Bölüm numaralarından eşleme tahmin edilmez.",
   simklFile: "SIMKL JSON yedeği",
+  restoreSize: "En büyük taşınabilir yedek boyutu: 64 MiB",
+  sharedRestoreWarning:
+    "Bu yedek, bu kurulumun geçerli imzasını taşımayan yeni ortak katalog bilgileri içeriyor. İçe aktarılması tüm hesapların gördüğü bilgileri etkileyebilir. Özel izleme geçmişi ayrı tutulur.",
+  sharedRestoreApprove: "Yönetici olarak bu ortak bilgileri inceledim ve eklenmesini onaylıyorum.",
+  sharedRestoreBlocked:
+    "Önce yapımları doğrulanmış sağlayıcılarından yükleyin veya ortak bilgileri incelemesi için bir yöneticiye başvurun. Ardından özel yedeğinizi geri yükleyebilirsiniz.",
   importSize: "En büyük yedek boyutu: 32 MiB",
   unresolved: "İnceleme gereken kayıtlar",
   sourceItems: "Kaynak kayıtları",

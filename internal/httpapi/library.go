@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/jackc/pgx/v5"
 	"github.com/zekihan/watchledger/internal/auth"
+	"github.com/zekihan/watchledger/internal/smart"
 	"github.com/zekihan/watchledger/internal/tracking"
 	"net/http"
 	"strings"
@@ -480,7 +481,7 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 		if watched {
 			_, e = tx.Exec(r.Context(), "DELETE FROM history_tombstones WHERE user_id=$1 AND catalog_id=$2 AND episode_key=$3", uid, id, episodeKey)
 		} else {
-			_, e = tx.Exec(r.Context(), "INSERT INTO history_tombstones(user_id,catalog_id,episode_key) VALUES($1,$2,$3) ON CONFLICT(user_id,catalog_id,episode_key) DO UPDATE SET deleted_at=now()", uid, id, episodeKey)
+			_, e = tx.Exec(r.Context(), "INSERT INTO history_tombstones(user_id,catalog_id,episode_key) VALUES($1,$2,$3) ON CONFLICT(user_id,catalog_id,episode_key) DO UPDATE SET deleted_at=now(),intent_scope='{}'", uid, id, episodeKey)
 		}
 		if e != nil {
 			http.Error(w, "tracking failed", http.StatusServiceUnavailable)
@@ -510,7 +511,7 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 				episodeKey = ""
 				episodeID = nil
 			}
-			_, e = tx.Exec(r.Context(), "INSERT INTO history_tombstones(user_id,catalog_id,episode_key) VALUES($1,$2,$3) ON CONFLICT(user_id,catalog_id,episode_key) DO UPDATE SET deleted_at=now()", uid, change.CatalogID, episodeKey)
+			_, e = tx.Exec(r.Context(), "INSERT INTO history_tombstones(user_id,catalog_id,episode_key) VALUES($1,$2,$3) ON CONFLICT(user_id,catalog_id,episode_key) DO UPDATE SET deleted_at=now(),intent_scope='{}'", uid, change.CatalogID, episodeKey)
 			if e != nil {
 				http.Error(w, "linked unwatch failed", http.StatusServiceUnavailable)
 				return
@@ -648,6 +649,40 @@ func (a *API) deleteStatus(w http.ResponseWriter, r *http.Request) {
 	var oldID string
 	if e = tx.QueryRow(r.Context(), "SELECT id FROM statuses WHERE user_id=$1 AND id=$2 FOR UPDATE", uid, r.PathValue("id")).Scan(&oldID); e != nil {
 		http.Error(w, "status not found", http.StatusNotFound)
+		return
+	}
+	// Saved rules are user data too: never leave a dangling custom-status predicate.
+	rows, e := tx.Query(r.Context(), "SELECT name,rule FROM lists WHERE user_id=$1 AND kind='smart' ORDER BY name", uid)
+	if e != nil {
+		http.Error(w, "dependent lists unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	dependents := []string{}
+	for rows.Next() {
+		var name string
+		var raw []byte
+		if e = rows.Scan(&name, &raw); e != nil {
+			rows.Close()
+			http.Error(w, "dependent lists unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		var rule smart.Rule
+		if e = json.Unmarshal(raw, &rule); e != nil {
+			rows.Close()
+			http.Error(w, "invalid saved rule", http.StatusConflict)
+			return
+		}
+		if smart.UsesStatus(rule, oldID) {
+			dependents = append(dependents, name)
+		}
+	}
+	rows.Close()
+	if rows.Err() != nil {
+		http.Error(w, "dependent lists unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if len(dependents) > 0 {
+		http.Error(w, "update dependent smart lists before removing this status: "+strings.Join(dependents, ", "), http.StatusConflict)
 		return
 	}
 	base := in.Replacement

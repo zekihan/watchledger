@@ -211,8 +211,8 @@ func TestLinkedTrackingPreservesFactsAndRequiresFreshConfirmation(t *testing.T) 
 	}
 	countHistory(2)
 	w := request("GET", "/api/export", "", true)
-	if w.Code != 200 || strings.Contains(w.Body.String(), "local_action_at") {
-		t.Fatal("local intent exported as portable authority", w.Code)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), "intent_scope") {
+		t.Fatal("portable intent scopes missing", w.Code)
 	}
 	if _, e = p.Exec(ctx, "UPDATE sessions SET user_id=$2 WHERE token_hash=$1", sum, other); e != nil {
 		t.Fatal(e)

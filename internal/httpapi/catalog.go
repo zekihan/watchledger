@@ -13,10 +13,11 @@ import (
 )
 
 type API struct {
-	SIMKL   *simkl.ReadOnlyClient
-	DB      *pgxpool.Pool
-	Catalog *catalog.Cache
-	Anime   *anidb.Cache
+	Identity *auth.Service
+	SIMKL    *simkl.ReadOnlyClient
+	DB       *pgxpool.Pool
+	Catalog  *catalog.Cache
+	Anime    *anidb.Cache
 }
 
 func (a *API) routes(mux *http.ServeMux) {

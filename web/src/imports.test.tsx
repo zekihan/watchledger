@@ -195,3 +195,93 @@ test("large previews and unresolved queues are paged without truncating the impo
   await userEvent.click(screen.getByRole("button", { name: en.apply }));
   await waitFor(() => expect(writes).toEqual(["/api/simkl/preview", "/api/simkl/synthetic/apply"]));
 });
+
+test("unsigned shared metadata needs explicit administrator approval and resets on replacement", async () => {
+  const writes: Record<string, unknown>[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string, init?: RequestInit) => {
+      if (path.endsWith("/apply"))
+        writes.push(
+          JSON.parse(typeof init?.body === "string" ? init.body : "{}") as Record<string, unknown>,
+        );
+      return Promise.resolve(
+        new Response(
+          JSON.stringify(
+            path.endsWith("/preview")
+              ? {
+                  id: "unsigned",
+                  additions: 1,
+                  conflicts: [],
+                  history_candidates: 0,
+                  shared_metadata_requires_approval: true,
+                  can_approve_shared_metadata: true,
+                }
+              : [],
+          ),
+          { status: 200 },
+        ),
+      );
+    }),
+  );
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <PortabilityPanel t={(key) => en[key]} />
+    </QueryClientProvider>,
+  );
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("checkbox", { name: en.backupSaved }));
+  await user.upload(screen.getByLabelText(en.restore), file("unsigned.json", '{"version":1}'));
+  const apply = await screen.findByRole<HTMLButtonElement>("button", {
+    name: en.apply,
+  });
+  expect(apply.disabled).toBe(true);
+  await user.click(screen.getByRole("checkbox", { name: en.sharedRestoreApprove }));
+  expect(apply.disabled).toBe(false);
+  await user.upload(
+    screen.getByLabelText(en.restore),
+    file("replacement.json", '{"version":1,"created_at":"changed"}'),
+  );
+  await waitFor(() =>
+    expect(screen.getByRole<HTMLButtonElement>("button", { name: en.apply }).disabled).toBe(true),
+  );
+  await user.click(screen.getByRole("checkbox", { name: en.sharedRestoreApprove }));
+  await user.click(screen.getByRole("button", { name: en.apply }));
+  await waitFor(() => expect(writes).toEqual([{ trust_shared_metadata: true }]));
+});
+test("ordinary accounts cannot approve unknown shared metadata", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string) =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify(
+            path.endsWith("/preview")
+              ? {
+                  id: "unsigned",
+                  additions: 1,
+                  conflicts: [],
+                  history_candidates: 0,
+                  shared_metadata_requires_approval: true,
+                  can_approve_shared_metadata: false,
+                }
+              : [],
+          ),
+          { status: 200 },
+        ),
+      ),
+    ),
+  );
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <PortabilityPanel t={(key) => en[key]} />
+    </QueryClientProvider>,
+  );
+  await userEvent.click(screen.getByRole("checkbox", { name: en.backupSaved }));
+  await userEvent.upload(screen.getByLabelText(en.restore), file("unsigned.json", '{"version":1}'));
+  expect(await screen.findByText(en.sharedRestoreBlocked)).toBeTruthy();
+  expect(screen.queryByRole("checkbox", { name: en.sharedRestoreApprove })).toBeNull();
+  expect(screen.getByRole<HTMLButtonElement>("button", { name: en.apply }).disabled).toBe(true);
+});

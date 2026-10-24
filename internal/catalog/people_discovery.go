@@ -40,15 +40,23 @@ func (c *Cache) PeopleTV(ctx context.Context, person string, in url.Values) (jso
 	if e != nil {
 		return nil, e
 	}
-	var data map[string][]struct {
+	type creditEntry struct {
 		ID int `json:"id"`
+	}
+	var data struct {
+		Cast []creditEntry `json:"cast"`
+		Crew []creditEntry `json:"crew"`
 	}
 	if e = json.Unmarshal(raw, &data); e != nil {
 		return nil, e
 	}
 	candidates := []int{}
 	seen := map[int]bool{}
-	for _, item := range data[credit] {
+	entries := data.Cast
+	if credit == "crew" {
+		entries = data.Crew
+	}
+	for _, item := range entries {
 		if !seen[item.ID] {
 			candidates = append(candidates, item.ID)
 			seen[item.ID] = true

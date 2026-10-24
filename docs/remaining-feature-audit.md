@@ -178,3 +178,31 @@ its failures: fixture selectors and required settings/backup setup were correcte
 without weakening production validation. Remaining owner-dependent acceptance is
 in TODO.md. This is not a claim that no future bugs, broader catalog cases or
 additional useful tests can exist, nor does it authorize merging or deployment.
+
+## Follow-on bug audit fixes
+
+The owner requested fixes for the separate 2026-10-24 repository audit. This
+increment addresses the nine reproduced defects and the dependency finding:
+
+- Gate new shared restore metadata using an installation proof or explicit
+  administrator review; reject future cache freshness.
+- Preserve watch/unwatch intent across portable backups without allowing
+  imported records to override destination-local decisions (migration 018).
+- Remove the globally saturatable pending-login pool, retaining encrypted
+  browser-bound state, nonce, PKCE and expiry checks.
+- Decode TMDB person TV credits with explicit cast/crew fields, accepting the
+  documented numeric root ID.
+- Disable overlapping status/rating edits until the save and refresh finish.
+- Remap nested custom-status predicates during restore.
+- Block custom-status deletion with named dependent smart lists rather than
+  silently leaving broken predicates.
+- Align successful portable export and restore limits at 64 MiB, with an explicit
+  database-backup fallback for larger libraries.
+- Reconcile episode kind when provider records move into or out of specials.
+- Upgrade golang.org/x/text to v0.41.0; the local follow-up govulncheck reports no
+  vulnerabilities.
+
+Regression tests replace the audit reproductions. Browser fixtures use explicit
+synthetic administrator approval for their fabricated shared catalog; the actual
+ordinary-user restore and cross-account privacy assertions remain intact.
+Exact-head CI and final verification are still required before completion.

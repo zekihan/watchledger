@@ -103,13 +103,15 @@ type History struct {
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 	LocalActionAt pgtype.Timestamptz `json:"local_action_at"`
+	IntentScope   []string           `json:"intent_scope"`
 }
 
 type HistoryTombstone struct {
-	UserID     pgtype.UUID        `json:"user_id"`
-	CatalogID  string             `json:"catalog_id"`
-	EpisodeKey string             `json:"episode_key"`
-	DeletedAt  pgtype.Timestamptz `json:"deleted_at"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	CatalogID   string             `json:"catalog_id"`
+	EpisodeKey  string             `json:"episode_key"`
+	DeletedAt   pgtype.Timestamptz `json:"deleted_at"`
+	IntentScope []string           `json:"intent_scope"`
 }
 
 type Import struct {

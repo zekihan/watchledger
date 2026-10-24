@@ -217,7 +217,7 @@ func (c *Cache) Season(ctx context.Context, id string, season int, language stri
 		}
 		eid := fmt.Sprintf("tmdb:episode:%d", ep.ID)
 		ids = append(ids, eid)
-		_, e = tx.Exec(ctx, `INSERT INTO episodes(id,catalog_id,source,source_id,season,number,kind,metadata,air_date) VALUES($1,$2,'tmdb',$3,$4,$5,$6,$7,$8) ON CONFLICT(id) DO UPDATE SET metadata=EXCLUDED.metadata,air_date=EXCLUDED.air_date,season=EXCLUDED.season,number=EXCLUDED.number,retired=false WHERE episodes.catalog_id=EXCLUDED.catalog_id`, eid, key, fmt.Sprint(ep.ID), season, ep.Number, kind, b, date)
+		_, e = tx.Exec(ctx, `INSERT INTO episodes(id,catalog_id,source,source_id,season,number,kind,metadata,air_date) VALUES($1,$2,'tmdb',$3,$4,$5,$6,$7,$8) ON CONFLICT(id) DO UPDATE SET metadata=EXCLUDED.metadata,air_date=EXCLUDED.air_date,season=EXCLUDED.season,number=EXCLUDED.number,kind=EXCLUDED.kind,retired=false WHERE episodes.catalog_id=EXCLUDED.catalog_id`, eid, key, fmt.Sprint(ep.ID), season, ep.Number, kind, b, date)
 		if e != nil {
 			return nil, e
 		}

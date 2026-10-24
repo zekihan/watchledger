@@ -102,7 +102,7 @@ func TestSIMKLReadOnlyFetchCachesPrivatelyAndNeverStoresToken(t *testing.T) {
 	defer upstream.Close()
 	source := simkl.NewReadOnlyClient()
 	source.BaseURL = upstream.URL
-	app := &API{DB: p, SIMKL: source}
+	app := &API{Identity: identity, DB: p, SIMKL: source}
 	mux := http.NewServeMux()
 	app.routes(mux)
 	handler = identity.Middleware(mux)

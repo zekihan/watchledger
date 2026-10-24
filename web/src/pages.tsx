@@ -989,6 +989,7 @@ export function SettingsPage({
 export function PortabilityPanel({ t, settings = {} }: { t: T; settings?: Settings }) {
   const client = useQueryClient();
   const [backed, setBacked] = useState(false);
+  const [trustShared, setTrustShared] = useState(false);
   const [localError, setLocalError] = useState("");
   const beginPreview = usePreviewRequest();
   const [preview, setPreview] = useState<{
@@ -996,10 +997,13 @@ export function PortabilityPanel({ t, settings = {} }: { t: T; settings?: Settin
     additions: number;
     conflicts: string[];
     history_candidates: number;
+    shared_metadata_requires_approval?: boolean;
+    can_approve_shared_metadata?: boolean;
   } | null>(null);
   const [reading, setReading] = useState(false);
   const apply = useMutation({
-    mutationFn: (id: string) => api(`/restore/${id}/apply`, "POST", {}),
+    mutationFn: (id: string) =>
+      api(`/restore/${id}/apply`, "POST", { trust_shared_metadata: trustShared }),
     onSuccess: async () => {
       setPreview(null);
       await client.invalidateQueries();
@@ -1008,12 +1012,13 @@ export function PortabilityPanel({ t, settings = {} }: { t: T; settings?: Settin
   async function read(file: File | undefined) {
     const request = beginPreview();
     setPreview(null);
+    setTrustShared(false);
     setReading(false);
     setLocalError("");
     apply.reset();
     if (!file) return;
-    if (file.size > 32 * 1024 * 1024) {
-      setLocalError(t("importSize"));
+    if (file.size > 64 * 1024 * 1024) {
+      setLocalError(t("restoreSize"));
       return;
     }
     setReading(true);
@@ -1025,6 +1030,8 @@ export function PortabilityPanel({ t, settings = {} }: { t: T; settings?: Settin
         additions: number;
         conflicts: string[];
         history_candidates: number;
+        shared_metadata_requires_approval?: boolean;
+        can_approve_shared_metadata?: boolean;
       }>("/restore/preview", "POST", value, request.signal);
       if (request.current()) setPreview(result);
     } catch (error) {
@@ -1080,9 +1087,33 @@ export function PortabilityPanel({ t, settings = {} }: { t: T; settings?: Settin
               <li key={id}>{id}</li>
             ))}
           </ul>
+          {preview.shared_metadata_requires_approval && (
+            <div className="notice">
+              <p>{t("sharedRestoreWarning")}</p>
+              {preview.can_approve_shared_metadata ? (
+                <label className="check-label">
+                  <input
+                    type="checkbox"
+                    checked={trustShared}
+                    disabled={apply.isPending}
+                    onChange={(event) => setTrustShared(event.target.checked)}
+                  />
+                  {t("sharedRestoreApprove")}
+                </label>
+              ) : (
+                <p>{t("sharedRestoreBlocked")}</p>
+              )}
+            </div>
+          )}
           <button
             className="primary"
-            disabled={!backed || apply.isPending || reading}
+            disabled={
+              !backed ||
+              apply.isPending ||
+              reading ||
+              (!!preview.shared_metadata_requires_approval &&
+                (!preview.can_approve_shared_metadata || !trustShared))
+            }
             onClick={() => {
               if (preview) apply.mutate(preview.id);
             }}

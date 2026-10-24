@@ -151,3 +151,17 @@ func TestRejectManufacturedMovieEpisodes(t *testing.T) {
 		t.Fatal("movie episode copy accepted")
 	}
 }
+
+func TestFutureFreshnessAndIntentRejected(t *testing.T) {
+	s := snapshot()
+	s.Catalog[0].FetchedAt = time.Now().Add(24 * time.Hour)
+	if s.Validate() == nil {
+		t.Fatal("future cache freshness accepted")
+	}
+	s.Catalog[0].FetchedAt = time.Now()
+	future := time.Now().Add(24 * time.Hour)
+	s.History[0].LocalActionAt = &future
+	if s.Validate() == nil {
+		t.Fatal("future intent accepted")
+	}
+}

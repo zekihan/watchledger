@@ -34,3 +34,38 @@ There is no emergency local login, first-user promotion, or database-admin role 
 After an authorized configuration correction, restart the app with the corrected settings and sign in again. To require existing application sessions to obtain fresh claims immediately rather than waiting up to an hour, an authorized operator can expire their cached authorization evaluation with `UPDATE sessions SET expires_at=now();` against the correct application database. This does not grant roles, change history, or revoke upstream provider credentials. The next request must successfully refresh and satisfy the current claim policy, otherwise it requires a new login. Preserve the session encryption key; replacing it invalidates stored tokens and is not needed merely to fix a claim path.
 
 Verify an admitted non-admin account, an intended admin account, and a denied account after recovery. Missing current admission still denies access; missing current admin removes admin privileges. If the identity provider cannot supply current claims in a validated refreshed ID token or matching-subject UserInfo, fix that provider integration rather than reusing old claims. These operational changes are not executed by the development workflow; deployment-specific verification is in TODO.md.
+
+## Portable restore trust and size limits
+
+Portable exports now include an installation-bound proof for shared catalog and
+episode metadata, using the existing session encryption key with a distinct
+cryptographic purpose. The proof grants no user or administrator authority.
+Unmodified exports from the same installation can rebuild missing cache records.
+Older exports, exports from another installation, or edited metadata require
+explicit approval by an already authenticated administrator before adding new
+shared records. The preview explains the cross-account effect and the approval
+checkbox starts unchecked. Non-admin users can first load verified provider
+records and then restore their private history without approving shared data.
+Existing shared records are never overwritten by this restore path.
+
+Preserve the session key during recovery. Rotating it invalidates old catalog
+proofs as well as stored OAuth tokens; use the administrator review path for
+untrusted/legacy cache material. Future cache freshness dates are rejected.
+
+Successful portable exports and restore uploads share a 64 MiB limit. An export
+above that limit fails explicitly rather than producing a backup the app cannot
+restore; use the PostgreSQL backup/recovery procedure for larger installations.
+SIMKL upload limits remain unchanged.
+
+Migration 018 adds private intent scopes to history and unwatch markers.
+Restoration preserves original action ordering within a backup while prefixing
+its scopes with a new restore generation. Imported watches cannot become
+destination-local actions or override a destination-local unwatch. Repeated
+backup generations preserve this distinction; viewing dates are not invented.
+
+Login handshakes now store bounded encrypted state in the browser's secure,
+HTTP-only cookie rather than a shared in-memory pending-login pool. State,
+nonce, PKCE and expiry are still checked, and authorization codes are consumed
+once by the OIDC provider. Apply ordinary connection/rate limits at a trusted
+reverse proxy for broader traffic abuse; the app does not trust arbitrary
+forwarding headers or modify proxy configuration.

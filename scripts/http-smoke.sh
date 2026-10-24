@@ -24,6 +24,20 @@ curl --fail --silent -b "$work/cookies" -H "Origin: $origin" -H 'Content-Type: a
 preview=$(python3 -c 'import json,sys; p=json.load(open(sys.argv[1])); assert p["additions"]==1 and p["backup_required"];print(p["id"])' "$work/preview.json")
 # Preview alone must not import the title.
 curl --fail --silent -b "$work/cookies" "$origin/api/library" | python3 -c 'import json,sys;assert json.load(sys.stdin)==[]'
+# An ordinary account cannot manufacture shared catalog metadata, even by
+# copying the proof from an unrelated empty export.
+[[ $(curl --silent -b "$work/cookies" -H "Origin: $origin" -H 'Content-Type: application/json' -d '{}' -o /dev/null -w '%{http_code}' "$origin/api/restore/$preview/apply") == 403 ]]
+curl --fail --silent -b "$work/cookies-admin" "$origin/api/export" > "$work/admin-before.json"
+python3 - "$work" <<'PYCODE'
+import json,sys,pathlib
+p=pathlib.Path(sys.argv[1]); data=json.loads((p/'restore.json').read_text())
+data['library']=[];data['history']=[]
+(p/'seed.json').write_text(json.dumps(data))
+PYCODE
+curl --fail --silent -b "$work/cookies-admin" -H "Origin: $origin" -H 'Content-Type: application/json' --data-binary "@$work/seed.json" "$origin/api/restore/preview" > "$work/seed-preview.json"
+seed=$(python3 -c 'import json,sys;p=json.load(open(sys.argv[1]));assert p["shared_metadata_requires_approval"];print(p["id"])' "$work/seed-preview.json")
+[[ $(curl --silent -b "$work/cookies-admin" -H "Origin: $origin" -H 'Content-Type: application/json' -d '{}' -o /dev/null -w '%{http_code}' "$origin/api/restore/$seed/apply") == 403 ]]
+curl --fail --silent -b "$work/cookies-admin" -H "Origin: $origin" -H 'Content-Type: application/json' -d '{"trust_shared_metadata":true}' "$origin/api/restore/$seed/apply" > "$work/seed-applied.json"
 curl --fail --silent -b "$work/cookies" -H "Origin: $origin" -H 'Content-Type: application/json' -d '{}' "$origin/api/restore/$preview/apply" > "$work/apply.json"
 curl --fail --silent -b "$work/cookies" -H "Origin: $origin" -H 'Content-Type: application/json' -d '{"watched":true,"date":{"day":"2026-01-02"}}' "$origin/api/library/tmdb:movie:900001/track" > "$work/track.json"
 curl --fail --silent -b "$work/cookies" "$origin/api/export" > "$work/after.json"
@@ -31,7 +45,7 @@ python3 - "$work/after.json" <<'PYCODE'
 import json,sys
 s=json.load(open(sys.argv[1])); assert len(s['library'])==1 and s['library'][0]['base']=='completed' and s['library'][0]['rating']==8
 assert len(s['history'])==1 and s['history'][0]['episode_id'] is None and s['history'][0]['watched_date']=='2026-01-02' and s['history'][0]['watched_time'] is None
-assert 'local_action_at' not in s['history'][0] and 'roles' not in s and 'sessions' not in s
+assert s['history'][0]['local_action_at'] and s['history'][0]['intent_scope']==[] and 'roles' not in s and 'sessions' not in s
 PYCODE
 # Cached tracking above succeeded despite no configured external metadata token.
 [[ $(curl --silent -b "$work/cookies" -o /dev/null -w '%{http_code}' "$origin/api/catalog/movie/900002") == 502 ]]
