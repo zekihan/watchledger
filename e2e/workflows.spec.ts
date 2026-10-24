@@ -270,7 +270,10 @@ for (const [index, scenario] of cases.entries()) {
 
     await page.goto(`/#detail/anime/${base + 5}`);
     await expect(page.getByRole("heading", { name: nativeTitle, exact: true })).toBeVisible();
-    await page.getByRole("combobox", { name: t.watchDate }).selectOption("unknown");
+    await page
+      .locator(".tracking-bar")
+      .getByRole("combobox", { name: t.watchDate })
+      .selectOption("unknown");
     const nativeEpisode = page
       .locator("article.episode")
       .filter({ hasText: "Native restored episode" });
@@ -291,7 +294,10 @@ for (const [index, scenario] of cases.entries()) {
     await page.goto(`/#detail/tv/${base}`);
     await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
     await expect(page.getByText("Hidden synthetic spoiler 2", { exact: true })).not.toBeVisible();
-    await page.getByRole("combobox", { name: t.watchDate }).selectOption("unknown");
+    await page
+      .locator(".tracking-bar")
+      .getByRole("combobox", { name: t.watchDate })
+      .selectOption("unknown");
     const second = page.locator("article.episode").filter({ hasText: "Synthetic episode 2" });
     const watch = second.getByRole("button", { name: `＋ ${t.watched}`, exact: true });
     await expect(watch).toBeEnabled();
@@ -320,6 +326,96 @@ for (const [index, scenario] of cases.entries()) {
     });
     await noOverflow(page);
 
+    // Bulk watching must not reinterpret an existing unknown-date event.
+    await page
+      .locator(".tracking-bar")
+      .getByRole("combobox", { name: t.watchDate })
+      .selectOption("chosen");
+    await page.locator('input[type="date"]').fill("2026-01-03");
+    await page.getByRole("button", { name: t.wholeSeason, exact: true }).click();
+    await expect
+      .poll(async () => {
+        const response = await context.request.get(`${origin}/api/library/${catalogID}/history`);
+        return ((await response.json()) as unknown[]).length;
+      })
+      .toBe(2);
+    const bulkHistory = (await (
+      await context.request.get(`${origin}/api/library/${catalogID}/history`)
+    ).json()) as { episode_id: string; watched_date: string | null; watched_time: null }[];
+    expect(
+      bulkHistory.find((item) => item.episode_id === `tmdb:episode:${base + 1}`),
+    ).toMatchObject({ watched_date: "2026-01-03", watched_time: null });
+    expect(
+      bulkHistory.find((item) => item.episode_id === `tmdb:episode:${base + 2}`),
+    ).toMatchObject({ watched_date: null, watched_time: null });
+    // A repeated bulk action must preserve original dates and not duplicate history.
+    await page
+      .locator(".tracking-bar")
+      .getByRole("combobox", { name: t.watchDate })
+      .selectOption("unknown");
+    const repeated = page.waitForResponse(
+      (response) =>
+        response.url().endsWith(`/api/library/${catalogID}/track`) &&
+        response.request().method() === "POST" &&
+        (response.request().postDataJSON() as { preview?: boolean }).preview !== true,
+    );
+    await page.getByRole("button", { name: t.wholeSeason, exact: true }).click();
+    expect((await repeated).ok()).toBe(true);
+    expect(
+      await (await context.request.get(`${origin}/api/library/${catalogID}/history`)).json(),
+    ).toEqual(bulkHistory);
+
+    await page.goto("/#settings");
+    const statusSection = page.locator("section").filter({
+      has: page.getByRole("heading", { name: t.customStatuses, exact: true }),
+    });
+    const statusName = `Synthetic custom ${index}`;
+    await statusSection.getByRole("textbox", { name: t.name, exact: true }).fill(statusName);
+    await statusSection.getByRole("button", { name: t.save, exact: true }).click();
+    await expect(statusSection.getByText(statusName, { exact: true })).toBeVisible();
+    const statuses = (await (await context.request.get(origin + "/api/statuses")).json()) as {
+      id: string;
+      name: string;
+    }[];
+    const statusID = statuses.find((item) => item.name === statusName)!.id;
+    await page.goto(`/#detail/anime/${base + 5}`);
+    await page.getByRole("combobox", { name: t.status, exact: true }).selectOption(statusID);
+    await expect
+      .poll(async () => {
+        const library = (await (await context.request.get(origin + "/api/library")).json()) as {
+          id: string;
+          status_id: string | null;
+        }[];
+        return library.find((item) => item.id === nativeID)?.status_id;
+      })
+      .toBe(statusID);
+    await page.goto("/#settings");
+    const statusRow = page.locator(".activity-row").filter({ hasText: statusName });
+    const removeStatus = statusRow.getByRole("button", { name: t.remove, exact: true });
+    await removeStatus.click();
+    const replacement = page.getByRole("dialog", { name: t.replaceStatusTitle });
+    await expect(replacement.getByRole("button", { name: t.remove, exact: true })).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await expect(replacement).not.toBeVisible();
+    await expect(removeStatus).toBeFocused();
+    await expect(statusRow).toBeVisible();
+    await removeStatus.click();
+    await replacement.getByRole("combobox", { name: t.replacement }).selectOption("hold");
+    await replacement.getByRole("button", { name: t.remove, exact: true }).click();
+    await expect(replacement).not.toBeVisible();
+    await expect(statusRow).toHaveCount(0);
+    const afterReplacement = (await (
+      await context.request.get(origin + "/api/library")
+    ).json()) as { id: string; status_id: string | null; base: string; rating: number }[];
+    expect(afterReplacement.find((item) => item.id === nativeID)).toMatchObject({
+      status_id: null,
+      base: "hold",
+      rating: 9,
+    });
+    expect(
+      await (await context.request.get(`${origin}/api/library/${nativeID}/history`)).json(),
+    ).toEqual(nativeHistory);
+
     await page.goto("/#lists");
     await page.getByRole("button", { name: `＋ ${t.newList}`, exact: true }).click();
     const listName = `Browser list ${index}`;
@@ -335,6 +431,8 @@ for (const [index, scenario] of cases.entries()) {
     await page.getByRole("button", { name: `＋ ${t.newList}`, exact: true }).click();
     await page.getByRole("textbox", { name: t.name, exact: true }).fill(`Browser smart ${index}`);
     await page.getByRole("combobox", { name: t.kind, exact: true }).selectOption("smart");
+    await page.getByRole("combobox", { name: t.field, exact: true }).selectOption("kind");
+    await page.getByRole("combobox", { name: t.value, exact: true }).selectOption("tv");
     await expect(page.getByRole("link", { name: title, exact: true })).toBeVisible();
     await page.getByRole("button", { name: t.save, exact: true }).click();
     await expect(
@@ -784,6 +882,9 @@ test("synthetic SIMKL preview and repeat import retain local edits and unresolve
   for (let attempt = 0; attempt < 2; attempt++) {
     await page.goto("/#library");
     await page.goto("/#settings");
+    const backupDownload = page.waitForEvent("download");
+    await page.getByRole("link", { name: `↓ ${en.export}`, exact: true }).click();
+    expect(await (await backupDownload).failure()).toBeNull();
     await page.getByRole("checkbox", { name: en.backupSaved }).check();
     await page.getByLabel(en.simklFile, { exact: true }).setInputFiles({
       name: `synthetic-simkl-${attempt}.json`,
@@ -819,4 +920,264 @@ test("synthetic SIMKL preview and repeat import retain local edits and unresolve
   await noOverflow(page);
   await page.screenshot({ path: "test-results/en-390-import-review.png", fullPage: true });
   await accessible(page);
+});
+
+test("combined alternate tracking requires consent and preserves native identity and history", async ({
+  page,
+  context,
+  browser,
+}) => {
+  await login(context);
+  const native = "anidb:anime:930001";
+  const show = "tmdb:tv:930002";
+  const nativeEpisodes = ["anidb:episode:930003", "anidb:episode:930004"];
+  const combined = "tmdb:episode:930005";
+  const stamp = new Date().toISOString();
+  const headers = { Origin: origin };
+  expect(
+    (
+      await context.request.put(origin + "/api/settings", {
+        headers,
+        data: {
+          language: "en",
+          metadata_language: "en",
+          timezone: "UTC",
+          country: "TR",
+          anime_view: "native",
+        },
+      })
+    ).ok(),
+  ).toBe(true);
+  const snapshot = {
+    version: 1,
+    created_at: stamp,
+    settings: { language: "en", timezone: "UTC" },
+    catalog: [
+      {
+        id: native,
+        source: "anidb",
+        source_id: "930001",
+        kind: "anime",
+        title: "Synthetic combined native",
+        fetched_at: stamp,
+        metadata: {
+          en: {
+            id: 930001,
+            name: "Synthetic combined native",
+            status: "Ended",
+            number_of_episodes: 2,
+            seasons: [{ season_number: 1, name: "Regular", episode_count: 2 }],
+            titles: [{ language: "x-jat", type: "main", text: "Synthetic combined native" }],
+          },
+        },
+      },
+      {
+        id: show,
+        source: "tmdb",
+        source_id: "930002",
+        kind: "tv",
+        title: "Synthetic combined show",
+        fetched_at: stamp,
+        metadata: {
+          en: {
+            id: 930002,
+            name: "Synthetic combined show",
+            status: "Ended",
+            number_of_episodes: 1,
+            seasons: [{ season_number: 1, episode_count: 1 }],
+          },
+        },
+      },
+    ],
+    episodes: [
+      ...nativeEpisodes.map((id, index) => ({
+        id,
+        catalog_id: native,
+        source: "anidb",
+        source_id: id.split(":")[2],
+        season: 1,
+        number: index + 1,
+        kind: "regular",
+        retired: false,
+        air_date: "2020-01-01",
+        air_time: null,
+        metadata: {
+          id: 930003 + index,
+          name: `Synthetic native part ${index + 1}`,
+          season_number: 1,
+          episode_number: index + 1,
+          runtime: 12,
+        },
+      })),
+      {
+        id: combined,
+        catalog_id: show,
+        source: "tmdb",
+        source_id: "930005",
+        season: 1,
+        number: 1,
+        kind: "regular",
+        retired: false,
+        air_date: "2020-01-01",
+        air_time: null,
+        metadata: {
+          id: 930005,
+          name: "Synthetic combined episode",
+          season_number: 1,
+          episode_number: 1,
+          runtime: 24,
+        },
+      },
+    ],
+    library: [
+      {
+        catalog_id: native,
+        base: "watching",
+        rating: 7,
+        status_id: null,
+        position: 0,
+        anime_view: null,
+        added_at: stamp,
+        updated_at: stamp,
+      },
+    ],
+    history: [],
+    statuses: [],
+    lists: [],
+    tombstones: [],
+  };
+  await page.goto("/#settings");
+  const download = page.waitForEvent("download");
+  await page.getByRole("link", { name: `↓ ${en.export}`, exact: true }).click();
+  expect(await (await download).failure()).toBeNull();
+  await page.getByRole("checkbox", { name: en.backupSaved }).check();
+  await page.getByLabel(en.restore, { exact: true }).setInputFiles({
+    name: "synthetic-combined.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(snapshot)),
+  });
+  await expect(page.getByText(en.previewReady, { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: en.apply, exact: true }).click();
+  await expect(page.getByText(en.restoreDone, { exact: true })).toBeVisible();
+  const admin = await browser.newContext();
+  try {
+    await login(admin, "cookies-admin");
+    expect(
+      (
+        await admin.request.post(origin + "/api/admin/mappings", {
+          headers,
+          data: {
+            kind: "episodes",
+            relationships: nativeEpisodes.map((from) => ({ from, to: combined })),
+            provenance: {
+              source: "local-admin-override",
+              version: "synthetic-browser-combined",
+              note: "Synthetic combined consent check",
+              inferred: false,
+            },
+          },
+        })
+      ).ok(),
+    ).toBe(true);
+    const history = async () =>
+      (await (await context.request.get(`${origin}/api/library/${native}/history`)).json()) as {
+        episode_id: string;
+        watched_date: null;
+        watched_time: null;
+      }[];
+    const readAlternate = async () =>
+      (await (await context.request.get(`${origin}/api/library/${native}/alternate`)).json()) as {
+        titles: {
+          id: string;
+          rating: number | null;
+          base: string | null;
+          watched: number;
+          episodes: { state: { blocked: boolean; derived: boolean } }[];
+        }[];
+      };
+    await page.goto("/#detail/anime/930001");
+    await page
+      .locator(".tracking-bar")
+      .getByRole("combobox", { name: en.watchDate })
+      .selectOption("unknown");
+    const first = page.locator("article.episode").filter({ hasText: "Synthetic native part 1" });
+    await first.getByRole("button", { name: `＋ ${en.watched}`, exact: true }).click();
+    await expect.poll(async () => (await history()).length).toBe(1);
+    expect(
+      (await readAlternate()).titles.find((title) => title.id === show)?.episodes[0]?.state,
+    ).toMatchObject({ blocked: true, derived: false });
+
+    await page.goto("/#mappings");
+    const mapping = page.locator("section.panel").filter({
+      has: page.getByText("Synthetic combined consent check", { exact: true }),
+    });
+    page.once("dialog", (dialog) => dialog.dismiss());
+    await mapping.getByRole("button", { name: en.confirmMapping, exact: true }).click();
+    expect(
+      (await readAlternate()).titles.find((title) => title.id === show)?.episodes[0]?.state.blocked,
+    ).toBe(true);
+    page.once("dialog", (dialog) => dialog.accept());
+    await mapping.getByRole("button", { name: en.confirmMapping, exact: true }).click();
+    await expect(mapping.getByText(`✓ ${en.confirmed}`, { exact: true })).toBeVisible();
+    expect((await readAlternate()).titles.find((title) => title.id === show)).toMatchObject({
+      watched: 0,
+      rating: null,
+      base: null,
+    });
+
+    await page.goto("/#detail/anime/930001");
+    await page
+      .locator(".tracking-bar")
+      .getByRole("combobox", { name: en.watchDate })
+      .selectOption("unknown");
+    const second = page.locator("article.episode").filter({ hasText: "Synthetic native part 2" });
+    await second.getByRole("button", { name: `＋ ${en.watched}`, exact: true }).click();
+    await expect
+      .poll(async () => (await readAlternate()).titles.find((title) => title.id === show)?.watched)
+      .toBe(1);
+    const original = await history();
+    expect(original).toHaveLength(2);
+    for (const event of original)
+      expect(event).toMatchObject({ watched_date: null, watched_time: null });
+    await page.goto(`/#views/${encodeURIComponent(native)}`);
+    await page.getByRole("combobox", { name: en.seriesStructure }).selectOption("show");
+    const showSection = page
+      .locator("section")
+      .filter({
+        has: page.getByRole("heading", { name: "Synthetic combined show · 1/1", exact: true }),
+      })
+      .last();
+    const episode = showSection
+      .getByRole("listitem")
+      .filter({ hasText: "Synthetic combined episode" });
+    const unwatch = episode.getByRole("button", { name: en.unwatched, exact: true });
+    await unwatch.click();
+    const linked = page.getByRole("dialog");
+    await expect(linked.getByRole("radio", { name: en.cancel, exact: true })).toBeChecked();
+    await page.keyboard.press("Escape");
+    await expect(linked).not.toBeVisible();
+    await expect(unwatch).toBeFocused();
+    expect(await history()).toEqual(original);
+    await unwatch.click();
+    await linked.getByRole("radio", { name: en.unwatchLinked, exact: true }).check();
+    await linked.getByRole("button", { name: en.save, exact: true }).click();
+    // Returning a completed native entry to Watching is a separate explicit choice.
+    await expect(page.getByRole("radio", { name: en.keep, exact: true })).toBeVisible();
+    await linked.getByRole("button", { name: en.save, exact: true }).click();
+    await expect.poll(async () => (await history()).length).toBe(0);
+    const library = (await (await context.request.get(origin + "/api/library")).json()) as {
+      id: string;
+      rating: number;
+    }[];
+    expect(library.find((item) => item.id === native)?.rating).toBe(7);
+    expect(library.some((item) => item.id === show)).toBe(false);
+    await page.reload();
+    await expect(
+      page.getByRole("heading", { name: "Synthetic combined show · 0/1", exact: true }),
+    ).toBeVisible();
+    await noOverflow(page);
+    await accessible(page);
+  } finally {
+    await admin.close();
+  }
 });

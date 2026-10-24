@@ -120,3 +120,61 @@ At `96067fd`, [CI 40049102769](https://github.com/zekihan/watchledger/actions/ru
 - Exact translation of source automatic rules is conditional on a verified schema/equivalence. No such schema was present in the inspected source; manual snapshots and preserved raw rules are deliberate, not inferred smart rules.
 - Daily live refresh and real-provider Compose acceptance require the intended running environment and its issuer connectivity. Scheduling logic, retry behavior and synthetic Compose execution are tested independently.
 - Final branch acceptance requires successful exact-head CI, including the remaining SIMKL repeat-import case and refreshed screenshots. A failed or unrun browser assertion remains independent work until fixed; it is never an operator blocker.
+
+## Acceptance hardening continuation (2026-10-24)
+
+The merged first audit passed all eleven Chromium browser cases in
+[main CI 40053686370](https://github.com/zekihan/watchledger/actions/runs/40053686370)
+at `01584df`. Earlier pending statements above are chronological records, not
+current failures. This does not exhaust independently actionable verification.
+
+The next increment adds isolated Chromium, Firefox and WebKit CI jobs, bulk
+tracking/date-preservation and custom-status replacement/cancellation checks in
+all four language/viewport scenarios, and real application browser callbacks with
+synthetic denied/revoked identities. The short-lived synthetic identities change
+claims only on refresh; there is no provider management endpoint or database role
+edit. The ephemeral issuer CA remains verified. These new checks are pending
+exact-head CI and must not be counted as passed yet.
+
+Still independent: expand split/combined and alternate-view browser tracking,
+review cross-browser findings and reconcile final evidence. Real accounts,
+physical devices and deployment remain separate boundaries.
+
+The first three-browser run (`40122621208`) passed catalog presentation,
+synthetic admin mapping, denied admission and admission removal, but exposed test
+setup defects: the new bulk-action selector matched both direct and alternate
+date controls, and the new admin-refresh settings request omitted required
+`anime_view`. The direct control is now explicitly scoped and settings remain
+subject to normal validation. SIMKL acceptance now saves its own current backup
+rather than depending on the preceding cross-account test. No product safeguard
+or assertion is removed. Combined native-parts/alternate tracking and signed
+fixture claim-transition tests are included in the next run.
+
+### Verified hardening result
+
+At `9a5f37c`, [CI 40123390744](https://github.com/zekihan/watchledger/actions/runs/40123390744)
+passed all fifteen scenarios in each of Chromium, Firefox and WebKit: **45 browser
+executions**, with no retries or suppressed accessibility rules. The exact-head
+run also passed 89 frontend tests, Go/database/race tests, lint, builds, synthetic
+Compose login/tracking/restart and Helm validation. All three jobs succeeded.
+
+The new combined-episode case uses two exact synthetic native parts and one
+combined TV episode. It verifies unconfirmed blocking, consent dismissal, explicit
+confirmation, incomplete versus complete progress, linked-unwatch default and
+Escape/focus return, explicit linked removal, unchanged native rating and no
+fabricated aggregate library entry. The authentication cases verify denied
+admission, loss of admission at refresh and loss of admin while preserving the
+admitted subject and settings. These do not impersonate real users or prove a
+particular external identity provider's behavior.
+
+Reviewed Firefox phone library/settings and WebKit Turkish phone calendar/catalog
+screenshots after the successful run. The sampled screens remain readable, with
+wrapping, chronological agenda entries and no document-width overflow. Desktop
+WebKit is not physical Safari/iOS acceptance, and Firefox phone-sized windows
+are not Android device acceptance.
+
+The enumerated hardening pass is verified. No product defect was established by
+its failures: fixture selectors and required settings/backup setup were corrected
+without weakening production validation. Remaining owner-dependent acceptance is
+in TODO.md. This is not a claim that no future bugs, broader catalog cases or
+additional useful tests can exist, nor does it authorize merging or deployment.
