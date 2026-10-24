@@ -122,19 +122,15 @@ func (a *API) restorePreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	uid := auth.Current(r.Context()).ID
-	conflicts := []string{}
-	additions := 0
-	for _, l := range s.Library {
-		var exists bool
-		if e := a.DB.QueryRow(r.Context(), "SELECT EXISTS(SELECT 1 FROM library WHERE user_id=$1 AND catalog_id=$2)", uid, l.CatalogID).Scan(&exists); e != nil {
-			http.Error(w, "preview unavailable", http.StatusServiceUnavailable)
-			return
-		}
-		if exists {
-			conflicts = append(conflicts, l.CatalogID)
-		} else {
-			additions++
-		}
+	conflicts, additions, e := restoreLibrarySummary(r.Context(), a.DB, uid, s.Library)
+	if e != nil {
+		http.Error(w, "preview unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	_, statusConflicts, e := restoreStatusPlan(r.Context(), a.DB, uid, s.Statuses)
+	if e != nil {
+		http.Error(w, "status lookup unavailable", http.StatusServiceUnavailable)
+		return
 	}
 	needsApproval, e := a.newSharedMetadata(r.Context(), a.DB, s)
 	if e != nil {
@@ -146,7 +142,7 @@ func (a *API) restorePreview(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "list deletion lookup unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	preview := map[string]interface{}{"preserved_list_deletions": preserved, "shared_metadata_requires_approval": needsApproval, "can_approve_shared_metadata": auth.Current(r.Context()).Admin, "additions": additions, "conflicts": conflicts, "history_candidates": len(s.History), "existing_app_edits_win": true, "backup_required": true, "settings_policy": "restore only when current settings are empty", "mapping_consents_restored": false}
+	preview := map[string]interface{}{"status_conflicts": statusConflicts, "preserved_list_deletions": preserved, "shared_metadata_requires_approval": needsApproval, "can_approve_shared_metadata": auth.Current(r.Context()).Admin, "additions": additions, "conflicts": conflicts, "history_candidates": len(s.History), "existing_app_edits_win": true, "backup_required": true, "settings_policy": "restore only when current settings are empty", "mapping_consents_restored": false}
 	summary, e := json.Marshal(preview)
 	if e != nil {
 		http.Error(w, "preview unavailable", http.StatusServiceUnavailable)
@@ -265,18 +261,31 @@ func (a *API) restoreApply(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	statusIDs := map[string]string{}
-	for _, st := range s.Statuses {
-		var existing string
-		err := tx.QueryRow(r.Context(), "SELECT id FROM statuses WHERE user_id=$1 AND id=$2", uid, st.ID).Scan(&existing)
-		id := scopedID(uid, "status", st.ID)
-		if err == nil {
-			id = existing
+	statusIDs, statusConflicts, e := restoreStatusPlan(r.Context(), tx, uid, s.Statuses)
+	if fail(e) {
+		return
+	}
+	if len(statusConflicts) > 0 {
+		http.Error(w, "custom statuses have incompatible base statuses; resolve the conflict and preview again", http.StatusConflict)
+		return
+	}
+	usedStatuses := map[string]bool{}
+	for _, l := range s.Library {
+		if l.StatusID != nil {
+			usedStatuses[*l.StatusID] = true
 		}
-		statusIDs[st.ID] = id
-		_, e = tx.Exec(r.Context(), `INSERT INTO statuses(id,user_id,name,base,used) VALUES($1,$2,$3,$4,$5) ON CONFLICT(id) DO NOTHING`, id, uid, st.Name, st.Base, st.Used)
-		if fail(e) {
+	}
+	for _, st := range s.Statuses {
+		st.Used = st.Used || usedStatuses[st.ID]
+		updated, err := tx.Exec(r.Context(), "UPDATE statuses SET used=used OR $3 WHERE user_id=$1 AND id=$2", uid, statusIDs[st.ID], st.Used)
+		if fail(err) {
 			return
+		}
+		if updated.RowsAffected() == 0 {
+			_, e = tx.Exec(r.Context(), `INSERT INTO statuses(id,user_id,name,base,used) VALUES($1,$2,$3,$4,$5)`, statusIDs[st.ID], uid, st.Name, st.Base, st.Used)
+			if fail(e) {
+				return
+			}
 		}
 	}
 	for _, l := range s.Library {
