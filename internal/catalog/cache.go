@@ -164,7 +164,7 @@ func (c *Cache) Season(ctx context.Context, id string, season int, language stri
 	}
 	raw, e := c.Provider.Get(ctx, fmt.Sprintf("/tv/%s/season/%d", id, season), url.Values{"language": {language}})
 	if e != nil {
-		rows, err := c.DB.Query(ctx, "SELECT metadata FROM episodes WHERE catalog_id=$1 AND season=$2 ORDER BY number", key, season)
+		rows, err := c.DB.Query(ctx, "SELECT metadata FROM episodes WHERE catalog_id=$1 AND season=$2 AND NOT retired ORDER BY number", key, season)
 		if err != nil {
 			return nil, e
 		}

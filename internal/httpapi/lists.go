@@ -255,6 +255,9 @@ func (a *API) renderListResults(w http.ResponseWriter, r *http.Request, rule sma
 		}
 		_ = json.Unmarshal(raw, &translations)
 		for _, meta := range translations {
+			if meta.Genres != nil {
+				values["genre"] = []string{}
+			}
 			for _, g := range meta.Genres {
 				values["genre"] = append(values["genre"], strconv.Itoa(g.ID))
 			}
@@ -354,13 +357,13 @@ func (a *API) renderListResults(w http.ResponseWriter, r *http.Request, rule sma
 	out := []map[string]string{}
 	for _, item := range items {
 		offers := availability[item.ID]
-		if len(offers) > 0 && string(offers) != "null" {
+		if len(offers) > 0 {
 			var data map[string][]struct {
 				ID int `json:"provider_id"`
 			}
 			var fields map[string]json.RawMessage
 			if json.Unmarshal(offers, &fields) == nil {
-				for _, key := range []string{"flatrate", "rent", "buy"} {
+				for _, key := range []string{"flatrate", "rent", "buy", "free", "ads"} {
 					var vals []struct {
 						ID int `json:"provider_id"`
 					}
