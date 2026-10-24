@@ -59,3 +59,12 @@ For every open item, record the tested commit, environment, pass/fail result and
 ## Completion rule
 
 An item is complete only with evidence from the tested revision. If a check exposes a code defect, return that defect to implementation, fix and retest it; do not classify it as permanently blocked merely because it was discovered on your PC. Keep authorized implementation increments and this checklist together on the feature branch. Merging later increments or deploying them still requires a separate explicit request.
+
+## Conditional upgrade checks from the second audit
+
+- [ ] Only if applicable: when upgrading from before migration 019, review older
+      backups for ordinary lists you intentionally deleted. Earlier versions did not
+      record those deletion decisions, so they cannot be reconstructed automatically.
+      New deletions are preserved and included in backups. If you previously entered
+      `Local` or another host-only timezone name, choose your intended IANA timezone
+      after the upgrade normalizes it to UTC. See [deployment notes](docs/deployment.md).

@@ -1229,3 +1229,39 @@ test("combined alternate tracking requires consent and preserves native identity
     await admin.close();
   }
 });
+
+test("an open tab clears private list cache when the shared account changes", async ({
+  page,
+  context,
+}) => {
+  await login(context);
+  const name = "Account boundary private fixture";
+  const created = await context.request.post(origin + "/api/lists", {
+    headers: { Origin: origin },
+    data: { name, kind: "manual", sort: "title", members: [] },
+  });
+  expect(created.ok()).toBe(true);
+  await page.goto("/#lists");
+  await expect(page.getByText(name, { exact: true })).toBeVisible();
+  await login(context, "cookies-second");
+  const secondLists: unknown = await (await context.request.get(origin + "/api/lists")).json();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/api/lists", async (route) => {
+    await gate;
+    await route.fulfill({ json: secondLists });
+  });
+  try {
+    const refreshed = page.waitForResponse((response) => response.url() === origin + "/api/me");
+    await page.evaluate(() => window.dispatchEvent(new Event("visibilitychange")));
+    expect((await refreshed).ok()).toBe(true);
+    // A blocked private-query refresh must not leave the previous user's data visible.
+    await expect(page.getByText(name, { exact: true })).toHaveCount(0);
+  } finally {
+    release();
+  }
+  await page.unrouteAll({ behavior: "wait" });
+  await expect(page.getByText(name, { exact: true })).toHaveCount(0);
+});
