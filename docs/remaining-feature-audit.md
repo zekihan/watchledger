@@ -2,6 +2,36 @@
 
 This audit replaces the earlier narrow-pass completion assessment. Passing CI for one increment is not evidence that all independently actionable work is finished. Work below stays with implementation, not in the operator handoff. The contract remains [the specification](specification.md); deferred post-first-release features are not silently added.
 
+## Current verified baseline (2026-10-25)
+
+The three repository-audit increments are merged:
+[PR 15](https://github.com/zekihan/watchledger/pull/15),
+[PR 16](https://github.com/zekihan/watchledger/pull/16), and
+[PR 17](https://github.com/zekihan/watchledger/pull/17).
+Main at `b8602c3bbaf4a242f3bd6323c17b00f0a4ab736a` passed
+[CI 40143529869](https://github.com/zekihan/watchledger/actions/runs/40143529869),
+including Chromium, Firefox and WebKit. Earlier pending-CI statements below
+are chronological records, not current failures at that revision.
+
+The next local hardening increment checks complete bounded JSON request bodies,
+explicit nullable library PATCH fields, and serialization of per-title structure
+changes with other account writes. Its regression tests do not establish hosted
+CI acceptance until the new revision is published and tested there.
+
+Local validation of this increment on 2026-10-25 passed `make lint test build
+test-race`, with PostgreSQL-backed API tests and 98 frontend tests. Regression
+cases first demonstrated acceptance of trailing/oversized JSON suffixes, failure
+to clear an explicit null override, and a structure write bypassing the account
+lock. They now verify rejection before status/import writes, preservation of
+omitted fields, explicit override clearing, and cancellation without mutation
+while another account write holds the lock. No migration or dependency change
+is required. Hosted CI, real-browser execution of this revision, and deployment
+have not been performed.
+
+Physical-device, real secondary-identity, private-provider and deployment
+acceptance remain separately open in [TODO.md](../TODO.md). Completed synthetic
+checks do not authorize deployment or replace those operator-dependent checks.
+
 ## Independent implementation audit
 
 Checked audit items mean their implementation/evidence reconciliation is recorded below. Publication is not accepted until the latest branch CI is successful; current and prior browser failures are tracked explicitly in this record.
