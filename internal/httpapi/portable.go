@@ -106,10 +106,8 @@ func (a *API) export(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, data)
 }
 func (a *API) restorePreview(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, portable.MaxSnapshotBytes)
 	var raw json.RawMessage
-	if e := json.NewDecoder(r.Body).Decode(&raw); e != nil {
-		http.Error(w, "invalid JSON backup", http.StatusBadRequest)
+	if !decodeLimit(w, r, &raw, portable.MaxSnapshotBytes) {
 		return
 	}
 	var s portable.Snapshot

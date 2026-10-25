@@ -9,16 +9,26 @@ import (
 	"github.com/zekihan/watchledger/internal/preferences"
 	"github.com/zekihan/watchledger/internal/smart"
 	"github.com/zekihan/watchledger/internal/tracking"
+	"io"
 	"net/http"
 	"strings"
 	"time"
 )
 
 func decode(w http.ResponseWriter, r *http.Request, v interface{}) bool {
-	r.Body = http.MaxBytesReader(w, r.Body, 2<<20)
+	return decodeLimit(w, r, v, 2<<20)
+}
+func decodeLimit(w http.ResponseWriter, r *http.Request, v interface{}, limit int64) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	d := json.NewDecoder(r.Body)
 	d.DisallowUnknownFields()
 	if e := d.Decode(v); e != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return false
+	}
+	// Consume the complete bounded body before any handler performs writes.
+	// A valid prefix must not hide another JSON value or an oversized suffix.
+	if e := d.Decode(new(json.RawMessage)); e != io.EOF {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return false
 	}
@@ -120,7 +130,7 @@ func (a *API) saveLibrary(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	_, e = tx.Exec(r.Context(), `INSERT INTO library(user_id,catalog_id,base,status_id,rating,position,anime_view) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(user_id,catalog_id) DO UPDATE SET base=EXCLUDED.base,status_id=EXCLUDED.status_id,rating=EXCLUDED.rating,position=EXCLUDED.position,anime_view=coalesce(EXCLUDED.anime_view,library.anime_view),updated_at=now()`, uid, r.PathValue("id"), in.Base, in.StatusID, in.Rating, in.Position, in.AnimeView)
+	_, e = tx.Exec(r.Context(), `INSERT INTO library(user_id,catalog_id,base,status_id,rating,position,anime_view) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(user_id,catalog_id) DO UPDATE SET base=EXCLUDED.base,status_id=EXCLUDED.status_id,rating=EXCLUDED.rating,position=EXCLUDED.position,anime_view=CASE WHEN $8 THEN EXCLUDED.anime_view ELSE coalesce(EXCLUDED.anime_view,library.anime_view) END,updated_at=now()`, uid, r.PathValue("id"), in.Base, in.StatusID, in.Rating, in.Position, in.AnimeView, r.Method == http.MethodPatch)
 	if e != nil {
 		http.Error(w, "library update failed", http.StatusServiceUnavailable)
 		return

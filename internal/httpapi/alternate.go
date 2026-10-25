@@ -201,7 +201,9 @@ func (a *API) setAnimeStructure(w http.ResponseWriter, r *http.Request) {
 	if in.View != "default" {
 		value = &in.View
 	}
-	tag, err := a.DB.Exec(r.Context(), "UPDATE library SET anime_view=$3,updated_at=now() WHERE user_id=$1 AND catalog_id=$2", auth.Current(r.Context()).ID, r.PathValue("id"), value)
+	// Use the same account lock as library PATCH and restore, so an in-flight
+	// read/merge/write cannot replace this structure choice with an older value.
+	tag, err := a.DB.Exec(r.Context(), "WITH account AS (SELECT id FROM users WHERE id=$1 FOR UPDATE) UPDATE library SET anime_view=$3,updated_at=now() WHERE user_id=(SELECT id FROM account) AND catalog_id=$2", auth.Current(r.Context()).ID, r.PathValue("id"), value)
 	if err != nil {
 		http.Error(w, "structure update unavailable", http.StatusServiceUnavailable)
 		return
