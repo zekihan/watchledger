@@ -25,8 +25,17 @@ to clear an explicit null override, and a structure write bypassing the account
 lock. They now verify rejection before status/import writes, preservation of
 omitted fields, explicit override clearing, and cancellation without mutation
 while another account write holds the lock. No migration or dependency change
-is required. Hosted CI, real-browser execution of this revision, and deployment
-have not been performed.
+is required. This local result does not establish hosted or real-browser
+acceptance. No deployment was performed.
+
+The first hosted run of this increment at `93447b7` failed the unchanged
+cancellation regression: an autocommit structure update could complete after
+the caller timed out, before PostgreSQL processed cancellation. The structure
+write now uses an explicit transaction and a separate account-lock step, so a
+cancelled lock acquisition cannot commit a later update. This is a product fix,
+not a relaxed assertion. Final hosted acceptance requires a new successful run.
+The unchanged cancellation regression also passed 30 consecutive local
+race-detector repetitions after the transaction fix.
 
 Physical-device, real secondary-identity, private-provider and deployment
 acceptance remain separately open in [TODO.md](../TODO.md). Completed synthetic

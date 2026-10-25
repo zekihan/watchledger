@@ -201,15 +201,31 @@ func (a *API) setAnimeStructure(w http.ResponseWriter, r *http.Request) {
 	if in.View != "default" {
 		value = &in.View
 	}
-	// Use the same account lock as library PATCH and restore, so an in-flight
-	// read/merge/write cannot replace this structure choice with an older value.
-	tag, err := a.DB.Exec(r.Context(), "WITH account AS (SELECT id FROM users WHERE id=$1 FOR UPDATE) UPDATE library SET anime_view=$3,updated_at=now() WHERE user_id=(SELECT id FROM account) AND catalog_id=$2", auth.Current(r.Context()).ID, r.PathValue("id"), value)
+	// Use an explicit transaction: an autocommit statement could finish after
+	// its caller times out but before PostgreSQL receives the cancel request.
+	tx, err := a.DB.Begin(r.Context())
+	if err != nil {
+		http.Error(w, "structure update unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	defer func() { _ = tx.Rollback(r.Context()) }()
+	uid := auth.Current(r.Context()).ID
+	// Serialize with library PATCH and restore before reading or changing rows.
+	if _, err = tx.Exec(r.Context(), "SELECT id FROM users WHERE id=$1 FOR UPDATE", uid); err != nil {
+		http.Error(w, "structure update unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	tag, err := tx.Exec(r.Context(), "UPDATE library SET anime_view=$3,updated_at=now() WHERE user_id=$1 AND catalog_id=$2", uid, r.PathValue("id"), value)
 	if err != nil {
 		http.Error(w, "structure update unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	if tag.RowsAffected() != 1 {
 		http.Error(w, "library title not found", http.StatusNotFound)
+		return
+	}
+	if err = tx.Commit(r.Context()); err != nil {
+		http.Error(w, "structure update unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
