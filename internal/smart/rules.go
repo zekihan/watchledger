@@ -22,8 +22,9 @@ type Rule struct {
 	Value    string `json:"value,omitempty"`
 }
 type Item struct {
-	ID     string
-	Values map[string][]string
+	ID           string
+	Values       map[string][]string
+	Availability map[string]Truth
 }
 type Membership func(list, item string) (Truth, error)
 
@@ -106,6 +107,9 @@ func Eval(r Rule, item Item, member Membership) (Truth, error) {
 	}
 	if r.Field == "list" && r.Op != "unknown" {
 		return member(r.Value, item.ID)
+	}
+	if r.Field == "availability" && r.Op == "eq" && item.Availability != nil {
+		return item.Availability[r.Value], nil
 	}
 	values, known := item.Values[r.Field]
 	if r.Op == "unknown" {

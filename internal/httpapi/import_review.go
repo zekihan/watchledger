@@ -153,7 +153,32 @@ func (a *API) resolveImportReview(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "review not found", http.StatusNotFound)
 		return
 	}
+	var review sourceReview
+	if json.Unmarshal(payload, &review) != nil || len(review.Source.Issues) > 0 || review.Source.Target() == "" {
+		http.Error(w, "source identity or validation issue must be resolved first", http.StatusConflict)
+		return
+	}
 	if resolved {
+		if len(in.Links) != len(review.Source.Episodes) {
+			http.Error(w, "explicit mapping required for every source episode", http.StatusBadRequest)
+			return
+		}
+		remaining := map[string]bool{}
+		for _, ep := range review.Source.Episodes {
+			remaining[ep.Key] = true
+		}
+		for _, link := range in.Links {
+			var matches bool
+			err = tx.QueryRow(r.Context(), "SELECT EXISTS(SELECT 1 FROM simkl_episode_links WHERE user_id=$1 AND source_key=$2 AND catalog_id=$3 AND episode_id=$4)", uid, link.SourceKey, review.Source.Target(), link.EpisodeID).Scan(&matches)
+			if fail(err) {
+				return
+			}
+			if !remaining[link.SourceKey] || !matches {
+				http.Error(w, "source episode already has a different confirmed identity; history was not moved", http.StatusConflict)
+				return
+			}
+			delete(remaining, link.SourceKey)
+		}
 		writeJSON(w, map[string]string{"status": "already_resolved"})
 		return
 	}
@@ -164,11 +189,6 @@ func (a *API) resolveImportReview(w http.ResponseWriter, r *http.Request) {
 	}
 	if !backed {
 		http.Error(w, "download a current export before resolving import", http.StatusPreconditionRequired)
-		return
-	}
-	var review sourceReview
-	if json.Unmarshal(payload, &review) != nil || len(review.Source.Issues) > 0 || review.Source.Target() == "" {
-		http.Error(w, "source identity or validation issue must be resolved first", http.StatusConflict)
 		return
 	}
 	target := review.Source.Target()

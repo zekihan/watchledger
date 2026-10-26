@@ -221,7 +221,7 @@ func (a *API) previewList(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) renderListResults(w http.ResponseWriter, r *http.Request, rule smart.Rule, order, editedID string) {
 	uid := auth.Current(r.Context()).ID
-	rows, e := a.DB.Query(r.Context(), `SELECT l.catalog_id,catalog_display_title(c.kind,c.metadata,c.title,u.settings),c.kind,l.base,coalesce(l.status_id::text,l.base),l.rating,jsonb_build_object('selected',catalog_metadata_variant(c.metadata,u.settings)),l.added_at::text,coalesce(u.settings->>'country','TR'),a.offers FROM library l JOIN catalog c ON c.id=l.catalog_id JOIN users u ON u.id=l.user_id LEFT JOIN availability a ON a.catalog_id=l.catalog_id AND a.country=coalesce(u.settings->>'country','TR') WHERE l.user_id=$1`, uid)
+	rows, e := a.DB.Query(r.Context(), `SELECT l.catalog_id,catalog_display_title(c.kind,c.metadata,c.title,u.settings),c.kind,l.base,coalesce(l.status_id::text,l.base),l.rating,jsonb_build_object('selected',catalog_metadata_variant(c.metadata,u.settings)),l.added_at::text,coalesce(u.settings->>'country','TR'),a.offers,coalesce((SELECT jsonb_object_agg(country,offers) FROM availability WHERE catalog_id=l.catalog_id),'{}'::jsonb) FROM library l JOIN catalog c ON c.id=l.catalog_id JOIN users u ON u.id=l.user_id LEFT JOIN availability a ON a.catalog_id=l.catalog_id AND a.country=coalesce(u.settings->>'country','TR') WHERE l.user_id=$1`, uid)
 	if e != nil {
 		http.Error(w, "library unavailable", http.StatusServiceUnavailable)
 		return
@@ -234,8 +234,8 @@ func (a *API) renderListResults(w http.ResponseWriter, r *http.Request, rule sma
 	for rows.Next() {
 		var id, title, kind, base, status, add string
 		var rating *int
-		var raw, offers []byte
-		if e = rows.Scan(&id, &title, &kind, &base, &status, &rating, &raw, &add, &country, &offers); e != nil {
+		var raw, offers, countries []byte
+		if e = rows.Scan(&id, &title, &kind, &base, &status, &rating, &raw, &add, &country, &offers, &countries); e != nil {
 			rows.Close()
 			http.Error(w, "library unavailable", http.StatusServiceUnavailable)
 			return
@@ -271,7 +271,27 @@ func (a *API) renderListResults(w http.ResponseWriter, r *http.Request, rule sma
 			}
 			break
 		}
-		items = append(items, smart.Item{ID: id, Values: values})
+		var countryOffers map[string]json.RawMessage
+		if e = json.Unmarshal(countries, &countryOffers); e != nil {
+			rows.Close()
+			http.Error(w, "availability unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		countryAvailability := map[string]smart.Truth{}
+		for region, rawOffers := range countryOffers {
+			var fields map[string]json.RawMessage
+			if json.Unmarshal(rawOffers, &fields) != nil {
+				continue
+			}
+			countryAvailability[region] = smart.False
+			for _, category := range []string{"flatrate", "rent", "buy", "free", "ads"} {
+				var providers []json.RawMessage
+				if json.Unmarshal(fields[category], &providers) == nil && len(providers) > 0 {
+					countryAvailability[region] = smart.True
+				}
+			}
+		}
+		items = append(items, smart.Item{ID: id, Values: values, Availability: countryAvailability})
 		titles[id] = title
 		added[id] = add
 	}

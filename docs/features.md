@@ -319,6 +319,8 @@ Backend regressions verify private counts, runtime unknowns, metadata-language s
 
 ## Acceptance and quality
 
+The 2026-10-26 regression pass adds request-draining coverage in `cmd/watchledger/main_test.go`; source-current completion, alternate episode ordering, localized season reconciliation and manual refresh coverage in `internal/httpapi/tracking_refresh_regression_test.go`; and country-rule, repeat-import and Turkish status-name coverage in `internal/httpapi/private_library_regression_test.go`. `web/src/metadata-refresh.test.tsx` checks refreshed episode rendering and whole-show unwatch during an outage using Vitest/jsdom; it does not establish real-browser or device acceptance.
+
 - [x] Backend tests for claims, user isolation, and admin operations.
 - [x] Tests for tracking, date precision, bulk actions, and status transitions.
 - [x] Tests for custom-status locking and safe deletion.

@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 func decode(w http.ResponseWriter, r *http.Request, v interface{}) bool {
@@ -631,7 +632,7 @@ func (a *API) saveStatus(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &in) {
 		return
 	}
-	if !tracking.ValidBase(in.Base) || len(in.Name) == 0 || len(in.Name) > 100 {
+	if !tracking.ValidBase(in.Base) || len(in.Name) == 0 || utf8.RuneCountInString(in.Name) > 100 {
 		http.Error(w, "invalid status", http.StatusBadRequest)
 		return
 	}

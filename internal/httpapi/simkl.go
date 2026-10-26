@@ -178,11 +178,14 @@ func (a *API) simklApply(w http.ResponseWriter, r *http.Request) {
 			if fail(e) {
 				return
 			}
-			_, err = tx.Exec(r.Context(), "INSERT INTO import_reviews(id,user_id,import_id,item,reason) VALUES($1,$2,$3,$4,'simkl_source_review') ON CONFLICT(id) DO UPDATE SET item=EXCLUDED.item,resolved=false", reviewID, uid, r.PathValue("id"), payload)
+			var resolved bool
+			err = tx.QueryRow(r.Context(), "INSERT INTO import_reviews(id,user_id,import_id,item,reason) VALUES($1,$2,$3,$4,'simkl_source_review') ON CONFLICT(id) DO UPDATE SET item=EXCLUDED.item,resolved=import_reviews.resolved AND import_reviews.item->'source'=EXCLUDED.item->'source' AND import_reviews.item->'target'=EXCLUDED.item->'target' RETURNING resolved", reviewID, uid, r.PathValue("id"), payload).Scan(&resolved)
 			if fail(err) {
 				return
 			}
-			reviewed++
+			if !resolved {
+				reviewed++
+			}
 		} else {
 			_, err = tx.Exec(r.Context(), "UPDATE import_reviews SET resolved=true WHERE id=$1 AND user_id=$2", reviewID, uid)
 			if fail(err) {
