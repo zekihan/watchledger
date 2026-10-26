@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -63,10 +64,20 @@ func run(ctx context.Context) error {
 		IdleTimeout:       60 * time.Second,
 	}
 
+	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", c.Address)
+	if err != nil {
+		return fmt.Errorf("listen HTTP: %w", err)
+	}
+	slog.Info("starting watchledger", "address", c.Address)
+	return serve(ctx, server, listener)
+}
+
+func serve(ctx context.Context, server *http.Server, listener net.Listener) error {
 	done := make(chan struct{})
-	defer close(done)
+	shutdownDone := make(chan struct{})
 
 	go func() {
+		defer close(shutdownDone)
 		select {
 		case <-ctx.Done():
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -81,8 +92,10 @@ func run(ctx context.Context) error {
 		}
 	}()
 
-	slog.Info("starting watchledger", "address", c.Address)
-	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	err := server.Serve(listener)
+	close(done)
+	<-shutdownDone
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("serve HTTP: %w", err)
 	}
 	return nil
