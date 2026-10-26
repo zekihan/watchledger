@@ -223,10 +223,10 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 	}
 	var base, kind string
 	var meta json.RawMessage
-	e = tx.QueryRow(r.Context(), `SELECT l.base,c.kind,c.metadata FROM library l JOIN catalog c ON c.id=l.catalog_id WHERE l.user_id=$1 AND l.catalog_id=$2 FOR UPDATE OF l`, uid, id).Scan(&base, &kind, &meta)
+	e = tx.QueryRow(r.Context(), `SELECT l.base,c.kind,catalog_progress_metadata(c.id) FROM library l JOIN catalog c ON c.id=l.catalog_id WHERE l.user_id=$1 AND l.catalog_id=$2 FOR UPDATE OF l`, uid, id).Scan(&base, &kind, &meta)
 	virtual := errors.Is(e, pgx.ErrNoRows) && in.ViewAnchor != ""
 	if virtual {
-		e = tx.QueryRow(r.Context(), `SELECT 'watching',c.kind,c.metadata FROM catalog c WHERE c.id=$2 AND c.kind IN('tv','movie') AND EXISTS(SELECT 1 FROM library l JOIN catalog native ON native.id=l.catalog_id WHERE l.user_id=$1 AND l.catalog_id=$3 AND native.kind='anime')`, uid, id, in.ViewAnchor).Scan(&base, &kind, &meta)
+		e = tx.QueryRow(r.Context(), `SELECT 'watching',c.kind,catalog_progress_metadata(c.id) FROM catalog c WHERE c.id=$2 AND c.kind IN('tv','movie') AND EXISTS(SELECT 1 FROM library l JOIN catalog native ON native.id=l.catalog_id WHERE l.user_id=$1 AND l.catalog_id=$3 AND native.kind='anime')`, uid, id, in.ViewAnchor).Scan(&base, &kind, &meta)
 	}
 	if errors.Is(e, pgx.ErrNoRows) {
 		http.Error(w, "library title not found", http.StatusNotFound)
@@ -321,22 +321,22 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 	}
 	location, _ := time.LoadLocation(timezone(r))
 	now := time.Now().In(location)
+	var progress struct {
+		Status string `json:"status"`
+		Count  int    `json:"number_of_episodes"`
+	}
+	if e = json.Unmarshal(meta, &progress); e != nil {
+		http.Error(w, "catalog progress unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	if in.Whole && kind != "movie" && watched {
-		var variants map[string]struct {
-			Count int `json:"number_of_episodes"`
-		}
-		_ = json.Unmarshal(meta, &variants)
-		expected := 0
-		for _, m := range variants {
-			expected = max(expected, m.Count)
-		}
 		regular := 0
 		for _, ep := range episodes {
 			if !ep.Special {
 				regular++
 			}
 		}
-		if expected == 0 || regular < expected {
+		if progress.Count <= 0 || regular < progress.Count {
 			http.Error(w, "load all seasons before marking the whole show; catalog is incomplete", http.StatusConflict)
 			return
 		}
@@ -569,26 +569,14 @@ func (a *API) track(w http.ResponseWriter, r *http.Request) {
 	if watched {
 		dest = "completed"
 		if kind != "movie" {
-			var translations map[string]struct {
-				Status string `json:"status"`
-				Count  int    `json:"number_of_episodes"`
-			}
-			_ = json.Unmarshal(meta, &translations)
-			ended := false
-			expected := 0
-			for _, m := range translations {
-				ended = ended || m.Status == "Ended" || m.Status == "Canceled"
-				if m.Count > expected {
-					expected = m.Count
-				}
-			}
+			ended := progress.Status == "Ended" || progress.Status == "Canceled"
 			regular := 0
 			for _, ep := range episodes {
 				if !ep.Special {
 					regular++
 				}
 			}
-			dest = tracking.Destination(ended, expected > 0 && regular == expected, episodes)
+			dest = tracking.Destination(ended, progress.Count > 0 && regular == progress.Count, episodes)
 		}
 	} else if in.ReturnWatching && base == "completed" {
 		dest = "watching"

@@ -21,22 +21,17 @@ func updateNativeProgress(ctx context.Context, tx pgx.Tx, uid string, ids []stri
 		}
 		var base string
 		var raw []byte
-		if err := tx.QueryRow(ctx, "SELECT l.base,c.metadata FROM library l JOIN catalog c ON c.id=l.catalog_id WHERE l.user_id=$1 AND l.catalog_id=$2", uid, id).Scan(&base, &raw); err != nil {
+		if err := tx.QueryRow(ctx, "SELECT l.base,catalog_progress_metadata(c.id) FROM library l JOIN catalog c ON c.id=l.catalog_id WHERE l.user_id=$1 AND l.catalog_id=$2", uid, id).Scan(&base, &raw); err != nil {
 			return err
 		}
-		var variants map[string]struct {
+		var progress struct {
 			Status string `json:"status"`
 			Count  int    `json:"number_of_episodes"`
 		}
-		if err := json.Unmarshal(raw, &variants); err != nil {
+		if err := json.Unmarshal(raw, &progress); err != nil {
 			return err
 		}
-		ended := false
-		expected := 0
-		for _, v := range variants {
-			ended = ended || v.Status == "Ended" || v.Status == "Canceled"
-			expected = max(expected, v.Count)
-		}
+		ended := progress.Status == "Ended" || progress.Status == "Canceled"
 		snapshot, err := loadEffective(ctx, tx, uid, id)
 		if err != nil {
 			return err
@@ -64,7 +59,7 @@ func updateNativeProgress(ctx context.Context, tx pgx.Tx, uid string, ids []stri
 		if rows.Err() != nil {
 			return rows.Err()
 		}
-		dest := tracking.Destination(ended, expected > 0 && regular == expected, episodes)
+		dest := tracking.Destination(ended, progress.Count > 0 && regular == progress.Count, episodes)
 		if dest != base {
 			if _, err = tx.Exec(ctx, "UPDATE library SET base=$3,status_id=NULL,updated_at=now() WHERE user_id=$1 AND catalog_id=$2", uid, id, dest); err != nil {
 				return err

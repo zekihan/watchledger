@@ -48,12 +48,13 @@ func buildUpNext(ctx context.Context, db queryReader, uid, zone string) ([]nextC
 			return nil, err
 		}
 		state := snapshot.States[c.Card.EpisodeID]
-		if picked[c.Card.CatalogID] || state.Direct || state.Derived {
+		project := c.Kind == "anime" && c.Structure == "show"
+		if (!project && picked[c.Card.CatalogID]) || state.Direct || state.Derived {
 			continue
 		}
 		picked[c.Card.CatalogID] = true
 		candidates = append(candidates, c)
-		if c.Kind == "anime" && c.Structure == "show" && !state.Blocked {
+		if project && !state.Blocked {
 			targetIDs = append(targetIDs, state.Sources...)
 		}
 	}

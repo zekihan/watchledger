@@ -123,6 +123,12 @@ func (a *API) getDetail(w http.ResponseWriter, r *http.Request, force bool) {
 		http.Error(w, e.Error(), http.StatusBadGateway)
 		return
 	}
+	if force && r.PathValue("kind") == "tv" && !d.Stale {
+		if e = a.Catalog.RefreshSeasons(r.Context(), r.PathValue("id"), d.Language, d.Metadata); e != nil {
+			d.Stale = true
+			d.Warning = e.Error()
+		}
+	}
 	writeJSON(w, d)
 }
 func (a *API) season(w http.ResponseWriter, r *http.Request) {

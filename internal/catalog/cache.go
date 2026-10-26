@@ -149,14 +149,15 @@ func (c *Cache) Detail(ctx context.Context, kind, id, language string, force boo
 	}
 	return d, e
 }
-func (c *Cache) Season(ctx context.Context, id string, season int, language string) (json.RawMessage, error) {
+func (c *Cache) Season(ctx context.Context, id string, season int, language string, refresh ...bool) (json.RawMessage, error) {
+	force := len(refresh) > 0 && refresh[0]
 	key, e := Identity("tv", id)
 	if e != nil || season < 0 {
 		return nil, errors.New("invalid season")
 	}
 	var stored json.RawMessage
 	var storedAt time.Time
-	if err := c.DB.QueryRow(ctx, "SELECT metadata,fetched_at FROM season_cache WHERE catalog_id=$1 AND season=$2 AND language=$3", key, season, language).Scan(&stored, &storedAt); err == nil && time.Since(storedAt) < 24*time.Hour {
+	if err := c.DB.QueryRow(ctx, "SELECT metadata,fetched_at FROM season_cache WHERE catalog_id=$1 AND season=$2 AND language=$3", key, season, language).Scan(&stored, &storedAt); err == nil && !force && time.Since(storedAt) < 24*time.Hour {
 		return stored, nil
 	}
 	if _, e = c.Detail(ctx, "tv", id, language, false); e != nil {
@@ -199,6 +200,10 @@ func (c *Cache) Season(ctx context.Context, id string, season int, language stri
 	if data.Episodes == nil {
 		return nil, errors.New("provider omitted episode list")
 	}
+	if _, e = tx.Exec(ctx, "SELECT id FROM catalog WHERE id=$1 FOR NO KEY UPDATE", key); e != nil {
+		return nil, e
+	}
+	changed := false
 	ids := []string{}
 	for _, b := range data.Episodes {
 		var ep struct {
@@ -222,7 +227,24 @@ func (c *Cache) Season(ctx context.Context, id string, season int, language stri
 		}
 		eid := fmt.Sprintf("tmdb:episode:%d", ep.ID)
 		ids = append(ids, eid)
-		_, e = tx.Exec(ctx, `INSERT INTO episodes(id,catalog_id,source,source_id,season,number,kind,metadata,air_date) VALUES($1,$2,'tmdb',$3,$4,$5,$6,$7,$8) ON CONFLICT(id) DO UPDATE SET metadata=EXCLUDED.metadata,air_date=EXCLUDED.air_date,season=EXCLUDED.season,number=EXCLUDED.number,kind=EXCLUDED.kind,retired=false WHERE episodes.catalog_id=EXCLUDED.catalog_id`, eid, key, fmt.Sprint(ep.ID), season, ep.Number, kind, b, date)
+		var oldCatalog, oldKind, oldDate string
+		var oldSeason, oldNumber int
+		var retired, timed bool
+		e = tx.QueryRow(ctx, "SELECT catalog_id,season,number,kind,retired,coalesce(air_date::text,''),air_time IS NOT NULL FROM episodes WHERE id=$1 FOR NO KEY UPDATE", eid).Scan(&oldCatalog, &oldSeason, &oldNumber, &oldKind, &retired, &oldDate, &timed)
+		if e != nil && !errors.Is(e, pgx.ErrNoRows) {
+			return nil, e
+		}
+		if oldCatalog != "" && oldCatalog != key {
+			return nil, errors.New("TMDB episode moved to another title; review required")
+		}
+		placementChanged := oldCatalog != "" && (oldSeason != season || oldNumber != ep.Number || oldKind != kind)
+		changed = changed || oldCatalog == "" || placementChanged || retired || timed || oldDate != ep.AirDate
+		if placementChanged {
+			if _, e = tx.Exec(ctx, `INSERT INTO notices(user_id,kind,data) SELECT DISTINCT user_id,'episode_reconciliation',jsonb_build_object('catalog_id',$1::text,'episode_id',$2::text,'old_season',$3::int,'old_number',$4::int,'season',$5::int,'number',$6::int) FROM history WHERE episode_id=$2`, key, eid, oldSeason, oldNumber, season, ep.Number); e != nil {
+				return nil, e
+			}
+		}
+		_, e = tx.Exec(ctx, `INSERT INTO episodes(id,catalog_id,source,source_id,season,number,kind,metadata,air_date) VALUES($1,$2,'tmdb',$3,$4,$5,$6,$7,$8) ON CONFLICT(id) DO UPDATE SET metadata=EXCLUDED.metadata,air_date=EXCLUDED.air_date,air_time=NULL,season=EXCLUDED.season,number=EXCLUDED.number,kind=EXCLUDED.kind,retired=false WHERE episodes.catalog_id=EXCLUDED.catalog_id`, eid, key, fmt.Sprint(ep.ID), season, ep.Number, kind, b, date)
 		if e != nil {
 			return nil, e
 		}
@@ -230,8 +252,14 @@ func (c *Cache) Season(ctx context.Context, id string, season int, language stri
 	if _, e = tx.Exec(ctx, `INSERT INTO notices(user_id,kind,data) SELECT DISTINCT h.user_id,'episode_reconciliation',jsonb_build_object('catalog_id',$1::text,'episode_id',e.id) FROM episodes e JOIN history h ON h.episode_id=e.id WHERE e.catalog_id=$1 AND e.season=$2 AND e.source='tmdb' AND NOT e.retired AND NOT(e.id=ANY($3::text[]))`, key, season, ids); e != nil {
 		return nil, e
 	}
-	if _, e = tx.Exec(ctx, "UPDATE episodes SET retired=true WHERE catalog_id=$1 AND season=$2 AND source='tmdb' AND NOT(id=ANY($3::text[]))", key, season, ids); e != nil {
+	removed, e := tx.Exec(ctx, "UPDATE episodes SET retired=true WHERE catalog_id=$1 AND season=$2 AND source='tmdb' AND NOT retired AND NOT(id=ANY($3::text[]))", key, season, ids)
+	if e != nil {
 		return nil, e
+	}
+	if changed || removed.RowsAffected() > 0 {
+		if _, e = tx.Exec(ctx, "DELETE FROM season_cache WHERE catalog_id=$1", key); e != nil {
+			return nil, e
+		}
 	}
 	if _, e = tx.Exec(ctx, "INSERT INTO season_cache(catalog_id,season,language,metadata) VALUES($1,$2,$3,$4) ON CONFLICT(catalog_id,season,language) DO UPDATE SET metadata=EXCLUDED.metadata,fetched_at=now()", key, season, language, raw); e != nil {
 		return nil, e

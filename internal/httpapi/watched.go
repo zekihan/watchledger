@@ -19,7 +19,7 @@ func knownWatchedTitles(ctx context.Context, db queryReader, uid string) ([]stri
 	for id := range snapshot.States {
 		nodes = append(nodes, id)
 	}
-	rows, err := db.Query(ctx, `SELECT c.id,c.kind,catalog_metadata_variant(c.metadata,u.settings),
+	rows, err := db.Query(ctx, `SELECT c.id,c.kind,catalog_progress_metadata(c.id),
  ARRAY(SELECT e.id FROM episodes e WHERE e.catalog_id=c.id AND e.kind='regular' AND NOT e.retired ORDER BY e.id)
  FROM catalog c JOIN users u ON u.id=$1 WHERE c.id IN (
  SELECT catalog_id FROM library WHERE user_id=$1

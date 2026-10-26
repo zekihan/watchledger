@@ -969,7 +969,7 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
   });
   const bulk = useMutation({
     mutationFn: async (watched: boolean) => {
-      for (const item of kind === "tv" ? (q.data?.metadata.seasons ?? []) : []) {
+      for (const item of watched && kind === "tv" ? (q.data?.metadata.seasons ?? []) : []) {
         await api(`/catalog/tv/${id}/seasons/${String(item.season_number)}?language=${language}`);
       }
       track.mutate({ whole: true, watched });
@@ -983,8 +983,13 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
         "POST",
         {},
       ),
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       client.setQueryData(["detail", kind, id, language, user.Settings.anime_title], data);
+      await client.invalidateQueries({ queryKey: ["season", id] });
+      await client.invalidateQueries({ queryKey: ["dashboard"] });
+      await client.invalidateQueries({ queryKey: ["calendar"] });
+      await client.invalidateQueries({ queryKey: ["alternate"] });
+      await client.invalidateQueries({ queryKey: ["effective"] });
     },
   });
   useEffect(() => {
