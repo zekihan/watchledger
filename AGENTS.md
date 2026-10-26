@@ -20,7 +20,7 @@
 - `db/queries/`: source queries for sqlc generation.
 - `deploy/`: Compose and Helm packaging.
 - `docs/`: specification, feature status, sources, and development guidance.
-- `.github/workflows/`: validation automation; no automatic publishing.
+- `.github/workflows/`: validation and explicitly tagged release automation.
 
 ## Commands and checks
 

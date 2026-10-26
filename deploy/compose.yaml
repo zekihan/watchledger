@@ -1,5 +1,6 @@
 services:
   app:
+    image: ghcr.io/zekihan/watchledger:0.1.0
     build:
       context: ..
     ports:

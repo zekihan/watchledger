@@ -1,14 +1,20 @@
 # Deployment and recovery
 
-The first release is still under implementation. Do not treat packaging or a healthy process as acceptance of all product workflows. No user infrastructure is modified by development checks.
+Version 0.1.0 is an early release with remaining product acceptance work. Do not treat packaging or a healthy process as acceptance of all product workflows. No user infrastructure is modified by development checks.
 
 ## Configuration
 
-Build the application image with `docker build -t watchledger:0.1.0-dev .`. Both frontend and API run in one container. PostgreSQL 17+ is external. Export the variables documented in `.env.example`; Compose loads an explicitly provided environment file with `docker compose --env-file /private/path/watchledger.env -f deploy/compose.yaml up -d --build`.
+Pull the released image with `docker pull ghcr.io/zekihan/watchledger:0.1.0`, or build locally with `docker build -t ghcr.io/zekihan/watchledger:0.1.0 .`. Both frontend and API run in one container. PostgreSQL 17+ is external. Export the variables documented in `.env.example`; Compose loads an explicitly provided environment file with `docker compose --env-file /private/path/watchledger.env -f deploy/compose.yaml pull` followed by the same command ending in `up -d --no-build`.
 
 The image runs as UID/GID 65532, without root capabilities. Put TLS at your existing reverse proxy and set `PUBLIC_URL` to the exact external origin. Cookie security and write-origin checks use it. Do not place provider credentials in frontend variables or build arguments.
 
 For Helm, supply `existingSecret`, `publicURL`, and `oidc.issuer`. The separately provisioned Secret contains `DATABASE_URL`, `SESSION_KEY`, `OIDC_CLIENT_SECRET` when needed, and `TMDB_TOKEN`. Values do not create secrets. Use an existing ingress/reverse proxy; the chart creates only a Deployment and Service. One replica is required while login transactions remain in process memory. There is no first-user admin bootstrap.
+
+Install the published chart after creating your private configuration file and Secret:
+
+```sh
+helm upgrade --install watchledger oci://ghcr.io/zekihan/charts/watchledger --version 0.1.0 --values /private/path/watchledger-values.yaml
+```
 
 Example template validation with synthetic configuration:
 

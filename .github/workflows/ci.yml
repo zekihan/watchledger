@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_call:
   push:
   pull_request:
 
@@ -45,6 +46,11 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci
+      - name: Validate release metadata and scripts
+        run: |
+          ./scripts/release-version.sh
+          bash -n scripts/release-version.sh
+          sh -n scripts/verify-release.sh
       - name: Audit dependency advisories
         if: matrix.browser == 'chromium'
         run: |
