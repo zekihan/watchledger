@@ -249,6 +249,16 @@ func (a *API) savedSimklPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	summary.ID = r.PathValue("id")
+	if r.Method == http.MethodPost {
+		preview, e := json.Marshal(summary)
+		if e == nil {
+			_, e = a.DB.Exec(r.Context(), "UPDATE imports SET state='preview',preview=$3 WHERE user_id=$1 AND id=$2 AND kind='simkl'", uid, summary.ID, preview)
+		}
+		if e != nil {
+			http.Error(w, "preview unavailable", http.StatusServiceUnavailable)
+			return
+		}
+	}
 	writeJSON(w, summary)
 }
 

@@ -282,3 +282,42 @@ func TestSIMKLIdenticalBulkReimportDoesNotCreateReviews(t *testing.T) {
 		t.Fatal("identical import required review", count, err)
 	}
 }
+
+func TestSIMKLAppliedArchiveCanBePreparedAgainWithoutReupload(t *testing.T) {
+	f := newSimklImportFixture(t)
+	ready := f.prepare(t)
+	path := "/api/simkl/" + ready.ID
+	f.req(t, 0, "GET", "/api/export", nil, 200)
+	f.req(t, 0, "POST", path+"/apply", map[string]any{}, 200)
+	var state string
+	checkState := func(want string) {
+		t.Helper()
+		if err := f.p.QueryRow(context.Background(), "SELECT state FROM imports WHERE id=$1", ready.ID).Scan(&state); err != nil || state != want {
+			t.Fatal("unexpected archive state", state, err)
+		}
+	}
+	f.req(t, 0, "GET", path+"/preview", nil, 200)
+	f.req(t, 1, "POST", path+"/preview", map[string]any{}, 404)
+	checkState("applied")
+	var before, after string
+	counts := "SELECT json_build_array((SELECT count(*) FROM library WHERE user_id=$1),(SELECT count(*) FROM history WHERE user_id=$1),(SELECT count(*) FROM import_reviews WHERE user_id=$1 AND NOT resolved))::text"
+	if err := f.p.QueryRow(context.Background(), counts, f.users[0]).Scan(&before); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(f.req(t, 0, "POST", path+"/preview", map[string]any{}, 200), &ready); err != nil {
+		t.Fatal(err)
+	}
+	checkState("preview")
+	if err := f.p.QueryRow(context.Background(), counts, f.users[0]).Scan(&after); err != nil || before != after {
+		t.Fatal("reopening an archive changed private tracking data", before, after, err)
+	}
+	f.req(t, 0, "POST", path+"/apply", map[string]any{"confirm_episode_matches": true, "episode_match_digest": ready.EpisodeMatchDigest}, 200)
+	var reviews, links int
+	if err := f.p.QueryRow(context.Background(), "SELECT count(*) FROM import_reviews WHERE user_id=$1 AND NOT resolved", f.users[0]).Scan(&reviews); err != nil || reviews != 0 {
+		t.Fatal("old resolved reviews remain", reviews, err)
+	}
+	if err := f.p.QueryRow(context.Background(), "SELECT count(*) FROM simkl_episode_links WHERE user_id=$1", f.users[0]).Scan(&links); err != nil || links != 2 {
+		t.Fatal("approved matches were not applied", links, err)
+	}
+	checkState("applied")
+}

@@ -127,7 +127,7 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
     setPreview(null);
     apply.reset();
     try {
-      const saved = await api<Preview>(`/simkl/${id}/preview`, "GET", undefined, request.signal);
+      const saved = await api<Preview>(`/simkl/${id}/preview`, "POST", {}, request.signal);
       if (request.current()) await prepare(saved, request);
     } catch (e) {
       if (request.current()) setError(e instanceof Error ? e.message : t("error"));
@@ -339,7 +339,7 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
                 {t("export")} · {row.id}
               </a>{" "}
               · {importMessage(row.state, t)}
-              {row.state === "preview" && (
+              {(row.state === "preview" || row.state === "applied") && (
                 <button
                   disabled={busy || apply.isPending}
                   onClick={() => {

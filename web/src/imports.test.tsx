@@ -325,78 +325,81 @@ test("restore names incompatible custom statuses and blocks apply", async () => 
   expect(screen.getByRole<HTMLButtonElement>("button", { name: en.apply }).disabled).toBe(true);
 });
 
-test("saved SIMKL previews prepare in batches and require explicit episode approval", async () => {
-  const bodies: { path: string; body: unknown }[] = [];
-  let prepared = 0;
-  const initial = { ...preview, preparation_total: 8 };
-  const ready = {
-    ...initial,
-    unresolved: 0,
-    episode_matches: 2,
-    episode_match_digest: "fixture-proposal-version",
-    items: [
-      {
-        key: "show",
-        title: "Synthetic series",
-        action: "add",
-        issues: [],
-        warnings: [],
-        matches: [
-          {
-            source_key: "source-1",
-            episode_id: "tmdb:episode:1",
-            season: 1,
-            number: 1,
-            title: "Pilot",
-          },
-          {
-            source_key: "source-3",
-            episode_id: "tmdb:episode:3",
-            season: 1,
-            number: 3,
-            title: "Third episode",
-          },
-        ],
-      },
-    ],
-  };
-  vi.stubGlobal(
-    "fetch",
-    vi.fn((path: string, init?: RequestInit) => {
-      if (init?.method === "POST")
-        bodies.push({ path, body: JSON.parse(init.body as string) as unknown });
-      let data: unknown = [];
-      if (path === "/api/imports") data = [{ id: "synthetic", kind: "simkl", state: "preview" }];
-      if (path.endsWith("/preview")) data = initial;
-      if (path.endsWith("/prepare"))
-        data =
-          ++prepared === 1
-            ? { next: 6, total: 8, paused: false }
-            : { next: 8, total: 8, paused: false, preview: ready };
-      if (path.endsWith("/apply")) data = { status: "applied", reviews: 0 };
-      return Promise.resolve(new Response(JSON.stringify(data), { status: 200 }));
-    }),
-  );
-  mount(true);
-  await userEvent.click(await screen.findByRole("button", { name: en.importContinue }));
-  expect(await screen.findByText(en.importConfirmEpisodes)).toBeTruthy();
-  expect(bodies.filter((row) => row.path.endsWith("/prepare")).map((row) => row.body)).toEqual([
-    { offset: 0 },
-    { offset: 6 },
-  ]);
-  expect(bodies.some((row) => row.path.endsWith("/apply"))).toBe(false);
-  expect(
-    screen.getByRole<HTMLInputElement>("checkbox", { name: en.importConfirmEpisodes }).checked,
-  ).toBe(false);
-  await userEvent.click(screen.getByRole("checkbox", { name: en.importConfirmEpisodes }));
-  await userEvent.click(screen.getByRole("button", { name: en.apply }));
-  await waitFor(() =>
-    expect(bodies.find((row) => row.path.endsWith("/apply"))?.body).toEqual({
-      confirm_episode_matches: true,
+test.each(["preview", "applied"])(
+  "saved SIMKL %s archives prepare in batches and require explicit episode approval",
+  async (state) => {
+    const bodies: { path: string; body: unknown }[] = [];
+    let prepared = 0;
+    const initial = { ...preview, preparation_total: 8 };
+    const ready = {
+      ...initial,
+      unresolved: 0,
+      episode_matches: 2,
       episode_match_digest: "fixture-proposal-version",
-    }),
-  );
-});
+      items: [
+        {
+          key: "show",
+          title: "Synthetic series",
+          action: "add",
+          issues: [],
+          warnings: [],
+          matches: [
+            {
+              source_key: "source-1",
+              episode_id: "tmdb:episode:1",
+              season: 1,
+              number: 1,
+              title: "Pilot",
+            },
+            {
+              source_key: "source-3",
+              episode_id: "tmdb:episode:3",
+              season: 1,
+              number: 3,
+              title: "Third episode",
+            },
+          ],
+        },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((path: string, init?: RequestInit) => {
+        if (init?.method === "POST")
+          bodies.push({ path, body: JSON.parse(init.body as string) as unknown });
+        let data: unknown = [];
+        if (path === "/api/imports") data = [{ id: "synthetic", kind: "simkl", state }];
+        if (path.endsWith("/preview")) data = initial;
+        if (path.endsWith("/prepare"))
+          data =
+            ++prepared === 1
+              ? { next: 6, total: 8, paused: false }
+              : { next: 8, total: 8, paused: false, preview: ready };
+        if (path.endsWith("/apply")) data = { status: "applied", reviews: 0 };
+        return Promise.resolve(new Response(JSON.stringify(data), { status: 200 }));
+      }),
+    );
+    mount(true);
+    await userEvent.click(await screen.findByRole("button", { name: en.importContinue }));
+    expect(await screen.findByText(en.importConfirmEpisodes)).toBeTruthy();
+    expect(bodies.filter((row) => row.path.endsWith("/prepare")).map((row) => row.body)).toEqual([
+      { offset: 0 },
+      { offset: 6 },
+    ]);
+    expect(bodies.some((row) => row.path.endsWith("/apply"))).toBe(false);
+    expect(
+      screen.getByRole<HTMLInputElement>("checkbox", { name: en.importConfirmEpisodes }).checked,
+    ).toBe(false);
+    await userEvent.click(screen.getByRole("checkbox", { name: en.importConfirmEpisodes }));
+    await userEvent.click(screen.getByRole("button", { name: en.apply }));
+    await waitFor(() =>
+      expect(bodies.find((row) => row.path.endsWith("/apply"))?.body).toEqual({
+        confirm_episode_matches: true,
+        episode_match_digest: "fixture-proposal-version",
+      }),
+    );
+  },
+);
 
 test("SIMKL downloads a backup before applying and stops if backup creation fails", async () => {
   const requests: string[] = [];
