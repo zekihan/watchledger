@@ -16,6 +16,13 @@ import (
 
 var ErrUnconfigured = errors.New("TMDB token is not configured")
 
+type StatusError struct {
+	Code       int
+	RetryAfter time.Duration
+}
+
+func (e *StatusError) Error() string { return fmt.Sprintf("TMDB returned status %d", e.Code) }
+
 type TMDB struct {
 	Token, BaseURL string
 	Client         *http.Client
@@ -43,7 +50,13 @@ func (p *TMDB) Get(ctx context.Context, path string, params url.Values) (json.Ra
 	}
 	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("TMDB returned status %d", res.StatusCode)
+		retry := time.Minute
+		if seconds, err := strconv.Atoi(res.Header.Get("Retry-After")); err == nil && seconds > 0 {
+			retry = time.Duration(seconds) * time.Second
+		} else if until, err := http.ParseTime(res.Header.Get("Retry-After")); err == nil && until.After(time.Now()) {
+			retry = time.Until(until)
+		}
+		return nil, &StatusError{Code: res.StatusCode, RetryAfter: retry}
 	}
 	b, e := io.ReadAll(io.LimitReader(res.Body, 8<<20))
 	if e != nil {

@@ -61,7 +61,7 @@ test("SIMKL requires preview and explicit backed-up application", async () => {
   expect(fetch.mock.calls.filter(([path]) => path.endsWith("/apply"))).toHaveLength(1);
   expect(screen.queryByRole("button", { name: en.apply })).toBeNull();
 });
-test("missing backup and invalid replacement cannot apply stale preview", async () => {
+test("backup is offered inline and invalid replacement cannot apply stale preview", async () => {
   vi.stubGlobal(
     "fetch",
     vi.fn((input: string) =>
@@ -72,9 +72,10 @@ test("missing backup and invalid replacement cannot apply stale preview", async 
   );
   mount(false);
   await userEvent.upload(screen.getByLabelText(en.simklFile), file("source.json", '{"movies":[]}'));
-  expect((await screen.findByRole<HTMLButtonElement>("button", { name: en.apply })).disabled).toBe(
-    true,
-  );
+  expect(
+    (await screen.findByRole<HTMLButtonElement>("button", { name: en.importBackupAndApply }))
+      .disabled,
+  ).toBe(false);
   await userEvent.upload(screen.getByLabelText(en.simklFile), file("invalid.json", "not json"));
   await waitFor(() => expect(screen.queryByRole("button", { name: en.apply })).toBeNull());
   expect(await screen.findByRole("alert")).toBeTruthy();
@@ -322,4 +323,141 @@ test("restore names incompatible custom statuses and blocks apply", async () => 
   );
   expect((await screen.findByRole("alert")).textContent).toContain("My watching");
   expect(screen.getByRole<HTMLButtonElement>("button", { name: en.apply }).disabled).toBe(true);
+});
+
+test("saved SIMKL previews prepare in batches and require explicit episode approval", async () => {
+  const bodies: { path: string; body: unknown }[] = [];
+  let prepared = 0;
+  const initial = { ...preview, preparation_total: 8 };
+  const ready = {
+    ...initial,
+    unresolved: 0,
+    episode_matches: 2,
+    episode_match_digest: "fixture-proposal-version",
+    items: [
+      {
+        key: "show",
+        title: "Synthetic series",
+        action: "add",
+        issues: [],
+        warnings: [],
+        matches: [
+          {
+            source_key: "source-1",
+            episode_id: "tmdb:episode:1",
+            season: 1,
+            number: 1,
+            title: "Pilot",
+          },
+          {
+            source_key: "source-3",
+            episode_id: "tmdb:episode:3",
+            season: 1,
+            number: 3,
+            title: "Third episode",
+          },
+        ],
+      },
+    ],
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string, init?: RequestInit) => {
+      if (init?.method === "POST")
+        bodies.push({ path, body: JSON.parse(init.body as string) as unknown });
+      let data: unknown = [];
+      if (path === "/api/imports") data = [{ id: "synthetic", kind: "simkl", state: "preview" }];
+      if (path.endsWith("/preview")) data = initial;
+      if (path.endsWith("/prepare"))
+        data =
+          ++prepared === 1
+            ? { next: 6, total: 8, paused: false }
+            : { next: 8, total: 8, paused: false, preview: ready };
+      if (path.endsWith("/apply")) data = { status: "applied", reviews: 0 };
+      return Promise.resolve(new Response(JSON.stringify(data), { status: 200 }));
+    }),
+  );
+  mount(true);
+  await userEvent.click(await screen.findByRole("button", { name: en.importContinue }));
+  expect(await screen.findByText(en.importConfirmEpisodes)).toBeTruthy();
+  expect(bodies.filter((row) => row.path.endsWith("/prepare")).map((row) => row.body)).toEqual([
+    { offset: 0 },
+    { offset: 6 },
+  ]);
+  expect(bodies.some((row) => row.path.endsWith("/apply"))).toBe(false);
+  expect(
+    screen.getByRole<HTMLInputElement>("checkbox", { name: en.importConfirmEpisodes }).checked,
+  ).toBe(false);
+  await userEvent.click(screen.getByRole("checkbox", { name: en.importConfirmEpisodes }));
+  await userEvent.click(screen.getByRole("button", { name: en.apply }));
+  await waitFor(() =>
+    expect(bodies.find((row) => row.path.endsWith("/apply"))?.body).toEqual({
+      confirm_episode_matches: true,
+      episode_match_digest: "fixture-proposal-version",
+    }),
+  );
+});
+
+test("SIMKL downloads a backup before applying and stops if backup creation fails", async () => {
+  const requests: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string) => {
+      requests.push(path);
+      return Promise.resolve(
+        new Response(
+          path === "/api/export"
+            ? "backup unavailable"
+            : JSON.stringify(path.endsWith("/preview") ? preview : []),
+          { status: path === "/api/export" ? 503 : 200 },
+        ),
+      );
+    }),
+  );
+  mount(false);
+  await userEvent.upload(screen.getByLabelText(en.simklFile), file("source.json", '{"movies":[]}'));
+  await userEvent.click(await screen.findByRole("button", { name: en.importBackupAndApply }));
+  expect(await screen.findByRole("alert")).toHaveProperty("textContent", "backup unavailable");
+  expect(requests).toContain("/api/export");
+  expect(requests.some((path) => path.endsWith("/apply"))).toBe(false);
+});
+
+test("SIMKL backup download precedes import and unresolved reviews receive focus", async () => {
+  const requests: string[] = [];
+  const createURL = vi.fn(() => "blob:synthetic-backup"),
+    revokeURL = vi.fn();
+  vi.stubGlobal(
+    "URL",
+    Object.assign(class extends URL {}, { createObjectURL: createURL, revokeObjectURL: revokeURL }),
+  );
+  const download = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string) => {
+      requests.push(path);
+      let data: unknown = [];
+      if (path.endsWith("/preview")) data = preview;
+      if (path.endsWith("/apply")) data = { status: "applied", reviews: 1 };
+      if (path === "/api/import-reviews" && requests.some((item) => item.endsWith("/apply")))
+        data = [
+          {
+            id: "review",
+            import_id: "synthetic",
+            reason: "simkl_source_review",
+            item: { source: { title: "Exception" } },
+          },
+        ];
+      return Promise.resolve(new Response(JSON.stringify(data), { status: 200 }));
+    }),
+  );
+  mount(false);
+  await userEvent.upload(screen.getByLabelText(en.simklFile), file("source.json", '{"movies":[]}'));
+  await userEvent.click(await screen.findByRole("button", { name: en.importBackupAndApply }));
+  await screen.findByText(en.simklApplied);
+  expect(download).toHaveBeenCalledOnce();
+  expect(requests.indexOf("/api/export")).toBeLessThan(
+    requests.indexOf("/api/simkl/synthetic/apply"),
+  );
+  expect(document.activeElement?.textContent).toContain(en.unresolved);
+  download.mockRestore();
 });

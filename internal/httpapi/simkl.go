@@ -31,40 +31,11 @@ func (a *API) simklPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() { _ = tx.Rollback(r.Context()) }()
-	type candidate struct {
-		simkl.Item
-		Target string `json:"target"`
-		Action string `json:"action"`
+	summary, err := a.simklSummary(r.Context(), tx, uid, backup)
+	if err != nil {
+		http.Error(w, "preview unavailable", http.StatusServiceUnavailable)
+		return
 	}
-	candidates := make([]candidate, 0, len(backup.Items))
-	additions, conflicts, unresolved := 0, 0, 0
-	for _, item := range backup.Items {
-		c := candidate{Item: item, Target: item.Target(), Action: "review"}
-		if len(item.Issues) == 0 && c.Target != "" {
-			var cached, exists bool
-			err = tx.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM catalog WHERE id=$2),EXISTS(SELECT 1 FROM library WHERE user_id=$1 AND catalog_id=$2)`, uid, c.Target).Scan(&cached, &exists)
-			if err != nil {
-				http.Error(w, "preview unavailable", http.StatusServiceUnavailable)
-				return
-			}
-			if cached {
-				if exists {
-					c.Action = "preserve_existing"
-					conflicts++
-				} else {
-					c.Action = "add"
-					additions++
-				}
-			} else {
-				c.Warnings = append(c.Warnings, "catalog_not_cached")
-			}
-		}
-		if c.Action == "review" || len(item.Episodes) > 0 {
-			unresolved++
-		}
-		candidates = append(candidates, c)
-	}
-	summary := map[string]interface{}{"additions": additions, "conflicts": conflicts, "unresolved": unresolved, "items": candidates, "warnings": backup.Warnings, "backup_required": true, "existing_app_edits_win": true, "episode_mapping_policy": "explicit review required; no number-based inference", "custom_lists_supported": false}
 	preview, err := json.Marshal(summary)
 	if err != nil {
 		http.Error(w, "preview unavailable", http.StatusServiceUnavailable)
@@ -81,11 +52,18 @@ func (a *API) simklPreview(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "preview unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	summary["id"] = id
+	summary.ID = id
 	writeJSON(w, summary)
 }
 
 func (a *API) simklApply(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		ConfirmEpisodeMatches bool   `json:"confirm_episode_matches"`
+		EpisodeMatchDigest    string `json:"episode_match_digest"`
+	}
+	if r.ContentLength != 0 && !decode(w, r, &in) {
+		return
+	}
 	uid := auth.Current(r.Context()).ID
 	tx, err := a.DB.Begin(r.Context())
 	if err != nil {
@@ -128,7 +106,39 @@ func (a *API) simklApply(w http.ResponseWriter, r *http.Request) {
 	if fail(err) {
 		return
 	}
-	added, reviewed := 0, 0
+	var approved map[string][]simklEpisodeMatch
+	if in.ConfirmEpisodeMatches {
+		// Season reconciliation takes this same catalog lock before changing episodes.
+		targets := simklTargets(backup)
+		rows, e := tx.Query(r.Context(), "SELECT id FROM catalog WHERE id=ANY($1::text[]) ORDER BY id FOR SHARE", targets)
+		if fail(e) {
+			return
+		}
+		for rows.Next() {
+			var locked string
+			if fail(rows.Scan(&locked)) {
+				rows.Close()
+				return
+			}
+		}
+		rows.Close()
+		if fail(rows.Err()) {
+			return
+		}
+		summary, e := a.simklSummary(r.Context(), tx, uid, backup)
+		if fail(e) {
+			return
+		}
+		if in.EpisodeMatchDigest == "" || in.EpisodeMatchDigest != summary.EpisodeMatchDigest {
+			http.Error(w, "episode proposals changed; refresh the preview before applying", http.StatusConflict)
+			return
+		}
+		approved = make(map[string][]simklEpisodeMatch)
+		for _, item := range summary.Items {
+			approved[item.Key] = item.Matches
+		}
+	}
+	added, reviewed, episodesAdded := 0, 0, 0
 	for _, item := range backup.Items {
 		target := item.Target()
 		reasons := append([]string{}, item.Issues...)
@@ -149,7 +159,14 @@ func (a *API) simklApply(w http.ResponseWriter, r *http.Request) {
 			if tag.RowsAffected() > 0 {
 				added++
 			} else {
-				reasons = append(reasons, "existing_app_library_preserved")
+				var conflict bool
+				err = tx.QueryRow(r.Context(), "SELECT base<>$3 OR ($4::int IS NOT NULL AND rating IS DISTINCT FROM $4::int) FROM library WHERE user_id=$1 AND catalog_id=$2", uid, target, item.Base, item.Rating).Scan(&conflict)
+				if fail(err) {
+					return
+				}
+				if conflict {
+					reasons = append(reasons, "existing_app_library_preserved")
+				}
 			}
 			if item.Kind == "movies" && item.MovieWatched {
 				var date interface{}
@@ -165,11 +182,30 @@ func (a *API) simklApply(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 				if tag.RowsAffected() == 0 {
-					reasons = append(reasons, "existing_app_watch_decision_preserved")
+					conflict, e := simklWatchConflict(r.Context(), tx, uid, target, "", date, item.MovieDate.Timestamp)
+					if fail(e) {
+						return
+					}
+					if conflict {
+						reasons = append(reasons, "existing_app_watch_decision_preserved")
+					}
 				}
 			}
 			if len(item.Episodes) > 0 {
-				reasons = append(reasons, "episode_identity_review_required")
+				matches := approved[item.Key]
+				if len(matches) > 0 {
+					n, conflict, e := applySIMKLProposals(r.Context(), tx, uid, r.PathValue("id"), item, matches)
+					if fail(e) {
+						return
+					}
+					episodesAdded += n
+					if conflict {
+						reasons = append(reasons, "existing_app_watch_decision_preserved")
+					}
+				}
+				if len(matches) != len(item.Episodes) {
+					reasons = append(reasons, "episode_identity_review_required")
+				}
 			}
 		}
 		reviewID := scopedID(uid, "simkl-review", r.PathValue("id")+"/"+item.Key)
@@ -204,7 +240,7 @@ func (a *API) simklApply(w http.ResponseWriter, r *http.Request) {
 	if fail(err) || fail(tx.Commit(r.Context())) {
 		return
 	}
-	writeJSON(w, map[string]interface{}{"status": "applied", "additions": added, "reviews": reviewed})
+	writeJSON(w, map[string]interface{}{"status": "applied", "additions": added, "reviews": reviewed, "episodes_added": episodesAdded})
 }
 func (a *API) importReviews(w http.ResponseWriter, r *http.Request) {
 	rows, e := a.DB.Query(r.Context(), `SELECT jsonb_build_object('id',id,'import_id',import_id,'item',item,'reason',reason,'resolved',resolved) FROM import_reviews WHERE user_id=$1 AND NOT resolved ORDER BY id`, auth.Current(r.Context()).ID)

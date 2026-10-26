@@ -175,6 +175,8 @@ Import statuses, episode progress, personal ratings, custom lists, and recorded 
 
 Every import has a preview of additions, changes, conflicts, unresolved mappings, and errors before application. Apply resolved items while retaining ambiguous ones in a persistent review queue.
 
+Workflow refinement approved on 2026-10-26: prepare explicitly identified titles and relevant seasons in bounded, resumable batches before asking for review. An empty metadata cache is preparation work, not an identity conflict. For explicit TMDB show IDs, propose unique active regular-episode matches using season and episode numbers and let the user inspect and approve those proposals together. Bind approval to the exact source/proposal version; changed episode identities require a fresh preview. Specials, missing/ambiguous episodes, native-anime mappings and conflicting source identities remain exceptions. Never infer missing watched episodes or dates. Download a current export as part of the apply action when the user has not already saved one, and take the user directly to remaining exceptions after application.
+
 Existing app edits win on repeat imports. Add missing history without deleting app records. Show conflicts for review. Repeating the same import must not duplicate identical history or list entries.
 
 Import custom list memberships as manual lists unless original smart rules translate exactly. Preserve unsupported source fields and untranslated rules in the original import archive.

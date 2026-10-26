@@ -194,7 +194,25 @@ export const en = {
     "Review each unresolved source item. Load its explicit catalog ID and choose provider seasons here before confirming. Source validation errors and unsupported custom lists remain archived.",
 
   simklLimits:
-    "Partial migration: explicit movie, show and AniDB identities can be loaded. Episode mappings need explicit review. Custom lists use the separate complete-response file importer. No episode-number matching is guessed.",
+    "Titles and seasons are prepared automatically from explicit source IDs. Regular TV episode matches can be approved together; uncertain identities and numbering remain in review. Custom lists use the separate response-file importer.",
+  importPreparing: "Resolving titles and episode metadata",
+  importPreparationSafe:
+    "Your source is saved. Preparing metadata does not change your library or viewing history. You can stop and continue this import later.",
+  importPreparationPaused:
+    "Metadata lookup paused because a provider is unavailable. Retry, or import the available titles and keep exceptions in review.",
+  importRetryPreparation: "Retry metadata lookup",
+  importContinue: "Continue import",
+  importUnavailableTitles: "Titles still requiring metadata or identity review",
+  importProposedEpisodes: "Proposed episode matches",
+  importEpisodeProposalHint:
+    "These proposals use the explicit TMDB show ID and regular season/episode numbers. Inspect them before approving together. Specials, native anime, missing episodes and conflicting identities remain in review. Existing watch dates and unwatch decisions are preserved.",
+  importInspectMatches: "Inspect matched shows and episodes",
+  importConfirmEpisodes: "I approve these proposed episode matches together.",
+  importEpisodesNotConfirmed:
+    "Without approval, titles can be imported but their episode history stays in review.",
+  importAutomaticBackup:
+    "This action downloads a fresh Watchledger backup before applying the import. Keep that file for recovery.",
+  importBackupAndApply: "Download backup and import",
   simklFile: "SIMKL JSON backup",
   restoreSize: "Maximum portable backup size: 64 MiB",
   sharedRestoreWarning:
@@ -584,7 +602,25 @@ export const tr: Record<Key, string> = {
   connectedEpisodes: "Bağlantılı kaynak bölümleri",
 
   simklLimits:
-    "Kısmi aktarım: açık film, dizi ve AniDB kimlikleri yüklenebilir. Bölüm eşlemeleri açık inceleme gerektirir. Özel listeler ayrı tam yanıt dosyası aktarıcısını kullanır. Bölüm numaralarından eşleme tahmin edilmez.",
+    "Yapımlar ve sezonlar açık kaynak kimliklerinden otomatik hazırlanır. Normal TV bölümü eşleşmeleri topluca onaylanabilir; belirsiz kimlikler ve numaralandırmalar incelemede kalır. Özel listeler ayrı yanıt dosyası içe aktarıcısını kullanır.",
+  importPreparing: "Yapımlar ve bölüm bilgileri çözümleniyor",
+  importPreparationSafe:
+    "Kaynak dosyanız kaydedildi. Bilgi hazırlığı kitaplığınızı veya izleme geçmişinizi değiştirmez. Durdurup bu içe aktarmaya daha sonra devam edebilirsiniz.",
+  importPreparationPaused:
+    "Sağlayıcıya erişilemediği için bilgi araması duraklatıldı. Yeniden deneyin veya hazır yapımları içe aktarıp istisnaları incelemeye bırakın.",
+  importRetryPreparation: "Bilgi aramasını yeniden dene",
+  importContinue: "İçe aktarmaya devam et",
+  importUnavailableTitles: "Bilgi veya kimlik incelemesi bekleyen yapımlar",
+  importProposedEpisodes: "Önerilen bölüm eşleşmeleri",
+  importEpisodeProposalHint:
+    "Öneriler açık TMDB dizi kimliğine ve normal sezon/bölüm numaralarına dayanır. Topluca onaylamadan önce inceleyin. Özel bölümler, yerel anime, eksik bölümler ve çelişen kimlikler incelemede kalır. Mevcut izleme tarihleri ve izlememe kararları korunur.",
+  importInspectMatches: "Eşleşen dizileri ve bölümleri incele",
+  importConfirmEpisodes: "Önerilen bu bölüm eşleşmelerini topluca onaylıyorum.",
+  importEpisodesNotConfirmed:
+    "Onay vermezseniz yapımlar içe aktarılabilir ancak bölüm geçmişleri incelemede kalır.",
+  importAutomaticBackup:
+    "Bu işlem içe aktarmadan önce güncel bir Watchledger yedeği indirir. Kurtarma için bu dosyayı saklayın.",
+  importBackupAndApply: "Yedeği indir ve içe aktar",
   simklFile: "SIMKL JSON yedeği",
   restoreSize: "En büyük taşınabilir yedek boyutu: 64 MiB",
   sharedRestoreWarning:

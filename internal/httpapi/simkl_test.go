@@ -133,8 +133,8 @@ func TestSIMKLPrivatePreviewAndApply(t *testing.T) {
 			t.Fatal(w.Code, w.Body.String())
 		}
 	}
-	if e = p.QueryRow(ctx, "SELECT count(*) FROM import_reviews WHERE user_id=$1", uid).Scan(&count); e != nil || count != 2 {
-		t.Fatal("repreview duplicated reviews", count, e)
+	if e = p.QueryRow(ctx, "SELECT count(*) FROM import_reviews WHERE user_id=$1", uid).Scan(&count); e != nil || count != 1 {
+		t.Fatal("identical repreview added unnecessary reviews", count, e)
 	}
 	// A later app edit and explicit unwatch win over a different manual reimport.
 	if _, e = p.Exec(ctx, "UPDATE library SET rating=9 WHERE user_id=$1", uid); e != nil {

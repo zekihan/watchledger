@@ -2,19 +2,39 @@ import { PageControls } from "./page-controls";
 import { importMessage } from "./import-messages";
 import { QueryFeedback } from "./query-feedback";
 import { ImportReview } from "./import-review";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { usePreviewRequest } from "./use-preview-request";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "./api";
+import { api, downloadExport } from "./api";
 import type { T } from "./App";
 
+interface EpisodeMatch {
+  source_key: string;
+  episode_id: string;
+  season: number;
+  number: number;
+  title: string;
+}
 interface Preview {
   id: string;
   additions: number;
   conflicts: number;
   unresolved: number;
   warnings: string[];
-  items: { key: string; title: string; action: string; issues: string[]; warnings: string[] }[];
+  preparation_total?: number;
+  pending_catalog?: number;
+  episode_matches?: number;
+  episode_exceptions?: number;
+  episode_match_digest?: string;
+  items: {
+    key: string;
+    title: string;
+    action: string;
+    issues: string[];
+    warnings: string[];
+    matches?: EpisodeMatch[];
+    episode_exceptions?: number;
+  }[];
 }
 interface ImportRecord {
   id: string;
@@ -29,12 +49,17 @@ interface Review {
 }
 export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
   const client = useQueryClient();
+  const reviewHeading = useRef<HTMLHeadingElement>(null);
   const [previewPage, setPreviewPage] = useState(0);
+  const [matchPage, setMatchPage] = useState(0);
   const [reviewPage, setReviewPage] = useState(0);
   const [activeReview, setActiveReview] = useState<string | null>(null);
   const beginPreview = usePreviewRequest();
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<{ next: number; total: number } | null>(null);
+  const [resumeID, setResumeID] = useState<string | null>(null);
+  const [confirmMatches, setConfirmMatches] = useState(false);
   const [error, setError] = useState("");
   const imports = useQuery({
     queryKey: ["imports"],
@@ -49,17 +74,74 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
     Math.max(0, Math.ceil((reviews.data?.length ?? 0) / 50) - 1),
   );
   const apply = useMutation({
-    mutationFn: (id: string) =>
-      api<{ reviews: number; status: string }>(`/simkl/${id}/apply`, "POST", {}),
-    onSuccess: async () => {
+    mutationFn: async (selected: Preview) => {
+      if (!backed) await downloadExport();
+      return api<{ reviews: number; status: string }>(`/simkl/${selected.id}/apply`, "POST", {
+        confirm_episode_matches: confirmMatches,
+        episode_match_digest: confirmMatches ? selected.episode_match_digest : undefined,
+      });
+    },
+    onSuccess: async (result) => {
       setPreview(null);
+      setResumeID(null);
+      setProgress(null);
       await client.invalidateQueries();
+      if (result.reviews > 0) reviewHeading.current?.focus();
     },
   });
+  async function prepare(initial: Preview, request: ReturnType<typeof beginPreview>, offset = 0) {
+    setPreview(initial);
+    setConfirmMatches(false);
+    setMatchPage(0);
+    if (!initial.preparation_total) return;
+    setResumeID(initial.id);
+    let next = offset;
+    const total = initial.preparation_total;
+    setProgress({ next, total });
+    while (next < total && request.current()) {
+      const result = await api<{ next: number; total: number; paused: boolean; preview?: Preview }>(
+        `/simkl/${initial.id}/prepare`,
+        "POST",
+        { offset: next },
+        request.signal,
+      );
+      if (!request.current()) return;
+      setProgress({ next: result.next, total: result.total });
+      if (result.preview) setPreview(result.preview);
+      if (result.paused) {
+        setError(t("importPreparationPaused"));
+        return;
+      }
+      if (result.next <= next && result.next < result.total) throw new Error(t("error"));
+      next = result.next;
+    }
+    if (request.current()) {
+      setProgress(null);
+      setResumeID(null);
+    }
+  }
+  async function resume(id: string) {
+    const request = beginPreview();
+    setBusy(true);
+    setError("");
+    setPreview(null);
+    apply.reset();
+    try {
+      const saved = await api<Preview>(`/simkl/${id}/preview`, "GET", undefined, request.signal);
+      if (request.current()) await prepare(saved, request);
+    } catch (e) {
+      if (request.current()) setError(e instanceof Error ? e.message : t("error"));
+    } finally {
+      if (request.current()) setBusy(false);
+    }
+  }
   async function read(file: File | undefined) {
     const request = beginPreview();
     setPreview(null);
     setPreviewPage(0);
+    setProgress(null);
+    setResumeID(null);
+    setConfirmMatches(false);
     setBusy(false);
     setError("");
     apply.reset();
@@ -73,7 +155,10 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
       const value: unknown = JSON.parse(await file.text());
       if (!request.current()) return;
       const result = await api<Preview>("/simkl/preview", "POST", value, request.signal);
-      if (request.current()) setPreview(result);
+      if (request.current()) {
+        await client.invalidateQueries({ queryKey: ["imports"] });
+        if (request.current()) await prepare(result, request);
+      }
     } catch (e) {
       if (request.current()) setError(e instanceof Error ? e.message : t("error"));
     } finally {
@@ -95,7 +180,41 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
           }}
         />
       </label>
-      {busy && <p role="status">{t("loading")}</p>}
+      {busy && (
+        <div role="status">
+          <p>
+            {progress
+              ? `${t("importPreparing")}: ${progress.next} / ${progress.total}`
+              : t("loading")}
+          </p>
+          {progress && (
+            <progress
+              aria-label={t("importPreparing")}
+              value={progress.next}
+              max={progress.total}
+            />
+          )}
+          <p>{t("importPreparationSafe")}</p>
+          <button
+            onClick={() => {
+              beginPreview();
+              setBusy(false);
+              setPreview(null);
+            }}
+          >
+            {t("cancel")}
+          </button>
+        </div>
+      )}
+      {!busy && resumeID && (
+        <button
+          onClick={() => {
+            void resume(resumeID);
+          }}
+        >
+          {t("importRetryPreparation")}
+        </button>
+      )}
       {[error, apply.error?.message].filter(Boolean).map((message, i) => (
         <p role="alert" key={i}>
           {message}
@@ -139,13 +258,69 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
             />
           </details>
           {preview.items.length > 50 && <p>{t("importAllPages")}</p>}
+          {!!preview.pending_catalog && (
+            <p className="notice">
+              {t("importUnavailableTitles")}: {preview.pending_catalog}
+            </p>
+          )}
+          {!!preview.episode_matches && (
+            <div className="panel">
+              <h4>
+                {t("importProposedEpisodes")}: {preview.episode_matches}
+              </h4>
+              <p>{t("importEpisodeProposalHint")}</p>
+              <details>
+                <summary>{t("importInspectMatches")}</summary>
+                <ul>
+                  {preview.items
+                    .filter((item) => item.matches?.length)
+                    .slice(matchPage * 50, (matchPage + 1) * 50)
+                    .map((item) => (
+                      <li key={item.key}>
+                        <details>
+                          <summary>
+                            {item.title} · {item.matches?.length}
+                          </summary>
+                          <ul>
+                            {item.matches?.map((match) => (
+                              <li key={match.source_key}>
+                                S{match.season} E{match.number} → {match.title || match.episode_id}
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      </li>
+                    ))}
+                </ul>
+                <PageControls
+                  page={previewPage}
+                  count={preview.items.filter((item) => item.matches?.length).length}
+                  size={50}
+                  label={t("importInspectMatches")}
+                  change={setPreviewPage}
+                  t={t}
+                />
+              </details>
+              <label className="check-label">
+                <input
+                  type="checkbox"
+                  checked={confirmMatches}
+                  disabled={apply.isPending}
+                  onChange={(event) => setConfirmMatches(event.target.checked)}
+                />
+                {t("importConfirmEpisodes")}
+              </label>
+              {!confirmMatches && <p>{t("importEpisodesNotConfirmed")}</p>}
+            </div>
+          )}
+          {!backed && <p>{t("importAutomaticBackup")}</p>}
           <button
-            disabled={!backed || apply.isPending}
+            disabled={apply.isPending}
             onClick={() => {
-              apply.mutate(preview.id);
+              apply.mutate(preview);
             }}
           >
-            {t("apply")}
+            {backed ? t("apply") : t("importBackupAndApply")}
           </button>
         </div>
       )}
@@ -164,10 +339,22 @@ export function SimklPanel({ t, backed }: { t: T; backed: boolean }) {
                 {t("export")} · {row.id}
               </a>{" "}
               · {importMessage(row.state, t)}
+              {row.state === "preview" && (
+                <button
+                  disabled={busy || apply.isPending}
+                  onClick={() => {
+                    void resume(row.id);
+                  }}
+                >
+                  {t("importContinue")}
+                </button>
+              )}
             </li>
           ))}
       </ul>
-      <h4>{t("unresolved")}</h4>
+      <h4 ref={reviewHeading} tabIndex={-1}>
+        {t("unresolved")} ({reviews.data?.length ?? 0})
+      </h4>
       <QueryFeedback query={reviews} t={t} />
       {reviews.isSuccess && reviews.data.length === 0 && <p className="muted">{t("empty")}</p>}
       <p>{t("reviewInstructions")}</p>

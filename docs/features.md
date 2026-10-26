@@ -255,6 +255,10 @@ Current source resolution remains conservative: explicit TMDB movie/show IDs can
 - [x] Visible backup/export prerequisite before import, with no import-specific undo.
 - [x] Manual reimport without ongoing SIMKL sync. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 
+- [x] Prepare explicit source identities and seasons in bounded, resumable batches; continue a saved preview without re-uploading it.
+- [x] Inspect and batch-confirm regular TMDB episode proposals, with version checks and isolated exception review; preserve gaps, unknown dates and existing user decisions.
+- [x] Download the prerequisite export inline before applying and focus remaining review items afterward. Synthetic regressions: `internal/httpapi/simkl_prepare_test.go` and `web/src/imports.test.tsx`; real-provider coverage remains separate.
+
 ## Portability and recovery
 
 - [x] Per-user portable UI export. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).

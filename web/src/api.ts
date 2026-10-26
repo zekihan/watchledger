@@ -164,3 +164,17 @@ export interface Dashboard {
   }[];
   statistics: { movies: number; episodes: number; monthly: { month: string; count: number }[] };
 }
+
+export async function downloadExport() {
+  const response = await fetch("/api/export", { credentials: "same-origin" });
+  if (!response.ok) throw new APIError(response.status, await response.text());
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "watchledger-before-simkl-import.json";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
