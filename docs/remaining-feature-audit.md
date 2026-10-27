@@ -4,14 +4,40 @@ This audit replaces the earlier narrow-pass completion assessment. Passing CI fo
 
 ## Current verified baseline (2026-10-25)
 
-The three repository-audit increments are merged:
-[PR 15](https://github.com/zekihan/watchledger/pull/15),
-[PR 16](https://github.com/zekihan/watchledger/pull/16), and
-[PR 17](https://github.com/zekihan/watchledger/pull/17).
-Main at `b8602c3bbaf4a242f3bd6323c17b00f0a4ab736a` passed
-[CI 40143529869](https://github.com/zekihan/watchledger/actions/runs/40143529869),
-including Chromium, Firefox and WebKit. Earlier pending-CI statements below
-are chronological records, not current failures at that revision.
+### Reconciled state on 2026-10-27 (OPS-14)
+
+Current main is `de7d9ef53238920e486b2ce44a8f3ee2a5402a7a` (0.1.2).
+Its exact-head [CI 40391992919](https://github.com/zekihan/watchledger/actions/runs/40391992919)
+was cancelled; it is not a passing acceptance result. No workflow was retried.
+The latest successful main CI is [40354785487](https://github.com/zekihan/watchledger/actions/runs/40354785487)
+at `96a09593378b01983f5e2ba185dc358275a07d07` (0.1.0), not current main.
+
+The three repository audits and subsequent hardening are merged and verified:
+
+| Increment                                                                    | Verified merge commit                      | Successful main CI                                                             |
+| ---------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------ |
+| [First audit, PR 15](https://github.com/zekihan/watchledger/pull/15)         | `81b261b2a8b96531939f74ec80aafb390cfa0ed4` | [40129299892](https://github.com/zekihan/watchledger/actions/runs/40129299892) |
+| [Second audit, PR 16](https://github.com/zekihan/watchledger/pull/16)        | `db4b83eea8ce97051bd8d336542df61ad674f1c4` | [40140099568](https://github.com/zekihan/watchledger/actions/runs/40140099568) |
+| [Third audit, PR 17](https://github.com/zekihan/watchledger/pull/17)         | `b8602c3bbaf4a242f3bd6323c17b00f0a4ab736a` | [40143529869](https://github.com/zekihan/watchledger/actions/runs/40143529869) |
+| [Follow-up hardening, PR 18](https://github.com/zekihan/watchledger/pull/18) | `cd2e50ccea00cfc128f8d9ed812f9972977a304a` | [40155633335](https://github.com/zekihan/watchledger/actions/runs/40155633335) |
+
+These runs include synthetic Chromium, Firefox and WebKit acceptance. They do
+not turn local jsdom tests, synthetic Compose/Helm checks or release packaging
+into real-provider or physical-device acceptance. Earlier pending statements
+below are chronological evidence, superseded for those verified revisions.
+
+Next independent action: validate any subsequent implementation at its recorded
+revision using local checks; current-main cancelled CI does not invalidate the
+completed audits or establish acceptance of later changes. Do not retry paid
+workflows to close this documentation task. Next operator actions remain the
+specific deferred account, device, private-provider transport, source-import and
+edition checks in [TODO.md](../TODO.md). Any code defect found stays with
+implementation. No new deployment, credentials or real imports are authorized.
+
+### Historical follow-up hardening evidence (2026-10-25)
+
+PR 18 and its successful main run above resolve the hosted-acceptance prerequisite
+in the following original local/failure record.
 
 The next local hardening increment checks complete bounded JSON request bodies,
 explicit nullable library PATCH fields, and serialization of per-title structure
