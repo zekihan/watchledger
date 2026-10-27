@@ -1319,3 +1319,16 @@ footer a {
     font-size: 12px;
   }
 }
+
+.alternate-disclosure > summary {
+  cursor: pointer;
+  font-size: 17px;
+  font-weight: 600;
+}
+.alternate-disclosure > summary small {
+  display: inline-block;
+  margin-left: 12px;
+  color: #e4c28a;
+  font-size: 12px;
+  font-weight: 400;
+}

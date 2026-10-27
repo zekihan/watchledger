@@ -51,8 +51,11 @@ export function AlternateView({ id, t, timezone }: { id: string; t: T; timezone?
     queryFn: () => api<Alternate>(`/library/${encodeURIComponent(id)}/alternate`),
   });
   return (
-    <section className="panel">
-      <h2>{t("alternateViews")}</h2>
+    <details className="panel alternate-disclosure">
+      <summary>
+        <span>{t("alternateViews")}</span>
+        {q.data?.incomplete && <small>{t("mappingNeedsReview")}</small>}
+      </summary>
       <p>{t("alternateHistoryNotice")}</p>
       {q.data && (
         <label>
@@ -228,6 +231,6 @@ export function AlternateView({ id, t, timezone }: { id: string; t: T; timezone?
         </p>
       ))}
       <a href="#mappings">{t("reviewMapping")}</a>
-    </section>
+    </details>
   );
 }

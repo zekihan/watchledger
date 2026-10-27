@@ -1,5 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AlternateView } from "./alternate";
 import { en } from "./i18n";
@@ -79,8 +80,14 @@ test("alternate view explains derived history and never manufactures an aggregat
       <AlternateView id="native" t={(k) => en[k]} />
     </QueryClientProvider>,
   );
+  const summary = screen.getByText(en.alternateViews);
+  const disclosure = summary.closest("details");
+  expect(disclosure?.open).toBe(false);
+  expect(await screen.findByText(en.mappingNeedsReview)).toBeTruthy();
+  await userEvent.click(summary);
+  expect(disclosure?.open).toBe(true);
   expect(await screen.findByText(en.derivedWatch)).toBeTruthy();
-  expect(screen.getByText(en.mappingNeedsReview, { exact: false })).toBeTruthy();
+  expect(screen.getAllByText(en.mappingNeedsReview, { exact: false })).toHaveLength(2);
   expect(screen.getByText(en.alternateHistoryNotice)).toBeTruthy();
   expect(screen.getByText(`${en.notInLibrary} · ${en.rating}: ${en.noRating}`)).toBeTruthy();
   expect(screen.getAllByRole("heading", { level: 3 })[0]?.textContent).toContain(
