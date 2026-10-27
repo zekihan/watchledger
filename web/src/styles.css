@@ -1097,3 +1097,19 @@ footer a {
   min-height: 44px;
   width: 100%;
 }
+
+.next-actions {
+  display: flex;
+  gap: 6px;
+}
+.next-actions .quick-watch {
+  flex: 1;
+  width: auto;
+}
+.next-actions button:not(.quick-watch) {
+  min-width: 44px;
+}
+.next-show-more {
+  margin-top: 18px;
+  text-align: center;
+}

@@ -184,3 +184,32 @@ test("dashboard quick watch previews then records only the selected source episo
     include_linked: false,
   });
 });
+
+test("large up-next lists keep the rest of the dashboard reachable and expand on request", async () => {
+  const entries = Array.from({ length: 12 }, (_, i) => ({
+    catalog_id: `tmdb:tv:${i}`,
+    episode_id: `episode:${i}`,
+    title: `Show ${i}`,
+    season: 1,
+    number: 1,
+  }));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ ...dashboard, up_next: entries }), { status: 200 }),
+      ),
+    ),
+  );
+  mount();
+  expect(await screen.findByRole("link", { name: /Show 9/ })).toBeTruthy();
+  expect(screen.queryByRole("link", { name: /Show 10/ })).toBeNull();
+  expect(screen.getByRole("heading", { name: en.recent })).toBeTruthy();
+  const toggle = screen.getByRole("button", { name: /Show more/ });
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  await userEvent.click(toggle);
+  expect(screen.getByRole("link", { name: /Show 10/ })).toBeTruthy();
+  expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  await userEvent.click(toggle);
+  expect(screen.queryByRole("link", { name: /Show 10/ })).toBeNull();
+});

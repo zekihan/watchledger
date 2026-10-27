@@ -1,5 +1,5 @@
 import { useAlternateTracking } from "./alternate-tracking";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import type { Dashboard, User } from "./api";
@@ -11,6 +11,7 @@ export function DashboardPage({ user, t }: { user: User; t: T }) {
   const client = useQueryClient();
   const tracking = useAlternateTracking(t, user.Settings.timezone);
   const dragged = useRef<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const order = useMutation({
     mutationFn: (ids: string[]) => api("/up-next/order", "PUT", { ids }),
     onSuccess: () => client.invalidateQueries({ queryKey: ["dashboard"] }),
@@ -53,14 +54,14 @@ export function DashboardPage({ user, t }: { user: User; t: T }) {
       </div>
       <div className="section-heading">
         <h2>{t("upNext")}</h2>
-        <a href="#library">{t("viewAll")} →</a>
+        <span className="muted">{d.up_next.length}</span>
       </div>
       {!!d.up_next.length && <div className="tracking-bar">{tracking.controls}</div>}
       {!d.up_next.length ? (
         <p>{t("empty")}</p>
       ) : (
         <div className="next-grid">
-          {d.up_next.map((e) => (
+          {(showAll ? d.up_next : d.up_next.slice(0, 10)).map((e, i) => (
             <div key={e.episode_id} className="next-item">
               <a
                 className="next-card"
@@ -98,22 +99,48 @@ export function DashboardPage({ user, t }: { user: User; t: T }) {
                 {e.incomplete && <small>{t("alternateIncomplete")}</small>}
                 <span>{t("details")} →</span>
               </a>
-              <button
-                className="quick-watch"
-                data-watch-action="episode"
-                disabled={tracking.pending}
-                aria-label={`${t("watched")}: ${e.title}`}
-                onClick={() =>
-                  tracking.run({
-                    catalog_id: e.catalog_id,
-                    episode_id: e.episode_id,
-                    watched: true,
-                    ...(e.view_anchor ? { view_anchor: e.view_anchor } : {}),
-                  })
-                }
-              >
-                ✓ {t("watched")}
-              </button>
+              <div className="next-actions">
+                <button
+                  className="quick-watch"
+                  data-watch-action="episode"
+                  disabled={tracking.pending}
+                  aria-label={`${t("watched")}: ${e.title}`}
+                  onClick={() =>
+                    tracking.run({
+                      catalog_id: e.catalog_id,
+                      episode_id: e.episode_id,
+                      watched: true,
+                      ...(e.view_anchor ? { view_anchor: e.view_anchor } : {}),
+                    })
+                  }
+                >
+                  ✓ {t("watched")}
+                </button>
+                {d.up_next.length > 1 && (
+                  <>
+                    <button
+                      disabled={order.isPending || i === 0}
+                      aria-label={`${t("moveUp")}: ${e.title}`}
+                      onClick={() => {
+                        const before = d.up_next[i - 1];
+                        if (before) move(e.catalog_id, before.catalog_id);
+                      }}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      disabled={order.isPending || i === d.up_next.length - 1}
+                      aria-label={`${t("moveDown")}: ${e.title}`}
+                      onClick={() => {
+                        const after = d.up_next[i + 1];
+                        if (after) move(after.catalog_id, e.catalog_id);
+                      }}
+                    >
+                      ↓
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -123,33 +150,11 @@ export function DashboardPage({ user, t }: { user: User; t: T }) {
           {order.error.message}
         </p>
       )}
-      {d.up_next.length > 1 && (
-        <div className="toolbar">
-          {d.up_next.map((item, i) => (
-            <div key={item.catalog_id} className="toolbar">
-              <span>{item.title}</span>
-              <button
-                disabled={order.isPending || i === 0}
-                aria-label={`${t("moveUp")}: ${item.title}`}
-                onClick={() => {
-                  const before = d.up_next[i - 1];
-                  if (before) move(item.catalog_id, before.catalog_id);
-                }}
-              >
-                ↑
-              </button>
-              <button
-                disabled={order.isPending || i === d.up_next.length - 1}
-                aria-label={`${t("moveDown")}: ${item.title}`}
-                onClick={() => {
-                  const after = d.up_next[i + 1];
-                  if (after) move(after.catalog_id, item.catalog_id);
-                }}
-              >
-                ↓
-              </button>
-            </div>
-          ))}
+      {d.up_next.length > 10 && (
+        <div className="next-show-more">
+          <button aria-expanded={showAll} onClick={() => setShowAll(!showAll)}>
+            {showAll ? t("showLess") : `${t("showMore")} (${d.up_next.length - 10})`}
+          </button>
         </div>
       )}
       <div className="dashboard-columns">
