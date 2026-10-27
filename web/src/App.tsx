@@ -1,4 +1,6 @@
 import { PageControls } from "./page-controls";
+import { ProviderCard } from "./provider-card";
+import type { Provider } from "./provider-card";
 import { Filmography } from "./filmography";
 import { Cards, Poster } from "./catalog-cards";
 import { DashboardPage } from "./dashboard";
@@ -887,11 +889,11 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
       api<{
         offers: {
           link?: string;
-          flatrate?: { provider_id: number; provider_name: string }[];
-          rent?: { provider_id: number; provider_name: string }[];
-          buy?: { provider_id: number; provider_name: string }[];
-          free?: { provider_id: number; provider_name: string }[];
-          ads?: { provider_id: number; provider_name: string }[];
+          flatrate?: Provider[];
+          rent?: Provider[];
+          buy?: Provider[];
+          free?: Provider[];
+          ads?: Provider[];
         } | null;
         fetched_at: string;
         stale: boolean;
@@ -1220,28 +1222,44 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
               }}
               t={t}
             />
-          ) : offers.data?.offers ? (
+          ) : offers.isLoading && kind !== "anime" ? (
+            <p className="muted" role="status">
+              {t("loading")}
+            </p>
+          ) : offers.data ? (
             <div className="offers">
-              {(["flatrate", "rent", "buy", "free", "ads"] as const).map((k) => (
-                <div key={k}>
-                  <h3>{t(k === "flatrate" ? "subscription" : k)}</h3>
-                  {offers.data?.offers?.[k]?.map((p) => (
-                    <a
-                      className="chip"
-                      key={p.provider_id}
-                      href={offers.data?.offers?.link}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {p.provider_name} ↗
-                    </a>
-                  ))}
+              {(["flatrate", "rent", "buy", "free", "ads"] as const).some(
+                (category) => (offers.data.offers?.[category]?.length ?? 0) > 0,
+              ) ? (
+                <div className="offers-groups">
+                  {(["flatrate", "rent", "buy", "free", "ads"] as const).map((category) => {
+                    const providers = offers.data.offers?.[category] ?? [];
+                    return providers.length > 0 ? (
+                      <div className="offers-group" key={category}>
+                        <h3>{t(category === "flatrate" ? "subscription" : category)}</h3>
+                        <div className="offers-providers">
+                          {providers.map((provider) => (
+                            <ProviderCard
+                              key={provider.provider_id}
+                              provider={provider}
+                              link={offers.data.offers?.link}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ) : null;
+                  })}
                 </div>
-              ))}
-              <small>
-                JustWatch · {offers.data.stale ? t("stale") : t("freshness")}:{" "}
-                {displayDate(null, offers.data.fetched_at, user.Settings, t("unknown"))}
-              </small>
+              ) : (
+                <p className="offers-empty">{t("noOffers")}</p>
+              )}
+              <div className="offers-footer">
+                <small>
+                  JustWatch · {offers.data.stale ? t("stale") : t("freshness")}:{" "}
+                  {displayDate(null, offers.data.fetched_at, user.Settings, t("unknown"))}
+                </small>
+                {offers.data.offers?.link && <small>{t("availabilityLinkNote")}</small>}
+              </div>
             </div>
           ) : (
             <p className="muted">{t("noOffers")}</p>

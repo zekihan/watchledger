@@ -73,8 +73,10 @@ test("availability can retry independently while cached detail and private ratin
   expect(screen.getByRole("heading", { name: "Cached movie", level: 1 })).toBeTruthy();
   expect(screen.getByRole<HTMLSelectElement>("combobox", { name: "Your rating" }).value).toBe("8");
   await userEvent.click(within(alert).getByRole("button", { name: en.retry }));
-  expect(await screen.findByRole("link", { name: "Fixture service ↗" })).toBeTruthy();
+  expect(await screen.findByRole("link", { name: "Fixture service" })).toBeTruthy();
   expect(screen.getByText(/JustWatch · Showing cached data/)).toBeTruthy();
+  expect(screen.getByText(en.availabilityLinkNote)).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: en.rent })).toBeNull();
   expect(screen.queryByRole("alert")).toBeNull();
   expect(offerRequests).toBe(2);
   expect(writes).toEqual([]);

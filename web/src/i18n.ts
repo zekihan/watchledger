@@ -333,6 +333,7 @@ export const en = {
   rent: "Rent",
   buy: "Buy",
   noOffers: "Availability is unknown or unavailable for this country.",
+  availabilityLinkNote: "Links open the title’s availability page, not necessarily playback.",
   freshness: "Updated",
   stale: "Showing cached data",
   refresh: "Refresh metadata",
@@ -786,6 +787,8 @@ export const tr: Record<Key, string> = {
   rent: "Kiralama",
   buy: "Satın alma",
   noOffers: "Bu ülke için erişim bilgisi bilinmiyor veya mevcut değil.",
+  availabilityLinkNote:
+    "Bağlantılar doğrudan oynatmayı değil, yapımın izleme seçenekleri sayfasını açar.",
   freshness: "Güncelleme",
   stale: "Önbellekteki veriler gösteriliyor",
   refresh: "Bilgileri yenile",

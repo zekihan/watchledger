@@ -489,16 +489,74 @@ section {
   font-size: 11px;
 }
 .offers {
-  display: flex;
-  gap: 30px;
-  flex-wrap: wrap;
   background: #131e27;
   border: 1px solid #293744;
   border-radius: 10px;
   padding: 20px;
 }
-.offers small {
+.offers-groups {
+  display: grid;
+  gap: 20px;
+}
+.offers-group h3 {
+  color: #aebfca;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+.offers-providers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.provider-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 8px 12px 8px 8px;
+  border: 1px solid #344651;
+  border-radius: 9px;
+  background: #192832;
+  font-size: 13px;
+  font-weight: 600;
+}
+a.provider-card:hover {
+  border-color: #a5cf94;
+  background: #21362f;
+}
+.provider-mark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: 7px;
+  background: #33483e;
+  color: #d2e9c4;
+  overflow: hidden;
+  font-size: 17px;
+}
+.provider-mark img {
   width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.provider-arrow {
+  color: #b9eb9c;
+}
+.offers-empty {
+  margin: 0;
+  color: #b8c6d2;
+}
+.offers-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #293744;
+  color: #9caeb9;
 }
 .tracking-bar {
   display: flex;
