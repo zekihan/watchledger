@@ -1468,3 +1468,86 @@ footer a {
   gap: 8px;
   min-width: 0;
 }
+
+.subscription-picker {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.subscription-picker legend {
+  padding: 0;
+  color: #adbdc9;
+  font-size: 12px;
+}
+.subscription-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  margin: 10px 0;
+}
+.subscription-header label {
+  flex: 1 1 220px;
+  max-width: 360px;
+}
+.subscription-header small {
+  color: #aebfca;
+  padding-bottom: 12px;
+}
+.subscription-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 3px;
+}
+.subscription-choice {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #344651;
+  border-radius: 9px;
+  background: #131e27;
+  color: #e8edf2;
+  cursor: pointer;
+}
+.subscription-choice:has(input:checked) {
+  border-color: #b9eb9c;
+  background: #20362d;
+}
+.subscription-choice:has(input:focus-visible) {
+  outline: 2px solid #b9eb9c;
+  outline-offset: 2px;
+}
+.subscription-choice input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  accent-color: #b9eb9c;
+}
+.subscription-choice .provider-mark {
+  flex-basis: 36px;
+  width: 36px;
+  height: 36px;
+}
+.subscription-choice-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.subscription-choice-text strong,
+.subscription-choice-text small {
+  display: block;
+}
+.subscription-choice-text small {
+  margin-top: 4px;
+  color: #b1c0c9;
+  line-height: 1.35;
+}
+.subscription-manual {
+  margin-top: 12px;
+}

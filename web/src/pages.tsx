@@ -1,3 +1,4 @@
+import { SubscriptionPicker } from "./subscription-picker";
 import { LocaleSelect } from "./locale-select";
 import { usePreviewRequest } from "./use-preview-request";
 import { StatusReplacement } from "./status-replacement";
@@ -228,10 +229,10 @@ export function ListsPage({ t, user }: { t: T; user: User }) {
     queryFn: async () => {
       const country = user.Settings.country ?? "TR";
       const responses = await Promise.all([
-        api<{ results: { provider_id: number; provider_name: string }[] }>(
+        api<{ results: { provider_id: number; provider_name: string; logo_path?: string }[] }>(
           `/providers/movie?country=${country}`,
         ),
-        api<{ results: { provider_id: number; provider_name: string }[] }>(
+        api<{ results: { provider_id: number; provider_name: string; logo_path?: string }[] }>(
           `/providers/tv?country=${country}`,
         ),
       ]);
@@ -700,10 +701,10 @@ export function SettingsPage({
     queryKey: ["provider-options", settings.country],
     queryFn: async () => {
       const responses = await Promise.all([
-        api<{ results: { provider_id: number; provider_name: string }[] }>(
+        api<{ results: { provider_id: number; provider_name: string; logo_path?: string }[] }>(
           `/providers/movie?country=${settings.country ?? "TR"}`,
         ),
-        api<{ results: { provider_id: number; provider_name: string }[] }>(
+        api<{ results: { provider_id: number; provider_name: string; logo_path?: string }[] }>(
           `/providers/tv?country=${settings.country ?? "TR"}`,
         ),
       ]);
@@ -832,53 +833,14 @@ export function SettingsPage({
             <option value="english">{t("englishTitle")}</option>
           </select>
         </label>
-        <label className="wide">
-          {t("subscriptions")}
-          {providers.data ? (
-            <select
-              multiple
-              size={8}
-              value={settings.services?.map(String) ?? []}
-              onChange={(e) => {
-                setSettings({
-                  ...settings,
-                  services: Array.from(e.target.selectedOptions).map((o) => Number(o.value)),
-                });
-              }}
-            >
-              {providers.data.map((p) => (
-                <option key={p.provider_id} value={p.provider_id}>
-                  {p.provider_name}
-                </option>
-              ))}
-              {settings.services
-                ?.filter((id) => !providers.data.some((p) => p.provider_id === id))
-                .map((id) => (
-                  <option key={id} value={id}>
-                    #{id} ({t("unknownValue")})
-                  </option>
-                ))}
-            </select>
-          ) : (
-            <>
-              <input
-                value={settings.services?.join(",")}
-                placeholder={t("services")}
-                onChange={(e) => {
-                  setSettings({
-                    ...settings,
-                    services: e.target.value
-                      .split(",")
-                      .filter(Boolean)
-                      .map(Number)
-                      .filter(Number.isFinite),
-                  });
-                }}
-              />
-              {providers.error && <small role="status">{providers.error.message}</small>}
-            </>
-          )}
-        </label>
+        <SubscriptionPicker
+          providers={providers.data}
+          loading={providers.isPending}
+          error={providers.error}
+          selected={settings.services ?? []}
+          onChange={(services) => setSettings({ ...settings, services })}
+          t={t}
+        />
         <label className="check-label">
           <input
             type="checkbox"
