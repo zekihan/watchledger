@@ -1,6 +1,6 @@
 # Deployment packaging
 
-Version 0.1.4 publishes Linux amd64/arm64 images at `ghcr.io/zekihan/watchledger:0.1.4` and `docker.io/zekihan/watchledger:0.1.4`, and chart `oci://ghcr.io/zekihan/charts/watchledger:0.1.4`.
+Version 0.1.5 publishes Linux amd64/arm64 images at `ghcr.io/zekihan/watchledger:0.1.5` and `docker.io/zekihan/watchledger:0.1.5`, and chart `oci://ghcr.io/zekihan/charts/watchledger:0.1.5`.
 
 The application container, `compose.yaml` and `helm/watchledger` chart are implemented. The container serves the built React frontend and Go API, performs PostgreSQL migrations, authenticates with OIDC and runs the bounded refresh queue. PostgreSQL and the identity provider are configured externally; no local-password or first-user admin fallback is provided.
 
