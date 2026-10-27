@@ -1,3 +1,4 @@
+import { LocaleSelect } from "./locale-select";
 import { usePreviewRequest } from "./use-preview-request";
 import { StatusReplacement } from "./status-replacement";
 import { InstallPanel } from "./install";
@@ -781,25 +782,22 @@ export function SettingsPage({
             <option value="tr">Türkçe</option>
           </select>
         </label>
-        <label>
-          {t("metadataLanguage")}
-          <input
-            value={settings.metadata_language}
-            onChange={(e) => {
-              setSettings({ ...settings, metadata_language: e.target.value });
-            }}
-          />
-        </label>
-        <label>
-          {t("country")}
-          <input
-            maxLength={2}
-            value={settings.country}
-            onChange={(e) => {
-              setSettings({ ...settings, country: e.target.value.toUpperCase() });
-            }}
-          />
-        </label>
+        <LocaleSelect
+          label={t("metadataLanguage")}
+          type="language"
+          value={settings.metadata_language ?? "en"}
+          language={settings.language ?? "en"}
+          onChange={(value) => setSettings({ ...settings, metadata_language: value })}
+          t={t}
+        />
+        <LocaleSelect
+          label={t("country")}
+          type="region"
+          value={settings.country ?? "TR"}
+          language={settings.language ?? "en"}
+          onChange={(value) => setSettings({ ...settings, country: value })}
+          t={t}
+        />
         <label>
           {t("timezone")}
           <input

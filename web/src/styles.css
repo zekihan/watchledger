@@ -1461,3 +1461,10 @@ footer a {
   background: #294134;
   border-color: #b9eb9c;
 }
+
+.locale-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
