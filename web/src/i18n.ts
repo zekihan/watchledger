@@ -452,6 +452,9 @@ export const en = {
   select: "Select",
   originalLanguage: "Original language",
   runtime: "Runtime (minutes)",
+  estimatedRuntime: "Estimated runtime (minutes)",
+  runtimeUnknownCount: "Entries with unknown runtime",
+  recentActiveMonths: "Showing the 12 most recent months with activity.",
   excludeWatchedHint:
     "Only confirmed complete viewing history is excluded. A Completed status alone or an incomplete episode cache is not treated as proof.",
   excludeWatched: "Exclude watched titles",
@@ -911,6 +914,9 @@ export const tr: Record<Key, string> = {
   select: "Seç",
   originalLanguage: "Orijinal dil",
   runtime: "Süre (dakika)",
+  estimatedRuntime: "Tahmini süre (dakika)",
+  runtimeUnknownCount: "Süresi bilinmeyen kayıtlar",
+  recentActiveMonths: "Etkinlik olan en son 12 ay gösteriliyor.",
   excludeWatchedHint:
     "Yalnızca doğrulanmış tam izleme geçmişi dışlanır. Tek başına Tamamlandı durumu veya eksik bölüm önbelleği kanıt sayılmaz.",
   excludeWatched: "İzlenenleri hariç tut",

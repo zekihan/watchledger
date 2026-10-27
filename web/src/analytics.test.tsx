@@ -201,3 +201,48 @@ test("busy calendar days reveal remaining episodes without hiding them from the 
   });
   expect(screen.getByRole("link", { name: /Release 4/ })).toBeTruthy();
 });
+
+test("statistics show recent activity and expand older months and genres", async () => {
+  const monthly = Array.from({ length: 14 }, (_, i) => ({
+    month: `${String(2025 + Math.floor(i / 12))}-${String((i % 12) + 1).padStart(2, "0")}`,
+    count: i + 1,
+  }));
+  const genres = Array.from({ length: 10 }, (_, i) => ({ name: `Genre ${i + 1}`, count: 10 - i }));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            movies: 1234,
+            episodes: 0,
+            estimated_minutes: 60,
+            unknown_runtime: 2,
+            monthly,
+            genres,
+          }),
+        ),
+      ),
+    ),
+  );
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <AnalyticsPage t={(key) => en[key]} language="en" />
+    </QueryClientProvider>,
+  );
+  expect(await screen.findByText("1,234")).toBeTruthy();
+  expect(screen.getByText(`${en.runtimeUnknownCount}: 2`)).toBeTruthy();
+  expect(screen.getByText(en.recentActiveMonths)).toBeTruthy();
+  expect(screen.queryByText("2025-01")).toBeNull();
+  expect(screen.queryByText("Genre 9")).toBeNull();
+  const monthsToggle = screen.getByRole("button", { name: `${en.showMore}: ${en.activity}` });
+  const genresToggle = screen.getByRole("button", { name: `${en.showMore}: ${en.genreBreakdown}` });
+  fireEvent.click(monthsToggle);
+  fireEvent.click(genresToggle);
+  expect(screen.getByText("2025-01")).toBeTruthy();
+  expect(screen.getByText("Genre 9")).toBeTruthy();
+  expect(monthsToggle.getAttribute("aria-expanded")).toBe("true");
+  expect(screen.getByRole("meter", { name: "2025-01" }).getAttribute("value")).toBe("1");
+});

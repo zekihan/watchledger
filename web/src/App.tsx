@@ -277,7 +277,7 @@ export function App() {
           ) : root === "lists" ? (
             <ListsPage t={t} user={user} />
           ) : root === "statistics" ? (
-            <AnalyticsPage t={t} />
+            <AnalyticsPage t={t} language={user.Settings.language} />
           ) : root === "calendar" ? (
             <CalendarPage t={t} user={user} />
           ) : root === "settings" ? (

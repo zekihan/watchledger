@@ -4,7 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "./api";
 import type { Dashboard, User } from "./api";
 import type { T } from "./App";
-export function AnalyticsPage({ t }: { t: T }) {
+export function AnalyticsPage({ t, language = "en" }: { t: T; language?: string }) {
+  const [allMonths, setAllMonths] = useState(false);
+  const [allGenres, setAllGenres] = useState(false);
   const q = useQuery({
     queryKey: ["statistics"],
     queryFn: () =>
@@ -38,23 +40,28 @@ export function AnalyticsPage({ t }: { t: T }) {
     );
   if (!q.data) return null;
   const d = q.data;
+  const format = (value: number) => new Intl.NumberFormat(language).format(value);
+  const months = allMonths ? d.monthly : d.monthly.slice(-12);
+  const genres = allGenres ? d.genres : d.genres.slice(0, 8);
+  const monthMax = Math.max(1, ...months.map((item) => item.count));
+  const genreMax = Math.max(1, ...genres.map((item) => item.count));
   return (
     <>
       <h1>{t("statistics")}</h1>
       <div className="metric-grid">
         <div>
           <span>{t("watchedMovies")}</span>
-          <strong>{d.movies}</strong>
+          <strong>{format(d.movies)}</strong>
         </div>
         <div>
           <span>{t("watchedEpisodes")}</span>
-          <strong>{d.episodes}</strong>
+          <strong>{format(d.episodes)}</strong>
         </div>
         <div>
-          <span>{t("runtime")}</span>
-          <strong>{d.estimated_minutes}</strong>
+          <span>{t("estimatedRuntime")}</span>
+          <strong>{format(d.estimated_minutes)}</strong>
           <small>
-            {t("unknownValue")}: {d.unknown_runtime}
+            {t("runtimeUnknownCount")}: {format(d.unknown_runtime)}
           </small>
         </div>
       </div>
@@ -80,35 +87,54 @@ export function AnalyticsPage({ t }: { t: T }) {
           {t("derivedStatsDates")}: {d.derived_date_units}
         </p>
       )}
-      <h2>{t("activity")}</h2>
-      <p className="muted">{t("unknownDates")}</p>
-      {!d.monthly.length && <p>{t("empty")}</p>}
-      {d.monthly.map((m) => (
-        <div className="bar-row" key={m.month}>
-          <span>{m.month}</span>
-          <meter
-            aria-label={m.month}
-            min="0"
-            max={Math.max(...d.monthly.map((x) => x.count), 1)}
-            value={m.count}
-          />
-          <strong>{m.count}</strong>
-        </div>
-      ))}
-      <h2>{t("genreBreakdown")}</h2>
-      {!d.genres.length && <p>{t("empty")}</p>}
-      {d.genres.map((g) => (
-        <div className="bar-row" key={g.name}>
-          <span>{g.name}</span>
-          <meter
-            aria-label={g.name}
-            min="0"
-            max={Math.max(...d.genres.map((x) => x.count), 1)}
-            value={g.count}
-          />
-          <strong>{g.count}</strong>
-        </div>
-      ))}
+      <div className="statistics-charts">
+        <section className="statistics-chart">
+          <h2>{t("activity")}</h2>
+          <p className="muted">{t("unknownDates")}</p>
+          {d.monthly.length > 12 && !allMonths && (
+            <p className="muted">{t("recentActiveMonths")}</p>
+          )}
+          {!months.length && <p>{t("empty")}</p>}
+          {months.map((m) => (
+            <div className="bar-row" key={m.month}>
+              <span>{m.month}</span>
+              <meter aria-label={m.month} min="0" max={monthMax} value={m.count} />
+              <strong>{format(m.count)}</strong>
+            </div>
+          ))}
+          {d.monthly.length > 12 && (
+            <button
+              className="statistics-toggle"
+              aria-label={`${t(allMonths ? "showLess" : "showMore")}: ${t("activity")}`}
+              aria-expanded={allMonths}
+              onClick={() => setAllMonths(!allMonths)}
+            >
+              {allMonths ? t("showLess") : `${t("showMore")} (${format(d.monthly.length - 12)})`}
+            </button>
+          )}
+        </section>
+        <section className="statistics-chart">
+          <h2>{t("genreBreakdown")}</h2>
+          {!genres.length && <p>{t("empty")}</p>}
+          {genres.map((g) => (
+            <div className="bar-row" key={g.name}>
+              <span>{g.name}</span>
+              <meter aria-label={g.name} min="0" max={genreMax} value={g.count} />
+              <strong>{format(g.count)}</strong>
+            </div>
+          ))}
+          {d.genres.length > 8 && (
+            <button
+              className="statistics-toggle"
+              aria-label={`${t(allGenres ? "showLess" : "showMore")}: ${t("genreBreakdown")}`}
+              aria-expanded={allGenres}
+              onClick={() => setAllGenres(!allGenres)}
+            >
+              {allGenres ? t("showLess") : `${t("showMore")} (${format(d.genres.length - 8)})`}
+            </button>
+          )}
+        </section>
+      </div>
     </>
   );
 }
