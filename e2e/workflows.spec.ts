@@ -790,12 +790,12 @@ for (const scenario of cases) {
     ).toBeVisible();
     await expect(page.getByText("Synthetic movie synopsis", { exact: true })).toBeVisible();
     for (const name of ["Synthetic subscription", "Synthetic rental", "Synthetic purchase"])
-      await expect(page.getByRole("link", { name: `${name} ↗`, exact: true })).toHaveAttribute(
+      await expect(page.getByRole("link", { name, exact: true })).toHaveAttribute(
         "href",
         "https://example.test/synthetic-offers",
       );
     await expect(
-      page.getByRole("link", { name: "▷ Synthetic trailer", exact: true }),
+      page.getByRole("link", { name: "Synthetic trailer", exact: true }),
     ).toHaveAttribute("href", "https://www.youtube.com/watch?v=synthetic-video");
     await expect(page.locator("iframe,video")).toHaveCount(0);
     await expect(page.getByRole("link", { name: /Synthetic related film/ })).toBeVisible();

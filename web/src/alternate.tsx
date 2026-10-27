@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useAlternateTracking } from "./alternate-tracking";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
@@ -34,7 +35,18 @@ interface Alternate {
     }[];
   }[];
 }
-export function AlternateView({ id, t, timezone }: { id: string; t: T; timezone?: string }) {
+export function AlternateView({
+  id,
+  t,
+  timezone,
+  initiallyOpen = false,
+}: {
+  id: string;
+  t: T;
+  timezone?: string;
+  initiallyOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(initiallyOpen);
   const tracking = useAlternateTracking(t, timezone);
   const client = useQueryClient();
   const structure = useMutation({
@@ -51,7 +63,11 @@ export function AlternateView({ id, t, timezone }: { id: string; t: T; timezone?
     queryFn: () => api<Alternate>(`/library/${encodeURIComponent(id)}/alternate`),
   });
   return (
-    <details className="panel alternate-disclosure">
+    <details
+      className="panel alternate-disclosure"
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
       <summary>
         <span>{t("alternateViews")}</span>
         {q.data?.incomplete && <small>{t("mappingNeedsReview")}</small>}

@@ -96,3 +96,22 @@ test("alternate view explains derived history and never manufactures an aggregat
   expect(screen.getAllByRole("button", { name: en.watched }).length).toBeGreaterThan(0);
   expect(screen.getByText(/Synthetic show · 2:1 · Derived/)).toBeTruthy();
 });
+
+test("dedicated linked-view pages open the controls by default", () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ structure: "native", incomplete: false, titles: [] })),
+      ),
+    ),
+  );
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <AlternateView id="native" t={(k) => en[k]} initiallyOpen />
+    </QueryClientProvider>,
+  );
+  expect(screen.getByText(en.alternateViews).closest("details")?.open).toBe(true);
+});

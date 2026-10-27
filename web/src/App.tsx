@@ -261,6 +261,7 @@ export function App() {
           ) : root === "views" ? (
             <AlternateView
               key={page}
+              initiallyOpen
               id={decodeRoute(page.slice(6)) ?? ""}
               t={t}
               timezone={user.Settings.timezone}
