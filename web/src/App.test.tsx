@@ -365,3 +365,38 @@ test("failed logout stays visible rather than silently reporting success", async
   expect((await screen.findByRole("alert")).textContent).toContain("Logout unavailable");
   expect(screen.getByRole("heading", { name: "Settings" })).toBeTruthy();
 });
+
+test("title card offers YouTube trailers on request without embedding playback", async () => {
+  location.hash = "detail/movie/1";
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string) => {
+      const data =
+        path === "/api/me"
+          ? { ID: "fixture", Name: "Fixture", Admin: false, Settings: { language: "en" } }
+          : path.startsWith("/api/catalog/movie/1?")
+            ? {
+                metadata: {
+                  id: 1,
+                  title: "Fixture film",
+                  videos: {
+                    results: [
+                      { key: "synthetic-key", site: "YouTube", name: "Official trailer" },
+                      { key: "other", site: "Other", name: "Unsupported video" },
+                    ],
+                  },
+                },
+                fetched_at: "2026-01-01T00:00:00Z",
+                stale: false,
+              }
+            : [];
+      return Promise.resolve(new Response(JSON.stringify(data), { status: 200 }));
+    }),
+  );
+  const { container } = mount();
+  const link = await screen.findByRole("link", { name: "Official trailer" });
+  expect(link.getAttribute("href")).toBe("https://www.youtube.com/watch?v=synthetic-key");
+  expect(link.closest(".detail-hero")).toBeTruthy();
+  expect(screen.queryByText("Unsupported video")).toBeNull();
+  expect(container.querySelector("iframe")).toBeNull();
+});

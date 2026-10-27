@@ -1332,3 +1332,35 @@ footer a {
   font-size: 12px;
   font-weight: 400;
 }
+
+.hero-trailers {
+  margin: 18px 0;
+}
+.hero-trailers h2 {
+  margin: 0 0 8px;
+  color: #b8c6d2;
+  font-size: 12px;
+  font-weight: 600;
+}
+.hero-trailer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.hero-trailer-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid #506550;
+  border-radius: 8px;
+  background: #192a25;
+  color: #d8ebce;
+  font-size: 13px;
+  font-weight: 600;
+}
+.hero-trailer-links a:hover {
+  background: #294134;
+  border-color: #b9eb9c;
+}

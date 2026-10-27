@@ -1181,6 +1181,26 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
               )}
             </div>
           )}
+          {!!m.videos?.results.some((video) => video.site === "YouTube") && (
+            <div className="hero-trailers" aria-label={t("trailers")}>
+              <h2>{t("trailers")}</h2>
+              <div className="hero-trailer-links">
+                {m.videos.results
+                  .filter((video) => video.site === "YouTube")
+                  .map((video) => (
+                    <a
+                      key={video.key}
+                      href={`https://www.youtube.com/watch?v=${encodeURIComponent(video.key)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <span aria-hidden="true">▷</span> {video.name}{" "}
+                      <span aria-hidden="true">↗</span>
+                    </a>
+                  ))}
+              </div>
+            </div>
+          )}
           <small>
             {q.data.stale ? t("stale") : t("freshness")}:{" "}
             {displayDate(null, q.data.fetched_at, user.Settings, t("unknown"), true)}
@@ -1562,24 +1582,6 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
               </a>
             ))}
           </div>
-        </section>
-      )}
-      {m.videos && (
-        <section>
-          <h2>{t("trailers")}</h2>
-          {m.videos.results
-            .filter((v) => v.site === "YouTube")
-            .map((v) => (
-              <a
-                className="chip"
-                key={v.key}
-                target="_blank"
-                rel="noreferrer"
-                href={`https://www.youtube.com/watch?v=${encodeURIComponent(v.key)}`}
-              >
-                ▷ {v.name}
-              </a>
-            ))}
         </section>
       )}
       {m.recommendations && (
