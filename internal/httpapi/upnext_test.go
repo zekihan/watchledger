@@ -57,7 +57,7 @@ func TestUpNextUsesEffectiveProgressAndPrivateStructureOrder(t *testing.T) {
 		t.Fatal(e)
 	}
 	id := "fixture:" + suffix
-	if _, e = p.Exec(ctx, `INSERT INTO catalog(id,source,source_id,kind,title,metadata) VALUES($1,'fixture',$2,'tv','Synthetic','{"":{"status":"Ended","number_of_episodes":2}}')`, id, suffix); e != nil {
+	if _, e = p.Exec(ctx, `INSERT INTO catalog(id,source,source_id,kind,title,metadata) VALUES($1,'fixture',$2,'tv','Synthetic','{"":{"status":"Ended","number_of_episodes":2,"poster_path":"/native.jpg"}}')`, id, suffix); e != nil {
 		t.Fatal(e)
 	}
 	for n := 1; n <= 2; n++ {
@@ -87,7 +87,7 @@ func TestUpNextUsesEffectiveProgressAndPrivateStructureOrder(t *testing.T) {
 	exec(`UPDATE users SET settings='{"anime_view":"show"}' WHERE id=$1`, uid)
 	exec("INSERT INTO library(user_id,catalog_id,base) VALUES($1,$2,'watching')", uid, id)
 	target := id + ":target"
-	exec("INSERT INTO catalog(id,source,source_id,kind,title) VALUES($1,'tmdb',$1,'tv','Synthetic show')", target)
+	exec(`INSERT INTO catalog(id,source,source_id,kind,title,metadata) VALUES($1,'tmdb',$1,'tv','Synthetic show','{"en":{"poster_path":"/show.jpg"}}')`, target)
 	edges := []mapping.Edge{}
 	for n := 1; n <= 2; n++ {
 		eid := target + fmt.Sprint(n)
@@ -125,6 +125,9 @@ func TestUpNextUsesEffectiveProgressAndPrivateStructureOrder(t *testing.T) {
 		}
 	}
 	check(target, target+"2", id, false)
+	if got := cards()[0].PosterPath; got != "/show.jpg" {
+		t.Fatalf("projected card poster = %q", got)
+	}
 	// Ordering a displayed aggregate is valid without creating private membership.
 	if w := request("PUT", "/api/up-next/order", fmt.Sprintf(`{"ids":[%q]}`, target), true); w.Code != 204 {
 		t.Fatal(w.Code, w.Body.String())
@@ -145,6 +148,9 @@ func TestUpNextUsesEffectiveProgressAndPrivateStructureOrder(t *testing.T) {
 	}
 	exec("UPDATE library SET anime_view='native' WHERE user_id=$1", uid)
 	check(id, id+"2", "", false)
+	if got := cards()[0].PosterPath; got != "/native.jpg" {
+		t.Fatalf("native card poster = %q", got)
+	}
 	exec("UPDATE library SET anime_view=NULL WHERE user_id=$1", uid)
 	// Unknown/unaired/special counterparts never become a playable Up next card.
 	for _, update := range []string{"air_date=NULL", "air_date='2999-01-01'", "air_date='2020-01-01',kind='special'"} {

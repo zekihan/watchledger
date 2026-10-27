@@ -139,6 +139,7 @@ export interface Dashboard {
   up_next: {
     view_anchor?: string;
     incomplete?: boolean;
+    poster_path?: string;
     catalog_id: string;
     title: string;
     episode_id: string;

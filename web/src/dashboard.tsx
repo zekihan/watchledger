@@ -1,3 +1,4 @@
+import { Poster } from "./catalog-cards";
 import { useAlternateTracking } from "./alternate-tracking";
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -90,14 +91,17 @@ export function DashboardPage({ user, t }: { user: User; t: T }) {
                     : episodeLink(e.catalog_id, e.season, e.episode_id)
                 }
               >
-                <span className="play">▷</span>
-
-                <p>
-                  S{e.season} · E{e.number}
-                </p>
-                <h2>{e.title}</h2>
-                {e.incomplete && <small>{t("alternateIncomplete")}</small>}
-                <span>{t("details")} →</span>
+                <div className="next-poster" aria-hidden="true">
+                  <Poster title="" path={e.poster_path} />
+                </div>
+                <div className="next-content">
+                  <p>
+                    S{e.season} · E{e.number}
+                  </p>
+                  <h2>{e.title}</h2>
+                  {e.incomplete && <small>{t("alternateIncomplete")}</small>}
+                  <span>{t("details")} →</span>
+                </div>
               </a>
               <div className="next-actions">
                 <button

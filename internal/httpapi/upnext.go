@@ -17,6 +17,7 @@ type queryReader interface {
 type nextCard struct {
 	CatalogID  string `json:"catalog_id"`
 	Title      string `json:"title"`
+	PosterPath string `json:"poster_path,omitempty"`
 	EpisodeID  string `json:"episode_id"`
 	Season     int    `json:"season"`
 	Number     int    `json:"number"`
@@ -30,7 +31,7 @@ func buildUpNext(ctx context.Context, db queryReader, uid, zone string) ([]nextC
 	if err != nil {
 		return nil, err
 	}
-	rows, err := db.Query(ctx, `SELECT l.catalog_id,catalog_display_title(c.kind,c.metadata,c.title,u.settings),c.kind,l.position,coalesce(l.anime_view,u.settings->>'anime_view','native'),e.id,e.season,e.number FROM library l JOIN users u ON u.id=l.user_id JOIN catalog c ON c.id=l.catalog_id JOIN episodes e ON e.catalog_id=l.catalog_id WHERE l.user_id=$1 AND l.base='watching' AND NOT(c.source='anidb' AND coalesce(catalog_metadata_variant(c.metadata,u.settings)->>'anime_type','')='Movie') AND e.kind='regular' AND NOT e.retired AND (e.air_date<=(now() AT TIME ZONE $2)::date OR e.air_time<=now()) ORDER BY l.position,c.id,e.season,e.number,e.id`, uid, zone)
+	rows, err := db.Query(ctx, `SELECT l.catalog_id,catalog_display_title(c.kind,c.metadata,c.title,u.settings),coalesce(catalog_metadata_variant(c.metadata,u.settings)->>'poster_path',''),c.kind,l.position,coalesce(l.anime_view,u.settings->>'anime_view','native'),e.id,e.season,e.number FROM library l JOIN users u ON u.id=l.user_id JOIN catalog c ON c.id=l.catalog_id JOIN episodes e ON e.catalog_id=l.catalog_id WHERE l.user_id=$1 AND l.base='watching' AND NOT(c.source='anidb' AND coalesce(catalog_metadata_variant(c.metadata,u.settings)->>'anime_type','')='Movie') AND e.kind='regular' AND NOT e.retired AND (e.air_date<=(now() AT TIME ZONE $2)::date OR e.air_time<=now()) ORDER BY l.position,c.id,e.season,e.number,e.id`, uid, zone)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +44,7 @@ func buildUpNext(ctx context.Context, db queryReader, uid, zone string) ([]nextC
 	targetIDs := []string{}
 	for rows.Next() {
 		var c candidate
-		if err = rows.Scan(&c.Card.CatalogID, &c.Card.Title, &c.Kind, &c.Card.Position, &c.Structure, &c.Card.EpisodeID, &c.Card.Season, &c.Card.Number); err != nil {
+		if err = rows.Scan(&c.Card.CatalogID, &c.Card.Title, &c.Card.PosterPath, &c.Kind, &c.Card.Position, &c.Structure, &c.Card.EpisodeID, &c.Card.Season, &c.Card.Number); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -70,13 +71,13 @@ func buildUpNext(ctx context.Context, db queryReader, uid, zone string) ([]nextC
 		AirTime                   *time.Time
 	}
 	targets := map[string]target{}
-	rows, err = db.Query(ctx, `SELECT e.id,e.catalog_id,catalog_display_title(c.kind,c.metadata,c.title,u.settings),c.kind,e.source,e.kind,e.season,e.number,e.retired,coalesce(e.air_date::text,''),e.air_time,EXISTS(SELECT 1 FROM library l WHERE l.user_id=$1 AND l.catalog_id=c.id) FROM episodes e JOIN catalog c ON c.id=e.catalog_id JOIN users u ON u.id=$1 WHERE e.id=ANY($2::text[])`, uid, targetIDs)
+	rows, err = db.Query(ctx, `SELECT e.id,e.catalog_id,catalog_display_title(c.kind,c.metadata,c.title,u.settings),coalesce(catalog_metadata_variant(c.metadata,u.settings)->>'poster_path',''),c.kind,e.source,e.kind,e.season,e.number,e.retired,coalesce(e.air_date::text,''),e.air_time,EXISTS(SELECT 1 FROM library l WHERE l.user_id=$1 AND l.catalog_id=c.id) FROM episodes e JOIN catalog c ON c.id=e.catalog_id JOIN users u ON u.id=$1 WHERE e.id=ANY($2::text[])`, uid, targetIDs)
 	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
 		var t target
-		if err = rows.Scan(&t.Card.EpisodeID, &t.Card.CatalogID, &t.Card.Title, &t.Kind, &t.Source, &t.EpisodeKind, &t.Card.Season, &t.Card.Number, &t.Retired, &t.AirDate, &t.AirTime, &t.Owned); err != nil {
+		if err = rows.Scan(&t.Card.EpisodeID, &t.Card.CatalogID, &t.Card.Title, &t.Card.PosterPath, &t.Kind, &t.Source, &t.EpisodeKind, &t.Card.Season, &t.Card.Number, &t.Retired, &t.AirDate, &t.AirTime, &t.Owned); err != nil {
 			rows.Close()
 			return nil, err
 		}

@@ -17,6 +17,7 @@ const dashboard = {
       catalog_id: "anidb:anime:1",
       episode_id: "n1",
       title: "Native",
+      poster_path: "/native.jpg",
       season: 1,
       number: 1,
       view_anchor: "anidb:anime:1",
@@ -212,4 +213,22 @@ test("large up-next lists keep the rest of the dashboard reachable and expand on
   expect(toggle.getAttribute("aria-expanded")).toBe("true");
   await userEvent.click(toggle);
   expect(screen.queryByRole("link", { name: /Show 10/ })).toBeNull();
+});
+
+test("up-next cards display available posters with a safe fallback", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() => Promise.resolve(new Response(JSON.stringify(dashboard), { status: 200 }))),
+  );
+  mount();
+  const first = await screen.findByRole("link", { name: /Native/ });
+  const img = first.querySelector("img");
+  expect(img?.getAttribute("src")).toBe("https://image.tmdb.org/t/p/w342/native.jpg");
+  if (!img) throw new Error("Missing poster");
+  fireEvent.error(img);
+  expect(first.querySelector("img")).toBeNull();
+  expect(first.querySelector(".poster-placeholder")).toBeTruthy();
+  expect(
+    screen.getByRole("link", { name: /Second/ }).querySelector(".poster-placeholder"),
+  ).toBeTruthy();
 });
