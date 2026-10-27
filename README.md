@@ -4,7 +4,7 @@ A self-hosted movie, TV, and anime tracker with private user libraries, episode 
 
 ## Project status
 
-**Current release: 0.1.2. Early release; product acceptance remains incomplete.**
+**Current release: 0.1.3. Early release; product acceptance remains incomplete.**
 
 The first release is defined in the [application specification](docs/specification.md). Track implementation in the [feature checklist](docs/features.md); partial or unverified items remain unchecked.
 
@@ -12,11 +12,11 @@ Implemented workflows include private PostgreSQL-backed tracking, OIDC admission
 
 Automated backend, database, race and frontend behavioral tests support these increments; they are not a production-readiness claim. Actual private import coverage, additional native-source coverage decisions, configured-provider compatibility and real-browser/deployment acceptance remain open. Work requiring your involvement is collected in [TODO.md](TODO.md), with detailed [implementation evidence](docs/implementation-notes.md) and a [deployment guide](docs/deployment.md).
 
-## Install version 0.1.2
+## Install version 0.1.3
 
-Container images: `ghcr.io/zekihan/watchledger:0.1.2` and `docker.io/zekihan/watchledger:0.1.2` (Linux amd64/arm64). Helm chart: `oci://ghcr.io/zekihan/charts/watchledger`, version `0.1.2`.
+Container images: `ghcr.io/zekihan/watchledger:0.1.3` and `docker.io/zekihan/watchledger:0.1.3` (Linux amd64/arm64). Helm chart: `oci://ghcr.io/zekihan/charts/watchledger`, version `0.1.3`.
 
-Use the [deployment guide](docs/deployment.md) for external PostgreSQL, OIDC and secret configuration. Read the [release notes](docs/releases/0.1.2.md) for known limitations and [release process](docs/releasing.md) for publishing and verification.
+Use the [deployment guide](docs/deployment.md) for external PostgreSQL, OIDC and secret configuration. Read the [release notes](docs/releases/0.1.3.md) for known limitations and [release process](docs/releasing.md) for publishing and verification.
 
 ## Local development
 

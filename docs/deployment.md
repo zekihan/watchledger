@@ -1,10 +1,10 @@
 # Deployment and recovery
 
-Version 0.1.2 is an early release with remaining product acceptance work. Do not treat packaging or a healthy process as acceptance of all product workflows. No user infrastructure is modified by development checks.
+Version 0.1.3 is an early release with remaining product acceptance work. Do not treat packaging or a healthy process as acceptance of all product workflows. No user infrastructure is modified by development checks.
 
 ## Configuration
 
-Pull the released image with `docker pull ghcr.io/zekihan/watchledger:0.1.2`, or build locally with `docker build -t ghcr.io/zekihan/watchledger:0.1.2 .`. Both frontend and API run in one container. PostgreSQL 17+ is external. Export the variables documented in `.env.example`; Compose loads an explicitly provided environment file with `docker compose --env-file /private/path/watchledger.env -f deploy/compose.yaml pull` followed by the same command ending in `up -d --no-build`.
+Pull the released image with `docker pull ghcr.io/zekihan/watchledger:0.1.3`, or build locally with `docker build -t ghcr.io/zekihan/watchledger:0.1.3 .`. Both frontend and API run in one container. PostgreSQL 17+ is external. Export the variables documented in `.env.example`; Compose loads an explicitly provided environment file with `docker compose --env-file /private/path/watchledger.env -f deploy/compose.yaml pull` followed by the same command ending in `up -d --no-build`.
 
 The image runs as UID/GID 65532, without root capabilities. Put TLS at your existing reverse proxy and set `PUBLIC_URL` to the exact external origin. Cookie security and write-origin checks use it. Do not place provider credentials in frontend variables or build arguments.
 
@@ -13,7 +13,7 @@ For Helm, supply `existingSecret`, `publicURL`, and `oidc.issuer`. The separatel
 Install the published chart after creating your private configuration file and Secret:
 
 ```sh
-helm upgrade --install watchledger oci://ghcr.io/zekihan/charts/watchledger --version 0.1.2 --values /private/path/watchledger-values.yaml
+helm upgrade --install watchledger oci://ghcr.io/zekihan/charts/watchledger --version 0.1.3 --values /private/path/watchledger-values.yaml
 ```
 
 Example template validation with synthetic configuration:
