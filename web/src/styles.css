@@ -1146,6 +1146,7 @@ footer a {
   margin: 1rem 0;
 }
 .season-summary > .poster,
+.season-summary > .poster-placeholder,
 .season-summary > img {
   max-width: 7rem;
   flex-shrink: 0;
@@ -1200,4 +1201,121 @@ footer a {
   color: #c7e6b6;
   font-size: 12px;
   margin-top: 8px;
+}
+
+.detail-tracking {
+  align-items: end;
+  gap: 16px 28px;
+  border: 1px solid #293744;
+}
+.detail-date,
+.detail-show-actions,
+.season-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.detail-date label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.detail-control-label,
+.detail-date label {
+  color: #aebfca;
+  font-size: 12px;
+}
+.detail-action-buttons,
+.season-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.season-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px 24px;
+  margin-bottom: 18px;
+}
+.season-heading h2 {
+  margin: 0;
+}
+.season-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px 20px;
+}
+.season-summary {
+  align-items: flex-start;
+  background: #131e27;
+  border: 1px solid #293744;
+  border-radius: 10px;
+  padding: 18px;
+  margin: 0 0 14px;
+}
+.season-summary > img,
+.season-summary > .poster-placeholder {
+  width: 7rem;
+  border-radius: 6px;
+}
+.season-summary h3 {
+  margin: 0 0 8px;
+}
+.season-summary time {
+  color: #aebfca;
+  font-size: 12px;
+}
+.season-summary p {
+  max-width: 75ch;
+  color: #c6d1d9;
+  line-height: 1.6;
+  margin: 10px 0 0;
+}
+#episode-details .episode {
+  align-items: flex-start;
+  padding: 18px 12px;
+}
+#episode-details .episode h3 {
+  margin: 0 0 6px;
+}
+#episode-details .episode p {
+  line-height: 1.5;
+  margin: 6px 0 0;
+}
+#episode-details .episode-number {
+  min-width: 2.25rem;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 680px) {
+  .detail-show-actions,
+  .season-controls {
+    width: 100%;
+  }
+  .detail-action-buttons button,
+  .season-actions button {
+    flex: 1 1 180px;
+  }
+  .season-summary {
+    gap: 12px;
+    padding: 14px;
+  }
+  .season-summary > img,
+  .season-summary > .poster-placeholder {
+    max-width: 5rem;
+  }
+  #episode-details .episode {
+    flex-wrap: wrap;
+  }
+  #episode-details .episode > div {
+    min-width: 0;
+    flex: 1 1 calc(100% - 3rem);
+  }
+  #episode-details .episode > button {
+    margin-left: 3rem;
+    max-width: none;
+    font-size: 12px;
+  }
 }

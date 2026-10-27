@@ -75,6 +75,8 @@ export const en = {
   missingEpisode:
     "This source episode is not in the loaded season. Its recorded history has not been moved or deleted. Return to the series to review it.",
   seasonDetails: "Season details",
+  showActions: "Show actions",
+  seasonActions: "Season actions",
   episodeDetails: "Episode details",
   sourceIdentity: "Source identity",
   skipContent: "Skip to content",
@@ -536,6 +538,8 @@ export const tr: Record<Key, string> = {
   missingEpisode:
     "Bu kaynak bölümü yüklenen sezonda yok. Kayıtlı geçmişi taşınmadı veya silinmedi. İncelemek için diziye dönün.",
   seasonDetails: "Sezon ayrıntıları",
+  showActions: "Dizi işlemleri",
+  seasonActions: "Sezon işlemleri",
   episodeDetails: "Bölüm ayrıntıları",
   sourceIdentity: "Kaynak kimliği",
   skipContent: "İçeriğe geç",

@@ -1267,33 +1267,35 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
         </section>
       )}
       {entry && (
-        <div className="tracking-bar">
-          <label>
-            {t("watchDate")}{" "}
-            <select
-              value={dateMode}
-              disabled={track.isPending}
-              onChange={(e) => {
-                setDateMode(e.target.value);
-              }}
-            >
-              <option value="today">{t("today")}</option>
-              <option value="chosen">{t("chosen")}</option>
-              <option value="unknown">{t("unknown")}</option>
-            </select>
-          </label>
-          {dateMode === "chosen" && (
-            <input
-              aria-label={t("watchDate")}
-              type="date"
-              disabled={track.isPending}
-              required
-              value={day}
-              onChange={(e) => {
-                setDay(e.target.value);
-              }}
-            />
-          )}
+        <div className="tracking-bar detail-tracking">
+          <div className="detail-date">
+            <label>
+              {t("watchDate")}{" "}
+              <select
+                value={dateMode}
+                disabled={track.isPending}
+                onChange={(e) => {
+                  setDateMode(e.target.value);
+                }}
+              >
+                <option value="today">{t("today")}</option>
+                <option value="chosen">{t("chosen")}</option>
+                <option value="unknown">{t("unknown")}</option>
+              </select>
+            </label>
+            {dateMode === "chosen" && (
+              <input
+                aria-label={t("watchDate")}
+                type="date"
+                disabled={track.isPending}
+                required
+                value={day}
+                onChange={(e) => {
+                  setDay(e.target.value);
+                }}
+              />
+            )}
+          </div>
           {kind === "movie" && (
             <button
               data-watch-action="movie"
@@ -1308,70 +1310,78 @@ function DetailPage({ parts, user, t }: { parts: string[]; user: User; t: T }) {
               {t(history.data?.length || effective.data?.[key]?.derived ? "unwatched" : "watched")}
             </button>
           )}
-        </div>
-      )}
-      {entry && kind === "tv" && (
-        <div className="toolbar">
-          <button
-            disabled={bulk.isPending || track.isPending}
-            onClick={() => {
-              trackingFocus.capture();
-              bulk.mutate(true);
-            }}
-          >
-            {t("wholeShow")}
-          </button>
-          <button
-            disabled={bulk.isPending || track.isPending}
-            onClick={() => {
-              trackingFocus.capture();
-              bulk.mutate(false);
-            }}
-          >
-            {t("unwatchShow")}
-          </button>
-          {bulk.error && <p role="alert">{bulk.error.message}</p>}
+          {kind === "tv" && (
+            <div className="detail-show-actions" role="group" aria-label={t("showActions")}>
+              <span className="detail-control-label">{t("showActions")}</span>
+              <div className="detail-action-buttons">
+                <button
+                  disabled={bulk.isPending || track.isPending}
+                  onClick={() => {
+                    trackingFocus.capture();
+                    bulk.mutate(true);
+                  }}
+                >
+                  {t("wholeShow")}
+                </button>
+                <button
+                  disabled={bulk.isPending || track.isPending}
+                  onClick={() => {
+                    trackingFocus.capture();
+                    bulk.mutate(false);
+                  }}
+                >
+                  {t("unwatchShow")}
+                </button>
+              </div>
+              {bulk.error && <p role="alert">{bulk.error.message}</p>}
+            </div>
+          )}
         </div>
       )}
       {(kind === "tv" || kind === "anime") && (
         <section id="episode-details" tabIndex={-1}>
-          <div className="section-heading">
+          <div className="season-heading">
             <h2>{t(selectedEpisode ? "episodeDetails" : "seasonDetails")}</h2>
-            <select
-              aria-label={t("seasons")}
-              value={season}
-              onChange={(e) => {
-                location.hash = `detail/${kind}/${id}/season/${e.target.value}`;
-              }}
-            >
-              {m.seasons?.map((s) => (
-                <option key={s.season_number} value={s.season_number}>
-                  {s.name} ({s.episode_count})
-                </option>
-              ))}
-            </select>
-            {entry && (
-              <button
-                disabled={track.isPending}
-                onClick={() => {
-                  trackingFocus.capture();
-                  track.mutate({ season, watched: false });
-                }}
-              >
-                {t("unwatchSeason")}
-              </button>
-            )}
-            {entry && (
-              <button
-                disabled={track.isPending}
-                onClick={() => {
-                  trackingFocus.capture();
-                  track.mutate({ season, watched: true });
-                }}
-              >
-                {t("wholeSeason")}
-              </button>
-            )}
+            <div className="season-controls">
+              <label>
+                <span className="detail-control-label">{t("seasons")}</span>
+                <select
+                  aria-label={t("seasons")}
+                  value={season}
+                  onChange={(e) => {
+                    location.hash = `detail/${kind}/${id}/season/${e.target.value}`;
+                  }}
+                >
+                  {m.seasons?.map((s) => (
+                    <option key={s.season_number} value={s.season_number}>
+                      {s.name} ({s.episode_count})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {entry && (
+                <div className="season-actions" role="group" aria-label={t("seasonActions")}>
+                  <button
+                    disabled={track.isPending}
+                    onClick={() => {
+                      trackingFocus.capture();
+                      track.mutate({ season, watched: false });
+                    }}
+                  >
+                    {t("unwatchSeason")}
+                  </button>
+                  <button
+                    disabled={track.isPending}
+                    onClick={() => {
+                      trackingFocus.capture();
+                      track.mutate({ season, watched: true });
+                    }}
+                  >
+                    {t("wholeSeason")}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
           {selectedEpisode && (
             <a className="button" href={`#detail/${kind}/${id}/season/${String(season)}`}>
