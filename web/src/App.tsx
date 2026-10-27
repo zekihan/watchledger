@@ -355,70 +355,82 @@ function LibraryPage({ t, user }: { t: T; user: User }) {
           {t(table ? "grid" : "table")}
         </button>
       </div>
-      <div className="toolbar">
-        <input
-          aria-label={t("search")}
-          placeholder={t("title")}
-          value={term}
-          onChange={(e) => {
-            setTerm(e.target.value);
-            setPage(0);
-          }}
-        />
-        <select
-          aria-label={t("status")}
-          value={filter}
-          onChange={(e) => {
-            setFilter(e.target.value);
-            setPage(0);
-          }}
-        >
-          <option value="all">{t("all")}</option>
-          {bases.map((b) => (
-            <option key={b} value={b}>
-              {t(b)}
-            </option>
-          ))}
-          {[
-            ...new Map(
-              (q.data ?? [])
-                .filter((item) => item.status_id && item.status_name)
-                .map((item) => [item.status_id, item.status_name]),
-            ).entries(),
-          ].map(([id, name]) => (
-            <option key={id} value={`custom:${id ?? ""}`}>
-              {name}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label={t("kind")}
-          value={contentType}
-          onChange={(e) => {
-            setContentType(e.target.value);
-            setPage(0);
-          }}
-        >
-          {["all", "movie", "tv", "anime"].map((k) => (
-            <option key={k} value={k}>
-              {t(k as Key)}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label={t("sort")}
-          value={order}
-          onChange={(e) => {
-            setOrder(e.target.value);
-            setPage(0);
-          }}
-        >
-          {["title", "rating", "added"].map((k) => (
-            <option key={k} value={k}>
-              {t(k as Key)}
-            </option>
-          ))}
-        </select>
+      <div className="toolbar filter-toolbar">
+        <label>
+          {t("title")}
+          <input
+            aria-label={t("search")}
+            placeholder={t("title")}
+            value={term}
+            onChange={(e) => {
+              setTerm(e.target.value);
+              setPage(0);
+            }}
+          />
+        </label>
+        <label>
+          {t("status")}
+          <select
+            aria-label={t("status")}
+            value={filter}
+            onChange={(e) => {
+              setFilter(e.target.value);
+              setPage(0);
+            }}
+          >
+            <option value="all">{t("all")}</option>
+            {bases.map((b) => (
+              <option key={b} value={b}>
+                {t(b)}
+              </option>
+            ))}
+            {[
+              ...new Map(
+                (q.data ?? [])
+                  .filter((item) => item.status_id && item.status_name)
+                  .map((item) => [item.status_id, item.status_name]),
+              ).entries(),
+            ].map(([id, name]) => (
+              <option key={id} value={`custom:${id ?? ""}`}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {t("kind")}
+          <select
+            aria-label={t("kind")}
+            value={contentType}
+            onChange={(e) => {
+              setContentType(e.target.value);
+              setPage(0);
+            }}
+          >
+            {["all", "movie", "tv", "anime"].map((k) => (
+              <option key={k} value={k}>
+                {t(k as Key)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {t("sort")}
+          <select
+            aria-label={t("sort")}
+            value={order}
+            onChange={(e) => {
+              setOrder(e.target.value);
+              setPage(0);
+            }}
+          >
+            {["title", "rating", "added"].map((k) => (
+              <option key={k} value={k}>
+                {t(k as Key)}
+              </option>
+            ))}
+          </select>
+        </label>
         <span>
           {entries.length} {t("title")}
         </span>
@@ -561,81 +573,98 @@ function DiscoveryPage({ search, user, t }: { search?: string; user: User; t: T 
     <>
       <p className="eyebrow">{t("findFavorite")}</p>
       <h1>{search ? `“${search}”` : t("discover")}</h1>
-      <div className="toolbar">
-        <select
-          aria-label={t("kind")}
-          value={kind}
-          onChange={(e) => {
-            setKind(e.target.value);
-            setAdvanced({});
-            setGenre("");
-            setPage(1);
-          }}
-        >
-          {(search ? ["multi", "movie", "tv", "anime", "person"] : ["movie", "tv", "anime"]).map(
-            (k) => (
-              <option key={k} value={k}>
-                {k === "multi" ? t("all") : t(k as "movie" | "tv" | "anime" | "person")}
-              </option>
-            ),
-          )}
-        </select>
+      <div className="toolbar filter-toolbar">
+        <label>
+          {t("kind")}
+          <select
+            aria-label={t("kind")}
+            value={kind}
+            onChange={(e) => {
+              setKind(e.target.value);
+              setAdvanced({});
+              setGenre("");
+              setPage(1);
+            }}
+          >
+            {(search ? ["multi", "movie", "tv", "anime", "person"] : ["movie", "tv", "anime"]).map(
+              (k) => (
+                <option key={k} value={k}>
+                  {k === "multi" ? t("all") : t(k as "movie" | "tv" | "anime" | "person")}
+                </option>
+              ),
+            )}
+          </select>
+        </label>
         {!search && kind !== "anime" && (
           <>
-            <select
-              aria-label={t("browse")}
-              value={browse}
-              onChange={(e) => {
-                setBrowse(e.target.value);
-                setVotes(e.target.value === "upcoming" ? "0" : "50");
-                setPage(1);
-              }}
-            >
-              <option value="popular">{t("popularity")}</option>
-              <option value="upcoming">{t("upcoming")}</option>
-            </select>
-
-            <input
-              aria-label={t("year")}
-              placeholder={t("year")}
-              value={year}
-              onChange={(e) => {
-                setYear(e.target.value);
-                setPage(1);
-              }}
-            />
-            <input
-              aria-label={t("genre")}
-              placeholder={t("genre")}
-              value={genre}
-              onChange={(e) => {
-                setGenre(e.target.value);
-                setPage(1);
-              }}
-            />
-            <input
-              aria-label={t("score")}
-              placeholder={t("score")}
-              type="number"
-              min="0"
-              max="10"
-              value={score}
-              onChange={(e) => {
-                setScore(e.target.value);
-                setPage(1);
-              }}
-            />
-            <input
-              aria-label={t("minVotes")}
-              title={t("minVotes")}
-              type="number"
-              min="0"
-              value={votes}
-              onChange={(e) => {
-                setVotes(e.target.value);
-                setPage(1);
-              }}
-            />
+            <label>
+              {t("browse")}
+              <select
+                aria-label={t("browse")}
+                value={browse}
+                onChange={(e) => {
+                  setBrowse(e.target.value);
+                  setVotes(e.target.value === "upcoming" ? "0" : "50");
+                  setPage(1);
+                }}
+              >
+                <option value="popular">{t("popularity")}</option>
+                <option value="upcoming">{t("upcoming")}</option>
+              </select>
+            </label>
+            <label>
+              {t("year")}
+              <input
+                aria-label={t("year")}
+                placeholder={t("year")}
+                value={year}
+                onChange={(e) => {
+                  setYear(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </label>
+            <label>
+              {t("genre")}
+              <input
+                aria-label={t("genre")}
+                placeholder={t("genre")}
+                value={genre}
+                onChange={(e) => {
+                  setGenre(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </label>
+            <label>
+              {t("score")}
+              <input
+                aria-label={t("score")}
+                placeholder={t("score")}
+                type="number"
+                min="0"
+                max="10"
+                value={score}
+                onChange={(e) => {
+                  setScore(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </label>
+            <label>
+              {t("minVotes")}
+              <input
+                aria-label={t("minVotes")}
+                title={t("minVotes")}
+                type="number"
+                min="0"
+                value={votes}
+                onChange={(e) => {
+                  setVotes(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </label>
           </>
         )}
       </div>

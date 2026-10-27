@@ -199,22 +199,30 @@ export function CalendarPage({ t, user }: { t: T; user: User }) {
             ))}
             {Array.from({ length: days }, (_, i) => {
               const day = `${month}-${String(i + 1).padStart(2, "0")}`;
+              const events = q.data?.filter((e) => date(e) === day) ?? [];
+              const renderEvent = (e: Dashboard["upcoming"][number]) => (
+                <a key={e.id} href={episodeLink(e.catalog_id, e.season, e.id)}>
+                  <strong>{e.title}</strong>
+                  <small>
+                    S{e.season} E{e.number}
+                    {e.air_time
+                      ? ` · ${new Date(e.air_time).toLocaleTimeString(lang, { timeZone: zone, hour: "2-digit", minute: "2-digit" })}`
+                      : ""}
+                  </small>
+                </a>
+              );
               return (
                 <div className="calendar-cell" role="listitem" aria-label={day} key={day}>
                   <time dateTime={day}>{i + 1}</time>
-                  {q.data
-                    ?.filter((e) => date(e) === day)
-                    .map((e) => (
-                      <a key={e.id} href={episodeLink(e.catalog_id, e.season, e.id)}>
-                        <strong>{e.title}</strong>
-                        <small>
-                          S{e.season} E{e.number}
-                          {e.air_time
-                            ? ` · ${new Date(e.air_time).toLocaleTimeString(lang, { timeZone: zone, hour: "2-digit", minute: "2-digit" })}`
-                            : ""}
-                        </small>
-                      </a>
-                    ))}
+                  {events.slice(0, 2).map(renderEvent)}
+                  {events.length > 2 && (
+                    <details className="calendar-more">
+                      <summary aria-label={`${t("showMore")}: ${day}`}>
+                        {t("showMore")} ({events.length - 2})
+                      </summary>
+                      {events.slice(2).map(renderEvent)}
+                    </details>
+                  )}
                 </div>
               );
             })}

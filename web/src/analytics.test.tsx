@@ -161,3 +161,43 @@ test("phone calendars start with readable agenda links and retain an explicit mo
   });
   expect(screen.getByRole("link", { name: /A readable phone release title/ })).toBeTruthy();
 });
+
+test("busy calendar days reveal remaining episodes without hiding them from the list view", async () => {
+  const events = Array.from({ length: 4 }, (_, i) => ({
+    id: `tmdb:episode:${i + 1}`,
+    catalog_id: "tmdb:tv:1",
+    title: `Release ${i + 1}`,
+    season: 1,
+    number: i + 1,
+    air_date: "2026-02-09",
+    air_time: null,
+  }));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() => Promise.resolve(new Response(JSON.stringify(events)))),
+  );
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <CalendarPage
+        t={(key) => en[key]}
+        user={{ ID: "fixture", Name: "Fixture", Admin: false, Settings: {} }}
+      />
+    </QueryClientProvider>,
+  );
+  fireEvent.change(screen.getByLabelText(en.month), { target: { value: "2026-02" } });
+  await screen.findByRole("link", { name: /Release 1/ });
+  const summary = screen.getByText("Show more (2)");
+  const disclosure = summary.closest("details");
+  expect(disclosure?.open).toBe(false);
+  fireEvent.click(summary);
+  expect(disclosure?.open).toBe(true);
+  expect(screen.getByRole("link", { name: /Release 3/ }).getAttribute("href")).toBe(
+    "#detail/tv/1/season/1/episode/3",
+  );
+  fireEvent.change(screen.getByRole("combobox", { name: en.calendar }), {
+    target: { value: "list" },
+  });
+  expect(screen.getByRole("link", { name: /Release 4/ })).toBeTruthy();
+});

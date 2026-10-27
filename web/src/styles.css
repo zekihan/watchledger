@@ -1113,3 +1113,20 @@ footer a {
   margin-top: 18px;
   text-align: center;
 }
+
+.filter-toolbar {
+  align-items: end;
+}
+.filter-toolbar label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: #aebbc5;
+}
+.calendar-more summary {
+  cursor: pointer;
+  color: #c7e6b6;
+  font-size: 12px;
+  margin-top: 8px;
+}
