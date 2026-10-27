@@ -1005,7 +1005,7 @@ export function PortabilityPanel({ t, settings = {} }: { t: T; settings?: Settin
     }
   }
   return (
-    <div className="panel">
+    <div className="panel restore-panel">
       <p>{t("backupFirst")}</p>
       <a className="button" href="/api/export" download="watchledger-backup.json">
         ↓ {t("export")}
