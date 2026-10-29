@@ -252,12 +252,12 @@ func (a *API) restoreApply(w http.ResponseWriter, r *http.Request) {
 		if fail(e) {
 			return
 		}
-		var catalogID string
-		e = tx.QueryRow(r.Context(), "SELECT catalog_id FROM episodes WHERE id=$1", ep.ID).Scan(&catalogID)
+		var catalogID, source, sourceID string
+		e = tx.QueryRow(r.Context(), "SELECT catalog_id,source,source_id FROM episodes WHERE id=$1", ep.ID).Scan(&catalogID, &source, &sourceID)
 		if fail(e) {
 			return
 		}
-		if catalogID != ep.CatalogID {
+		if catalogID != ep.CatalogID || source != ep.Source || sourceID != ep.SourceID {
 			http.Error(w, "episode identity conflict", http.StatusConflict)
 			return
 		}
