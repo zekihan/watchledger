@@ -114,7 +114,12 @@ func (c *Cache) Detail(ctx context.Context, kind, id, language string, force boo
 	var fallbackDefault json.RawMessage
 	if language != "" && meta.Overview == "" && kind != "person" {
 		defaults, err := c.Provider.Get(ctx, "/"+kind+"/"+id, url.Values{"append_to_response": {"credits,recommendations,videos,external_ids"}})
-		if err == nil {
+		var identity struct {
+			ID int64 `json:"id"`
+		}
+		// Optional fallback metadata must belong to the requested source entry.
+		// Ignore invalid defaults just like an unavailable translation fallback.
+		if err == nil && json.Unmarshal(defaults, &identity) == nil && identity.ID == expectedID {
 			fallbackDefault = defaults
 			var local, base map[string]interface{}
 			if json.Unmarshal(raw, &local) == nil && json.Unmarshal(defaults, &base) == nil {
