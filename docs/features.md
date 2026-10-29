@@ -290,7 +290,7 @@ Backend regressions verify private counts, runtime unknowns, metadata-language s
   - [x] Native artwork URL validation and failed-artwork fallback.
   - [ ] Complete native/alternate-view browser acceptance.
 - [x] Versioned animap ingestion with applicable attribution and license handling.
-- [x] On-demand metadata fetching and PostgreSQL caching. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] On-demand metadata fetching and PostgreSQL caching. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md). Default-language detail fallbacks must match the requested source identity before merging or caching; `internal/catalog/fallback_identity_test.go` covers invalid IDs and preservation of existing default metadata with synthetic HTTP fixtures and PostgreSQL.
 - [ ] Daily refresh of active shows.
   - [x] Queue saved TMDB and native AniDB metadata with provider-aware retry/cooldown handling.
   - [ ] Live deployment refresh acceptance.
