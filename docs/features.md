@@ -264,7 +264,7 @@ Current source resolution remains conservative: explicit TMDB movie/show IDs can
 - [x] Per-user portable UI export. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Export library, history/dates, ratings, custom statuses, lists/rules, and settings. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Per-user UI restore with validation and preview. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
-- [x] Restore conflict handling consistent with migration. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
+- [x] Restore conflict handling consistent with migration. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family). Restore rejects existing episode IDs with conflicting provider/source identities before applying history; synthetic PostgreSQL regressions in `internal/httpapi/restore_identity_test.go` also verify stable identities survive numbering changes and repeat application.
 - [x] Exclude authorization roles, server secrets, and sessions from library restore authority. See [family evidence and acceptance boundaries](remaining-feature-audit.md#contract-reconciliation-by-feature-family).
 - [x] Document infrastructure database backup and restoration. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] Validate a database recovery workflow with synthetic data.
