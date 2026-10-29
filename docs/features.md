@@ -282,7 +282,7 @@ Backend regressions verify private counts, runtime unknowns, metadata-language s
 
 ## Metadata and background operation
 
-- [x] TMDB metadata adapter. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).
+- [x] TMDB metadata adapter. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md). Synthetic HTTP boundary tests reject responses over 8 MiB, including valid JSON prefixes with discarded tails, and preserve responses exactly at the limit.
 - [x] TMDB/JustWatch availability adapter. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).
 - [x] AniDB integration after access-policy verification. See the bounded local/provider evidence in [2026-10-24 acceptance](acceptance-2026-10-24.md).
   - [x] On-demand native metadata/episode loading, registered client configuration, persistent cooldowns, source-ID-safe tracking and cached outage fallback.
