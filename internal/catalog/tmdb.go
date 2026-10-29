@@ -58,9 +58,12 @@ func (p *TMDB) Get(ctx context.Context, path string, params url.Values) (json.Ra
 		}
 		return nil, &StatusError{Code: res.StatusCode, RetryAfter: retry}
 	}
-	b, e := io.ReadAll(io.LimitReader(res.Body, 8<<20))
+	b, e := io.ReadAll(io.LimitReader(res.Body, (8<<20)+1))
 	if e != nil {
 		return nil, e
+	}
+	if len(b) > 8<<20 {
+		return nil, errors.New("TMDB response exceeds 8 MiB")
 	}
 	if !json.Valid(b) {
 		return nil, errors.New("invalid TMDB response")
