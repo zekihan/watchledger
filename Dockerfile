@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM node:24.22.1-bookworm-slim AS web
+FROM --platform=$BUILDPLATFORM node:24.22.2-bookworm-slim AS web
 WORKDIR /src
 COPY package.json package-lock.json ./
 COPY web/package.json ./web/package.json
