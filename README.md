@@ -71,3 +71,5 @@ The MIT license covers this repository's original code and documentation. It doe
 ## License
 
 [MIT](LICENSE). Copyright 2026 Zekihan AZMAN.
+
+Publishing and manual recovery: [Publishing](docs/publishing.md).

@@ -1,136 +1,78 @@
-name: Release
-
-on:
+name: Publish
+"on":
   push:
-    tags: ["v*"]
-
+    tags:
+      - v*
+  schedule:
+    - cron: 13 4 * * *
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Rebuild unchanged edge inputs
+        type: boolean
+        default: false
 permissions:
   contents: read
-
 concurrency:
-  group: release-${{ github.ref }}
+  group: publish-${{ github.repository }}
   cancel-in-progress: false
-
 jobs:
-  version:
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-    steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .node-version
-      - name: Require matching release versions
-        id: version
-        run: |
-          version=$(./scripts/release-version.sh)
-          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
-
+  decide:
+    uses: zekihan/release-workflows/.github/workflows/decide.yaml@5fa11e0c1104623d17a191557a27e86a7715f778 # main
+    permissions:
+      contents: read
+      actions: read
+      packages: read
+    with:
+      mode: ${{ startsWith(github.ref, 'refs/tags/') && 'release' || 'edge' }}
+      image: watchledger
+      force: ${{ inputs.force || false }}
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
   checks:
-    needs: version
+    needs: decide
+    if: ${{ needs.decide.outputs.build == 'true' }}
     uses: ./.github/workflows/ci.yml
-
+    permissions:
+      contents: read
+    with:
+      publishing: true
   publish:
-    needs: [version, checks]
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+    needs:
+      - decide
+      - checks
+    uses: zekihan/release-workflows/.github/workflows/image.yaml@5fa11e0c1104623d17a191557a27e86a7715f778 # main
     permissions:
       contents: read
       packages: write
-    steps:
-      - uses: actions/checkout@v7.0.1
-      - name: Check Docker Hub credentials
-        env:
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-        run: |
-          test -n "$DOCKER_USERNAME"
-          test -n "$DOCKER_PASSWORD"
-      - uses: docker/setup-qemu-action@v4.4.0
-      - uses: docker/setup-buildx-action@v4.4.1
-      - uses: docker/metadata-action@v6.2.0
-        id: meta
-        with:
-          images: |
-            docker.io/zekihan/watchledger
-            ghcr.io/zekihan/watchledger
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,format=long
-          flavor: latest=auto
-      - uses: docker/login-action@v4.7.0
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      - uses: docker/login-action@v4.7.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v7.4.0
-        with:
-          context: .
-          push: true
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: VERSION=${{ needs.version.outputs.version }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      - uses: azure/setup-helm@v5.0.1
-        with:
-          version: v4.3.1
-      - name: Publish OCI chart
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ needs.version.outputs.version }}
-        run: |
-          printf '%s' "$GITHUB_TOKEN" | helm registry login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
-          helm package deploy/helm/watchledger --destination dist/charts
-          helm push "dist/charts/watchledger-${VERSION}.tgz" oci://ghcr.io/zekihan/charts
-
-  verify:
-    needs: [version, publish]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .node-version
-      - uses: docker/setup-buildx-action@v4.4.1
-      - uses: azure/setup-helm@v5.0.1
-        with:
-          version: v4.3.1
-      - name: Verify anonymous image and chart pulls
-        env:
-          VERSION: ${{ needs.version.outputs.version }}
-        run: ./scripts/verify-release.sh "$VERSION"
-      - uses: actions/upload-artifact@v7.0.2
-        with:
-          name: verified-chart
-          path: dist/verified/watchledger-*.tgz
-          if-no-files-found: error
-
+    with:
+      image: watchledger
+      mode: ${{ startsWith(github.ref, 'refs/tags/') && 'release' || 'edge' }}
+      version: ${{ needs.decide.outputs.version }}
+      fingerprint: ${{ needs.decide.outputs.fingerprint }}
+      qemu: true
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
   release:
-    needs: [version, verify]
-    runs-on: ubuntu-latest
+    needs:
+      - decide
+      - checks
+      - publish
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    uses: zekihan/release-workflows/.github/workflows/release.yaml@5fa11e0c1104623d17a191557a27e86a7715f778 # main
     permissions:
       contents: write
-    steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/download-artifact@v8.0.2
-        with:
-          name: verified-chart
-          path: dist/verified
-      - name: Publish GitHub release with verified chart and checksum
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ needs.version.outputs.version }}
-        run: |
-          (cd dist/verified && sha256sum "watchledger-${VERSION}.tgz" > SHA256SUMS)
-          gh release create "v${VERSION}" --verify-tag --title "Watchledger ${VERSION}" \
-            --notes-file "docs/releases/${VERSION}.md" \
-            "dist/verified/watchledger-${VERSION}.tgz" dist/verified/SHA256SUMS
+      packages: write
+    with:
+      version: ${{ needs.decide.outputs.version }}
+      binaries: false
+      image: watchledger
+      image-digest: ${{ needs.publish.outputs.digest }}
+      chart-path: deploy/helm/watchledger
+      chart-name: watchledger
+      notes-file: docs/releases/${{ needs.decide.outputs.version }}.md
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
