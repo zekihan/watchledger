@@ -35,15 +35,15 @@ jobs:
     env:
       TEST_DATABASE_URL: postgres://watchledger:synthetic-test-only@localhost:5432/watchledger_test?sslmode=disable
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           ref: ${{ github.sha }}
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
           cache: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
           cache: npm
@@ -57,7 +57,7 @@ jobs:
         run: |
           npm audit --audit-level=high
           go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
-      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           version: v2.15.0
           args: ./cmd/... ./internal/...
@@ -67,18 +67,21 @@ jobs:
         run: docker build -t watchledger:ci .
         if: ${{ inputs.publishing }}
       - name: Validate Helm chart
+        env:
+          # renovate: depName=helm/helm datasource=github-releases
+          HELM_VERSION: v3.19.0
         run: |
-          curl -fsSL https://get.helm.sh/helm-v3.19.0-linux-amd64.tar.gz -o /tmp/helm.tar.gz
-          curl -fsSL https://get.helm.sh/helm-v3.19.0-linux-amd64.tar.gz.sha256sum -o /tmp/helm.sha256
-          cd /tmp && mv helm.tar.gz helm-v3.19.0-linux-amd64.tar.gz && sha256sum -c helm.sha256
-          tar -xzf helm-v3.19.0-linux-amd64.tar.gz
+          curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" -o /tmp/helm.tar.gz
+          curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz.sha256sum" -o /tmp/helm.sha256
+          cd /tmp && mv helm.tar.gz "helm-${HELM_VERSION}-linux-amd64.tar.gz" && sha256sum -c helm.sha256
+          tar -xzf "helm-${HELM_VERSION}-linux-amd64.tar.gz"
           cd "$GITHUB_WORKSPACE"
           /tmp/linux-amd64/helm lint deploy/helm/watchledger --set existingSecret=fixture --set publicURL=https://watch.example --set oidc.issuer=https://identity.example
           /tmp/linux-amd64/helm template watchledger deploy/helm/watchledger --set existingSecret=fixture --set publicURL=https://watch.example --set oidc.issuer=https://identity.example > /tmp/rendered.yaml
       - if: ${{ inputs.publishing }}
         run: docker save watchledger:ci --output "$RUNNER_TEMP/image.tar"
       - if: ${{ inputs.publishing }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: native-smoke-image
           path: ${{ runner.temp }}/image.tar
@@ -99,20 +102,20 @@ jobs:
     env:
       WATCHLEDGER_TEST_BROWSER: ${{ matrix.browser }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           ref: ${{ github.sha }}
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
           cache: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
           cache: npm
       - run: npm ci
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: native-smoke-image
           path: ${{ runner.temp }}/smoke
@@ -123,7 +126,7 @@ jobs:
         run: bash scripts/compose-smoke.sh
       - name: Preserve synthetic browser screenshots
         if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: synthetic-browser-screenshots-${{ matrix.browser }}
           path: test-results/**/*.png
