@@ -69,7 +69,7 @@ jobs:
       - name: Validate Helm chart
         env:
           # renovate: depName=helm/helm datasource=github-releases
-          HELM_VERSION: v3.19.0
+          HELM_VERSION: v3.22.1
         run: |
           curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" -o /tmp/helm.tar.gz
           curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz.sha256sum" -o /tmp/helm.sha256
