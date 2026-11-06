@@ -67,9 +67,10 @@ jobs:
         run: docker build -t watchledger:ci .
         if: ${{ inputs.publishing }}
       - name: Validate Helm chart
+        env:
+          # renovate: depName=helm/helm datasource=github-releases
+          HELM_VERSION: v3.19.0
         run: |
-          # renovate: datasource=github-releases depName=helm/helm versioning=loose
-          HELM_VERSION=v3.19.0
           curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" -o /tmp/helm.tar.gz
           curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz.sha256sum" -o /tmp/helm.sha256
           cd /tmp && mv helm.tar.gz "helm-${HELM_VERSION}-linux-amd64.tar.gz" && sha256sum -c helm.sha256
