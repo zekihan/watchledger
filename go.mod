@@ -7,7 +7,7 @@ require (
 	github.com/cplieger/animap/mapread v0.3.1
 	github.com/go-jose/go-jose/v4 v4.1.9
 	github.com/jackc/pgx/v5 v5.12.0
-	golang.org/x/oauth2 v0.37.0
+	golang.org/x/oauth2 v0.38.0
 )
 
 require (
