@@ -4,14 +4,14 @@ go 1.27.3
 
 require (
 	github.com/coreos/go-oidc/v3 v3.21.0
-	github.com/cplieger/animap/mapread v0.3.1
+	github.com/cplieger/animap/mapread v0.3.2
 	github.com/go-jose/go-jose/v4 v4.1.9
 	github.com/jackc/pgx/v5 v5.12.0
 	golang.org/x/oauth2 v0.37.0
 )
 
 require (
-	github.com/cplieger/go/httpclient v1.0.0-dev.3 // indirect
+	github.com/cplieger/go/httpclient v1.0.0-dev.5 // indirect
 	github.com/cplieger/go/jsonx v1.0.0-dev.2 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect

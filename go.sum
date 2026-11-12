@@ -1,9 +1,9 @@
 github.com/coreos/go-oidc/v3 v3.21.0 h1:wZo4Q9Pum8dYEj0eMUPrqR+kvuGkeUplbLpNCkBqoWM=
 github.com/coreos/go-oidc/v3 v3.21.0/go.mod h1:DYCf24+ncYi+XkIH97GY1+dqoRlbaSI26KVTCI9SrY4=
-github.com/cplieger/animap/mapread v0.3.1 h1:ccy63vtNhHcAMoE96joHRD3M0HYVk2fuFU/8EGTF26U=
-github.com/cplieger/animap/mapread v0.3.1/go.mod h1:DHHAN5DLbPP8nKP/y4ODvQFj9U+upyXc9gEtMbP21Wg=
-github.com/cplieger/go/httpclient v1.0.0-dev.3 h1:gxGUwZYy8NvQNJm3m2pt9OAOwByp0fjo95lA9ZXAlkE=
-github.com/cplieger/go/httpclient v1.0.0-dev.3/go.mod h1:zXZyXwYWXVujBH7qoNR16WYGHOGCo8hbJb0Gy8gNgBQ=
+github.com/cplieger/animap/mapread v0.3.2 h1:oBS2esAwE3WSMWb9ypUGw2vAAV/lHWDKlObYZ8AWUQQ=
+github.com/cplieger/animap/mapread v0.3.2/go.mod h1:/KLtoKslemgqFHUACjfaCz7F78WQpd3FDjQJ4oY8lic=
+github.com/cplieger/go/httpclient v1.0.0-dev.5 h1:ZFojfH+6KyRLFCRF77vb0eTrcR9hfCJtKxGoaEOK6+s=
+github.com/cplieger/go/httpclient v1.0.0-dev.5/go.mod h1:zXZyXwYWXVujBH7qoNR16WYGHOGCo8hbJb0Gy8gNgBQ=
 github.com/cplieger/go/jsonx v1.0.0-dev.2 h1:XP5vemRQ+PWJT+kX5aZtHm1U/aLi36sZPwgMSjMxaVI=
 github.com/cplieger/go/jsonx v1.0.0-dev.2/go.mod h1:ank2TTHUDI/GrTBZ/KAwU72ECOdrCCDDYqlRSuR/+BQ=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
